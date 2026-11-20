@@ -110,3 +110,21 @@ def test_home_start_binds_the_start_time_only_to_a_process_of_the_home(tmp_path:
         outside.kill()
         inside.wait()
         outside.wait()
+
+
+def _gate(**hashes: str) -> dict[str, list[dict[str, str]]]:
+    return {"hooks": [{"event": event, "hash": value} for event, value in hashes.items()]}
+
+
+def test_the_hook_part_is_the_part_before_the_slash() -> None:
+    # The 2 parts of the trust hash of codex-cli 0.169.0 (proofs/codex-gate/gate.json), and the
+    # 1 part of an older Codex.
+    gate = _gate(preToolUse="sha256:aa/sha256:bb", userPromptSubmit="sha256:cc")
+    assert proof.hook_parts(gate) == {"preToolUse": "sha256:aa", "userPromptSubmit": "sha256:cc"}
+
+
+def test_a_script_change_that_changes_only_the_second_part_keeps_the_hook_part() -> None:
+    before = _gate(preToolUse="sha256:aa/sha256:bb", userPromptSubmit="sha256:cc/sha256:bb")
+    after = _gate(preToolUse="sha256:aa/sha256:dd", userPromptSubmit="sha256:cc/sha256:dd")
+    assert proof.hashes(after) != proof.hashes(before)
+    assert proof.hook_parts(after) == proof.hook_parts(before)

@@ -230,6 +230,10 @@ def _keys(it: dict[str, Any]) -> list[tuple[str, str]]:
     return []
 
 
+# The same keys for another check of the app spec, for example the approvals.
+item_keys = _keys
+
+
 class Index:
     """The count of the items of each trace point and of each app tool call in each turn. The
     check reads the items one time, so its cost is the items plus the trace points."""
@@ -322,3 +326,8 @@ def unread(records: Any) -> list[str]:
         more = len(out) - MAX_RECORDS + 1
         out = [*out[: MAX_RECORDS - 1], f"{more} more records of trace_points_unread."]
     return out
+
+
+# The Markdown parts for another reader of a Markdown table, for example the issue table of
+# report.md (nookku.issues).
+heading, cells, plain = _heading, _cells, _plain

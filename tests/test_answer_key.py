@@ -515,6 +515,38 @@ def test_a_new_row_is_added_with_no_symlink(tmp_path: Path) -> None:
     assert not path.with_name(path.name + ".tmp").exists()
 
 
+# The start text names an answer key that the policy does not protect (#577).
+def test_the_start_text_names_a_key_that_the_harness_model_can_read(tmp_path: Path) -> None:
+    root = _root(tmp_path / "shop" if (tmp_path / "shop").mkdir() is None else tmp_path)
+    folder = tmp_path / "t1"
+    folder.mkdir()
+
+    def text(paths: object, file: str = "keys/stock.json") -> str:
+        manifest = {
+            "root": str(root),
+            "answer_key": {"file": file},
+            "policy": {"answer_keys": paths},
+        }
+        (folder / "manifest.json").write_text(json.dumps(manifest))
+        return bridge.key_text(folder)
+
+    line = (
+        "The harness model can read the answer key keys/stock.json. To deny it, a person runs: "
+        "nookku policy set answer_keys keys/stock.json"
+    )
+    assert text([]) == line
+    assert text(["keys/other.json"]) == line
+    assert text(["keys/stock.json"]) == ""
+    assert text(["keys"]) == ""
+    # The path of the app spec can have another form than the path of the policy key.
+    assert text(["keys/stock.json"], "./keys/../keys/stock.json") == ""
+    assert text([], "./keys/../keys/stock.json") == line
+    (folder / "manifest.json").write_text(json.dumps({"root": str(root), "answer_key": None}))
+    assert bridge.key_text(folder) == ""
+    (folder / "manifest.json").write_text("[")
+    assert bridge.key_text(folder) == ""
+
+
 def test_a_new_row_starts_on_its_own_line_after_a_last_line_with_no_line_feed() -> None:
     first = answer_key.adjudication(1, "How many mugs?", "key_wrong", "The list is old.", "ann")
     second = answer_key.adjudication(1, "How many mugs?", "agent_wrong", "I read it again.", "ann")

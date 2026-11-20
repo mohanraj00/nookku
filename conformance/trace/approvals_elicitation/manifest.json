@@ -1,0 +1,20 @@
+{
+ "test": "20261119-090000-ap01",
+ "model_sessions": [],
+ "approvals": [
+  {
+   "action": "shop POST /refund",
+   "source": "backend",
+   "approval": "payments",
+   "by": "elicitation",
+   "interrupt": ""
+  },
+  {
+   "action": "mcp__refunds__refund",
+   "source": "mcp",
+   "approval": "refunds",
+   "by": "elicitation",
+   "interrupt": ""
+  }
+ ]
+}

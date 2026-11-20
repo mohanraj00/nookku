@@ -313,6 +313,47 @@ Verdict: fail. answer_key_mismatch: 1, the limit is 0. Adjudications: 2 answer_k
 | 1 | The row was written, and `verdict.json` was not written again. |
 | 2 | No row was written: no test folder, a seal that is not intact, a turn with no mismatch, or a value that is not valid. |
 
+### `nookku evaluation`
+
+```text
+nookku evaluation import TEST [--root PATH] [--tests-dir PATH]
+nookku evaluation add TEST --class CLASS --evidence TEXT --text TEXT [--turn N] [--author NAME] [--root PATH] [--tests-dir PATH]
+```
+
+Write the issue rows of an evaluation to `evaluation.json` in the [test folder](glossary.md#test-folder) ([SPEC.md section 9.4](../../SPEC.md#94-issue-rows)). A program can then count the issues of each class, with no model.
+
+- `import` reads the issue table of `report.md` and writes each row as a `model` row. Run it after the evaluation. A second import replaces the model rows and keeps your rows.
+- `add` writes one `human` row: an issue that you found. The command also writes your rows to the end of `report.md`, under `## Person issues`.
+- The command sets the author type. The text of a row never sets it.
+- If `report.md` changed after the last import, `add` writes no row. Run `import` first.
+- The command writes `verdict.json` again and updates the [seal](glossary.md#seal), with the same rules as [`nookku adjudicate`](#nookku-adjudicate).
+- An issue row changes the verdict only if a `Verdict` row of the [app spec](app-spec.md#verdict) names its class.
+- Only a person runs this command. The [relay](glossary.md#relay) denies it from the model.
+
+```text
+$ nookku evaluation add 20261113-090000-ak01 --class tone --turn 2 --evidence "turn 2" --text "The reply is curt."
+Test 20261113-090000-ak01: 1 model rows and 1 human rows in evaluation.json.
+Verdict: fail. tone: 2 issue rows, the limit is 0.
+```
+
+| Argument or flag | Default | Meaning |
+|---|---|---|
+| `ACTION` | none | `import` or `add`. |
+| `TEST` | none | The test id, or the path of the test folder. |
+| `--class CLASS` | none | `add`: an issue class of [SPEC.md section 9.3](../../SPEC.md#93-report), for example `tone`. |
+| `--evidence TEXT` | none | `add`: a `trace.jsonl:N` line, a turn or a source line. |
+| `--text TEXT` | none | `add`: the issue. |
+| `--turn N` | no turn | `add`: the turn of the issue. |
+| `--author NAME` | the login name of the OS user | `add`: your name. Nookku records it and does not check it. |
+| `--root PATH` | the current folder | The project. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
+
+| Exit code | Meaning |
+|---|---|
+| 0 | The rows were written, and the seal covers them. |
+| 1 | The rows were written, and `verdict.json`, the seal or `report.md` was not written. |
+| 2 | No row was written: no test folder, a seal that is not intact, a `report.md` with no issue table, or a value that is not valid. |
+
 ### `nookku mode`
 
 ```text
@@ -497,7 +538,7 @@ Compare the relay record with the [tap record](glossary.md#tap-record) ([SPEC.md
 ### `nookku trace`
 
 ```text
-nookku trace [TEST] [--root PATH] [--tests-dir PATH] [--json] [--verdict] [--egress FILE] [--otlp-file FILE] [--otlp-endpoint URL] [--openinference FILE] [--gateway SOURCE --key-alias ALIAS [--key-alias ALIAS] [--gateway-tag TAG] [--gateway-skew SECONDS]]
+nookku trace [TEST] [--root PATH] [--tests-dir PATH] [--json] [--verdict] [--egress FILE] [--ingress FILE] [--otlp-file FILE] [--otlp-endpoint URL] [--openinference FILE] [--gateway SOURCE --key-alias ALIAS [--key-alias ALIAS] [--gateway-tag TAG] [--gateway-skew SECONDS]]
 ```
 
 Build the trace of a test again, and show its findings ([SPEC.md section 8](../../SPEC.md#8-trace)). The findings show in groups by turn, and each control character of a finding shows as its escape ([read the results](../how-to/read-the-results.md#4-read-the-findings)). It also writes `performance.json` ([SPEC.md section 8.7](../../SPEC.md#87-performance)) and `verdict.json` ([SPEC.md section 7.14](../../SPEC.md#714-verdict)) again. It shows the verdict if the app spec gives limits, if the verdict is `fail`, or with `--verdict`. If the test has a seal, it rebuilds only from sources that agree with the seal.
@@ -513,6 +554,7 @@ Build the trace of a test again, and show its findings ([SPEC.md section 8](../.
 | `--otlp-file FILE` | none | Write the test as OTLP trace JSON outside the test folder. |
 | `--otlp-endpoint URL` | none | Send the test to an OTLP/HTTP trace endpoint as protobuf. |
 | `--openinference FILE` | none | Compare app spans in an export with the proxy records ([SPEC.md section 8.10](../../SPEC.md#810-openinference-spans)). |
+| `--ingress FILE` | none | The ingress spans of your app for the test: 1 JSON line for each request, with a time, a status and an outcome. The trace checks the file, copies it into the test folder as `ingress.jsonl`, adds it to the seal and writes the counts to the key `ingress` of `findings.json`. A span has no body and no path, so it adds no finding and does not replace a row of `tap.jsonl` ([SPEC.md section 8.12](../../SPEC.md#812-ingress-spans)). |
 | `--gateway SOURCE` | none | Read the model calls of the app from the spend logs of a LiteLLM gateway: a file, or the URL of the gateway API. For a URL, put a key that can read the spend logs in `NOOKKU_GATEWAY_KEY`. The URL must be `https`, or `http` to this computer ([SPEC.md section 8.9](../../SPEC.md#89-gateway-logs)). |
 | `--key-alias ALIAS` | none | Keep the logs of this key alias, for example the `kd-<agent uid>` alias of a Koodam Agent. Give it 1 or more times. `--gateway` needs it. |
 | `--gateway-tag TAG` | none | Also keep only the logs with this request tag. |
@@ -524,7 +566,7 @@ If a model API proxy and the gateway both record a call of the app, the trace ke
 |---|---|
 | 0 | The trace was built. With `--verdict`, the verdict is also `pass`. |
 | 1 | Only with `--verdict`: the trace was built, and the verdict is `fail`, or `verdict.json` was not written. |
-| 2 | No test folder with a manifest, the seal is broken, a record is not valid, or the egress file cannot be read or has a span of a later contract version, or the gateway logs were not read. The trace was not rebuilt. Also, the OTLP export failed: then the trace was rebuilt, and the command printed it and the verdict before the error. |
+| 2 | No test folder with a manifest, the seal is broken, a record is not valid, or the egress file or the ingress file cannot be read or has a span of a later version, or the gateway logs were not read. The trace was not rebuilt. Also, the OTLP export failed: then the trace was rebuilt, and the command printed it and the verdict before the error. |
 
 If your agent runs in a Koodam Workspace, export the egress spans outside the pod for the time of the test. Then give them to the trace:
 

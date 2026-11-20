@@ -1,0 +1,16 @@
+{
+ "answer": null,
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "content": "The key is keys/stock.json.",
+   "file_path": "notes.md"
+  },
+  "tool_name": "Write"
+ },
+ "links": {},
+ "policy_text": "{\"answer_keys\": [\"keys/stock.json\"]}\n",
+ "state": true,
+ "test": false
+}

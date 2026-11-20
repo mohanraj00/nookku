@@ -1,0 +1,21 @@
+{
+ "answer": {
+  "hookSpecificOutput": {
+   "hookEventName": "PreToolUse",
+   "permissionDecision": "deny",
+   "permissionDecisionReason": "nookku: {root}/KEYS/Stock.JSON names an answer key of the policy key answer_keys. A model tool call may not read it or change it. Only a person and a test read it."
+  }
+ },
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "file_path": "{root}/KEYS/Stock.JSON"
+  },
+  "tool_name": "Read"
+ },
+ "links": {},
+ "policy_text": "{\"answer_keys\": [\"keys/stock.json\"]}\n",
+ "state": true,
+ "test": false
+}

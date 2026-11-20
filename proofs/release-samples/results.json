@@ -1,0 +1,56 @@
+{
+ "proof": "release-samples",
+ "koodam_commit": "1a8c3a133c4155e1120268109e7436d07cbcb095",
+ "koodam": "v0.4.0",
+ "nookku": "0.5.9",
+ "contract_versions": [
+  1,
+  2
+ ],
+ "ingress_versions": [
+  1
+ ],
+ "files": {
+  "app-ingress-spans.jsonl": {
+   "sha256": "1282eb24a1010ceddadd445e838964b1c131653297d73c6daf7a07d2c62bed80",
+   "bytes": 62447
+  },
+  "egress-spans.jsonl": {
+   "sha256": "016cac2cdb7468973cc275c8efe1fce80e73feca46b7c35fcb7470415a1e7a63",
+   "bytes": 2436
+  },
+  "gateway-log.jsonl": {
+   "sha256": "191ba84384df90e41bcaafd07d07bc737ea75bcc565311253e9d7362e0db0f8b",
+   "bytes": 9052
+  }
+ },
+ "spans": {
+  "rows": 7,
+  "spans": 6,
+  "ignored": {
+   "llm": 1
+  },
+  "versions": {
+   "2": 6
+  },
+  "hosts": 4
+ },
+ "gateway": {
+  "logs": 1,
+  "model_calls": 1,
+  "call_types": {
+   "acompletion": 1
+  }
+ },
+ "ingress": {
+  "rows": 305,
+  "spans": 305,
+  "ignored": {},
+  "outcomes": {
+   "ok": 295,
+   "signature": 5,
+   "syntax": 5
+  }
+ },
+ "pass": true
+}

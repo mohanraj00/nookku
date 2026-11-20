@@ -1,0 +1,15 @@
+{
+ "answer": null,
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "command": "rg -g '*.{md,txt}' answer ."
+  },
+  "tool_name": "Bash"
+ },
+ "links": {},
+ "policy_text": "{\"answer_keys\": [\"keys/stock.json\"]}\n",
+ "state": true,
+ "test": false
+}

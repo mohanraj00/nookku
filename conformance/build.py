@@ -1171,6 +1171,7 @@ def counts(**n: int) -> dict:
         "version_untested",
         "missing_trace_point",
         "trace_points_unread",
+        "action_without_approval",
     )
     return {c: n.get(c, 0) for c in checks}
 
@@ -7402,6 +7403,81 @@ EGRESS_VERSION_CASE = {
 }
 
 
+# Ingress spans (SPEC.md section 8.12). The test runs from T0 to T0 + 100, with 2 turns: 10 to
+# 20 and 30 to 40. The spans: 2 requests in turn 1 (one with no `v`), 3 requests in turn 2 (one
+# from another caller, one with the status 502), 1 refused request between the turns, 2 spans
+# outside the window, 1 line that is not JSON, 1 span with no time, 1 span with a status that is a
+# string and 1 blank line. The spans add no finding and no item.
+def ingress_span(t: float, status: int = 200, outcome: str = "ok", **fields: Any) -> dict:
+    """One ingress span, with the fields of the App ingress span of Koodam (contract v1) and toy
+    shop labels. The reader uses `v`, `time`, `status` and `outcome` only."""
+    return {
+        "v": 1,
+        "time": iso(T0 + t),
+        "kind": "app-ingress",
+        "app": "shop",
+        "version": "shop-v1",
+        "method": "POST",
+        "status": status,
+        "outcome": outcome,
+        **fields,
+        "durationMs": 3.412,
+    }
+
+
+INGRESS_SPAN_LINES = [
+    ingress_span(11, caller="tester", tenant="toy-shop"),
+    {k: v for k, v in ingress_span(12, caller="tester").items() if k != "v"},
+    ingress_span(25, 401, "signature"),
+    ingress_span(31, caller="tester", tenant="toy-shop"),
+    ingress_span(32, caller="other-client"),
+    ingress_span(150, caller="tester"),
+    ingress_span(-5, caller="tester"),
+    "this line is not JSON",
+    {"v": 1, "kind": "app-ingress", "method": "POST", "status": 200, "outcome": "ok"},
+    {**ingress_span(13, caller="tester"), "status": "200"},
+    "",
+    ingress_span(33, 502, caller="tester"),
+]
+INGRESS_SPANS_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": EGRESS_SPAN_MANIFEST,
+    "sessions": {},
+    "ingress": INGRESS_SPAN_LINES,
+    "trace": [],
+    "findings": {
+        **EGRESS_SPANS_CASE["findings"],
+        "egress": None,
+        "counts": counts(),
+        "findings": [],
+        "ingress": {
+            "file": "ingress.jsonl",
+            "rows": 11,
+            "spans": 6,
+            "outcomes": {"ok": 5, "signature": 1},
+            "turns": [2, 3],
+            "no_turn": 1,
+            "ignored": {"outside_window": 2, "invalid_json": 1, "invalid": 2, "blank": 1},
+        },
+    },
+}
+
+# A span of the format version 2 stops the trace, also outside the window: its fields can have a
+# new meaning (SPEC.md section 8.12).
+INGRESS_VERSION_CASE = {
+    "tap": [window(10, 20)],
+    "manifest": EGRESS_SPAN_MANIFEST,
+    "sessions": {},
+    "ingress": [ingress_span(11), {**ingress_span(150), "v": 2}],
+    "error": {
+        "kind": "record_invalid",
+        "file": "ingress.jsonl",
+        "message": "line 2: the span has the format version 2. This nookku reads version 1 only "
+        "(SPEC.md section 8.12). Use a nookku that reads version 2.",
+    },
+}
+
+
 # OpenInference spans (SPEC.md section 8.10): an export of the app spans in openinference.jsonl.
 # The span of GET /stock starts before turn 1 and covers the call, so the call has a match. No
 # span covers POST /reserve in turn 2. The span after turn 2 has no turn and gives no finding.
@@ -7498,6 +7574,350 @@ OPENINFERENCE_CASE = {
 }
 
 
+# The approvals of a toy shop (SPEC.md section 7.18). Each expected row and each finding is
+# hand-written.
+def said(started: float, ts: float, message: str, reply: str) -> dict:
+    """An exchange of a trace case with its own message and its own reply."""
+    row = ex(message, reply, v="0.2")
+    row["started"], row["ts"] = T0 + started, T0 + ts
+    return row
+
+
+def approval_row(action: str, source: str, approval: str, by: str, interrupt: str = "") -> dict:
+    """A row of the manifest key `approvals`."""
+    row = {"action": action, "source": source, "approval": approval, "by": by}
+    return {**row, "interrupt": interrupt}
+
+
+def elicit(n: int, message: str, mode: str | None = None) -> dict:
+    """An `elicitation/create` request of an MCP server."""
+    params: dict[str, Any] = {"message": message}
+    if mode is None:
+        confirm = {"type": "boolean", "title": "Approve"}
+        params["requestedSchema"] = {"type": "object", "properties": {"approve": confirm}}
+    else:
+        params.update(mode=mode, url="https://shop.example/approve", elicitationId=f"e{n}")
+    return {"jsonrpc": "2.0", "id": n, "method": "elicitation/create", "params": params}
+
+
+def elicit_answer(n: int, action: str) -> dict:
+    """The answer of the app to an elicitation."""
+    return {"jsonrpc": "2.0", "id": n, "result": {"action": action}}
+
+
+def pay_message(t: float, direction: str, message: dict) -> dict:
+    return {**mcp_message(t, direction, message), "server": "payments"}
+
+
+def refunds_call(t: float, end: float, request: dict, events: list[dict] | None) -> dict:
+    """A POST of the app to the HTTP MCP server `refunds`. `events` holds the messages of the
+    SSE stream of the response."""
+    row = call(t, "refunds", "POST", "/mcp", 200, request=body(json.dumps(request)))
+    row["ts"] = T0 + end
+    if events is None:
+        row["status"] = 202
+    else:
+        row["response_body"] = body(sse(events, named=False))
+    row["server"] = row.pop("backend")
+    row["transport"] = "http"
+    return row
+
+
+def eitem(turn: int, server: str, ts: float, line: int, message: str, **fields: Any) -> dict:
+    """An expected elicitation row from mcp.jsonl."""
+    during = fields.pop("during", [])
+    row = item(turn, "claude-code", ts, "elicitation", line, **{"name": "form", **fields})
+    row.update(harness="mcp", session=server, server=server)
+    row["input"] = {"message": message, "during": during}
+    row["source"]["file"] = "mcp.jsonl"
+    return row
+
+
+def tap_item(turn: int, ts: float, kind: str, line: int, **fields: Any) -> dict:
+    """An expected interrupt or resume row from tap.jsonl."""
+    row = item(turn, "claude-code", ts, kind, line, **fields)
+    row.update(harness="tap", session="", source={"file": "tap.jsonl", "line": line})
+    return row
+
+
+def shop_call(t: float, path: str, text: str) -> dict:
+    return call(t, "shop", "POST", path, 200, request=body(text), response=body('{"done": true}'))
+
+
+def shop_item(turn: int | None, ts: float, line: int, path: str, text: str) -> dict:
+    sent = {"query": None, "headers": SENT, "body": text}
+    return bitem(
+        turn, "shop", ts, line, f"POST {path}", input=sent, output='{"done": true}', exit_code=200
+    )
+
+
+def no_approval(turn: int | None, row: dict, line: int, file: str = "backend.jsonl") -> dict:
+    """An expected action_without_approval finding of an action of a row."""
+    detail = f"{row['action']} ({row['source']}): no approval before it in this turn. "
+    if turn is None:
+        detail = (
+            f"{row['action']} ({row['source']}): the action is in no turn, so it has no approval. "
+        )
+    detail += f"Approval: {row['approval']} ({row['by']})"
+    source: dict[str, Any] = {"file": file, "line": line}
+    session = "shop"
+    if file == "mcp.jsonl":
+        source["result_line"] = line
+        session = row["approval"]
+    harness = file.removesuffix(".jsonl")
+    out = {"check": "action_without_approval", "turn": turn, "detail": detail}
+    return {**out, "harness": harness, "session": session, "source": source}
+
+
+REFUND_ROW = approval_row("shop POST /refund", "backend", "payments", "elicitation")
+REFUND_TOOL_ROW = approval_row("mcp__refunds__refund", "mcp", "refunds", "elicitation")
+REFUND_80 = '{"order": "5120", "amount_eur": 80}'
+REFUND_Q = "Refund 80 EUR of order 5120?"
+REFUND_PAGE = "Open the page to approve the refund."
+# Turn 1: the app accepts an elicitation, then the refund occurs. Turn 2: the refund occurs
+# before the accept. Turn 3: the app declines. Turn 4: the server `refunds` asks during its tool
+# call, and the app accepts before the result. Turn 5: an accept of the mode `url`, an
+# elicitation with no answer, a refund, and a tool call with no elicitation. After turn 5: a
+# refund in no turn.
+APPROVALS_ELICITATION_CASE = {
+    "tap": [window(10, 20), window(30, 40), window(50, 60), window(70, 80), window(90, 100)],
+    "manifest": {
+        "test": "20261119-090000-ap01",
+        "model_sessions": [],
+        "approvals": [REFUND_ROW, REFUND_TOOL_ROW],
+    },
+    "sessions": {},
+    "backend": [
+        shop_call(14, "/refund", REFUND_80),
+        shop_call(32, "/refund", REFUND_80),
+        shop_call(54, "/refund", REFUND_80),
+        shop_call(94, "/refund", REFUND_80),
+        shop_call(110, "/refund", REFUND_80),
+    ],
+    "mcp": [
+        pay_message(12, "from_server", elicit(1, REFUND_Q)),
+        pay_message(12.5, "to_server", elicit_answer(1, "accept")),
+        pay_message(34, "from_server", elicit(2, REFUND_Q)),
+        pay_message(34.5, "to_server", elicit_answer(2, "accept")),
+        pay_message(52, "from_server", elicit(3, REFUND_Q)),
+        pay_message(52.5, "to_server", elicit_answer(3, "decline")),
+        # An HTTP record has the row of the answer before the row of the stream of the request.
+        refunds_call(73, 73.2, elicit_answer(4, "accept"), None),
+        refunds_call(
+            72,
+            74,
+            rpc_call(5, "refund", {"order": "5120"}),
+            [elicit(4, REFUND_Q), rpc_result(5, "refund of 80 EUR sent")],
+        ),
+        refunds_call(
+            96,
+            96.2,
+            rpc_call(6, "refund", {"order": "5121"}),
+            [rpc_result(6, "refund of 20 EUR sent")],
+        ),
+        pay_message(92, "from_server", elicit(7, REFUND_PAGE, mode="url")),
+        pay_message(92.5, "to_server", elicit_answer(7, "accept")),
+        pay_message(93, "from_server", elicit(8, REFUND_Q)),
+    ],
+    "trace": [
+        eitem(1, "payments", 12.5, 1, REFUND_Q, output="accept", result_line=2),
+        shop_item(1, 14, 1, "/refund", REFUND_80),
+        shop_item(2, 32, 2, "/refund", REFUND_80),
+        eitem(2, "payments", 34.5, 3, REFUND_Q, output="accept", result_line=4),
+        eitem(3, "payments", 52.5, 5, REFUND_Q, output="decline", result_line=6),
+        shop_item(3, 54, 3, "/refund", REFUND_80),
+        mitem(
+            4,
+            "refunds",
+            72,
+            8,
+            "refund",
+            input={"order": "5120"},
+            output="refund of 80 EUR sent",
+            result_line=8,
+        ),
+        eitem(
+            4,
+            "refunds",
+            73,
+            8,
+            REFUND_Q,
+            output="accept",
+            result_line=7,
+            during=[{"line": 8, "tool": "refund"}],
+        ),
+        eitem(5, "payments", 92.5, 10, REFUND_PAGE, name="url", output="accept", result_line=11),
+        eitem(5, "payments", 93, 12, REFUND_Q, error="no answer in mcp.jsonl"),
+        shop_item(5, 94, 4, "/refund", REFUND_80),
+        mitem(
+            5,
+            "refunds",
+            96,
+            9,
+            "refund",
+            input={"order": "5121"},
+            output="refund of 20 EUR sent",
+            result_line=9,
+        ),
+        shop_item(None, 110, 5, "/refund", REFUND_80),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261119-090000-ap01",
+        "turns": 5,
+        "items": 13,
+        "sessions": [],
+        "otel": None,
+        "backend": {"file": "backend.jsonl", "rows": 5, "items": 5, "ignored": {}},
+        "model_api": None,
+        "mcp": {"file": "mcp.jsonl", "rows": 12, "items": 8, "ignored": {}},
+        "database": None,
+        "counts": counts(item_between_turns=1, action_without_approval=5),
+        "findings": [
+            {
+                "check": "item_between_turns",
+                "turn": None,
+                "detail": "a http item",
+                "harness": "backend",
+                "session": "shop",
+                "source": {"file": "backend.jsonl", "line": 5},
+            },
+            no_approval(2, REFUND_ROW, 2),
+            no_approval(3, REFUND_ROW, 3),
+            no_approval(5, REFUND_ROW, 4),
+            no_approval(5, REFUND_TOOL_ROW, 9, "mcp.jsonl"),
+            no_approval(None, REFUND_ROW, 5),
+        ],
+        "approvals": [
+            {**REFUND_ROW, "actions": 5, "without_approval": 4},
+            {**REFUND_TOOL_ROW, "actions": 2, "without_approval": 1},
+        ],
+    },
+}
+
+CANCEL_ROW = approval_row(
+    "shop POST /orders/cancel", "backend", "yes", "message", "interrupt.action"
+)
+CREDIT_ROW = approval_row("shop POST /credit", "backend", "shop POST /approvals", "backend")
+CANCEL_5120 = '{"order": "5120"}'
+CREDIT_5 = '{"order": "5120", "credit_eur": 5}'
+DENIED = '{"error": "the agent may not approve"}'
+ASK_5120 = (
+    '{"reply": "Do I cancel order 5120?", "interrupt": {"action": "cancel", "order": "5120"}}'
+)
+ASK_5121 = (
+    '{"reply": "Do I cancel order 5121?", "interrupt": {"action": "cancel", "order": "5121"}}'
+)
+# Turn 1 and turn 3: the reply has an interrupt. Turn 2: the message `yes` is the approval, and
+# the reply has `"interrupt": null`, which is no interrupt. Turn 4: the message `no` is not the
+# approval. Turn 5: the message `yes` follows no interrupt, so it is not a resume. Turn 6: a call
+# to /approvals is the approval of the credit. Turn 7: the call to /approvals is after the credit.
+# Turn 8: the call to /approvals has the status 403, so it is not an approval.
+APPROVALS_INTERRUPT_CASE = {
+    "tap": [
+        said(10, 20, "Cancel order 5120.", ASK_5120),
+        said(30, 40, "yes", '{"reply": "Order 5120 is cancelled.", "interrupt": null}'),
+        said(50, 60, "Cancel order 5121.", ASK_5121),
+        said(70, 80, "no", '{"reply": "Order 5121 is cancelled."}'),
+        said(90, 100, "yes", '{"reply": "Order 5122 is cancelled."}'),
+        said(110, 120, "Give 5 EUR of credit to order 5120.", '{"reply": "Order 5120 has it."}'),
+        said(130, 140, "Give 5 EUR of credit to order 5121.", '{"reply": "Order 5121 has it."}'),
+        said(150, 160, "Give 5 EUR of credit to order 5122.", '{"reply": "Order 5122 has it."}'),
+    ],
+    "manifest": {
+        "test": "20261119-090000-ap02",
+        "model_sessions": [],
+        "approvals": [CANCEL_ROW, CREDIT_ROW],
+    },
+    "sessions": {},
+    "backend": [
+        shop_call(32, "/orders/cancel", CANCEL_5120),
+        shop_call(72, "/orders/cancel", CANCEL_5120),
+        shop_call(92, "/orders/cancel", CANCEL_5120),
+        shop_call(112, "/approvals", CREDIT_5),
+        shop_call(114, "/credit", CREDIT_5),
+        shop_call(132, "/credit", CREDIT_5),
+        shop_call(134, "/approvals", CREDIT_5),
+        {**shop_call(152, "/approvals", CREDIT_5), "status": 403, "response_body": body(DENIED)},
+        shop_call(154, "/credit", CREDIT_5),
+    ],
+    "trace": [
+        tap_item(1, 20, "interrupt", 1, name="interrupt.action", output='"cancel"'),
+        tap_item(2, 30, "resume", 2, input={"interrupts": ["interrupt.action"]}, output="yes"),
+        shop_item(2, 32, 1, "/orders/cancel", CANCEL_5120),
+        tap_item(3, 60, "interrupt", 3, name="interrupt.action", output='"cancel"'),
+        tap_item(4, 70, "resume", 4, input={"interrupts": ["interrupt.action"]}, output="no"),
+        shop_item(4, 72, 2, "/orders/cancel", CANCEL_5120),
+        shop_item(5, 92, 3, "/orders/cancel", CANCEL_5120),
+        shop_item(6, 112, 4, "/approvals", CREDIT_5),
+        shop_item(6, 114, 5, "/credit", CREDIT_5),
+        shop_item(7, 132, 6, "/credit", CREDIT_5),
+        shop_item(7, 134, 7, "/approvals", CREDIT_5),
+        {**shop_item(8, 152, 8, "/approvals", CREDIT_5), "output": DENIED, "exit_code": 403},
+        shop_item(8, 154, 9, "/credit", CREDIT_5),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261119-090000-ap02",
+        "turns": 8,
+        "items": 13,
+        "sessions": [],
+        "otel": None,
+        "backend": {"file": "backend.jsonl", "rows": 9, "items": 9, "ignored": {}},
+        "model_api": None,
+        "mcp": None,
+        "database": None,
+        "counts": counts(action_without_approval=4),
+        "findings": [
+            no_approval(4, CANCEL_ROW, 2),
+            no_approval(5, CANCEL_ROW, 3),
+            no_approval(7, CREDIT_ROW, 6),
+            no_approval(8, CREDIT_ROW, 9),
+        ],
+        "approvals": [
+            {**CANCEL_ROW, "actions": 3, "without_approval": 2},
+            {**CREDIT_ROW, "actions": 3, "without_approval": 2},
+        ],
+    },
+}
+
+# A manifest with approvals that the check cannot use: a row with no `approval` and no `by`.
+# The trace gives 1 finding with no turn, and it does not check the refund.
+APPROVALS_NOT_VALID_CASE = {
+    "tap": [window(10, 20)],
+    "manifest": {
+        "test": "20261119-090000-ap03",
+        "model_sessions": [],
+        "approvals": [{"action": "shop POST /refund", "source": "backend"}],
+    },
+    "sessions": {},
+    "backend": [shop_call(12, "/refund", REFUND_80)],
+    "trace": [shop_item(1, 12, 1, "/refund", REFUND_80)],
+    "findings": {
+        "v": "0.2",
+        "test": "20261119-090000-ap03",
+        "turns": 1,
+        "items": 1,
+        "sessions": [],
+        "otel": None,
+        "backend": {"file": "backend.jsonl", "rows": 1, "items": 1, "ignored": {}},
+        "model_api": None,
+        "mcp": None,
+        "database": None,
+        "counts": counts(action_without_approval=1),
+        "findings": [
+            {
+                "check": "action_without_approval",
+                "turn": None,
+                "detail": "the approvals cannot be used: the key approvals of manifest.json is "
+                "not valid",
+            },
+        ],
+        "approvals": None,
+    },
+}
+
+
 TRACE_CASES = {
     "claude_code_toy_shop": CLAUDE_CASE,
     "codex_toy_shop": CODEX_CASE,
@@ -7528,6 +7948,9 @@ TRACE_CASES = {
     "citation_not_read_off": CITATION_OFF_CASE,
     "answer_key": ANSWER_KEY_CASE,
     "answer_key_rules": ANSWER_KEY_RULES_CASE,
+    "approvals_elicitation": APPROVALS_ELICITATION_CASE,
+    "approvals_interrupt": APPROVALS_INTERRUPT_CASE,
+    "approvals_not_valid": APPROVALS_NOT_VALID_CASE,
     "answer_key_text": ANSWER_KEY_TEXT_CASE,
     "answer_key_changed": ANSWER_KEY_CHANGED_CASE,
     "unseen_calls": UNSEEN_CASE,
@@ -7549,6 +7972,8 @@ TRACE_CASES = {
     "egress_spans_no_answer": EGRESS_NO_ANSWER_CASE,
     "egress_spans_version_two": EGRESS_V2_CASE,
     "egress_spans_version_three": EGRESS_VERSION_CASE,
+    "ingress_spans": INGRESS_SPANS_CASE,
+    "ingress_spans_version_two": INGRESS_VERSION_CASE,
     "openinference_toy_shop": OPENINFERENCE_CASE,
 }
 
@@ -7570,6 +7995,12 @@ SEAL_FILES = {
 }
 UNSEALED_FILES = {"report.md", "bridge.log"}
 SEAL_NOTE = '{"v": "0.2", "type": "note", "turn": 1, "rating": "down", "comment": null}\n'
+# An evaluation.json with one model row (SPEC.md section 9.4).
+SEAL_EVALUATION = (
+    '{\n "v": 1,\n "test": "20261119-090000-ev01",\n "report": null,\n "issues": [\n  {\n'
+    '   "class": "tone",\n   "turn": 2,\n   "evidence": "APP_SPEC.md line 9",\n'
+    '   "text": "The reply uses slang.",\n   "author": "model",\n   "name": null\n  }\n ]\n}\n'
+)
 
 
 def seal_of(files: dict[str, str], copy: bool) -> dict:
@@ -7623,6 +8054,19 @@ SEAL_CASES: dict[str, dict] = {
     "seal_missing": {"no_seal_file": True, "verify": verified(False, "same", sealed=False)},
     # The notes of the tester (SPEC.md section 2.3) are in the seal. A note changed after the end
     # breaks it.
+    "changed_evaluation": {
+        # A change of an issue row that nookku evaluation did not make breaks the seal (#576).
+        "after": {"evaluation.json": SEAL_EVALUATION.replace('"model"', '"human"')},
+        "seal_files": {"evaluation.json": SEAL_EVALUATION},
+        "copy_files": {"evaluation.json": SEAL_EVALUATION},
+        "verify": verified(False, "same", changed=["evaluation.json"]),
+    },
+    "evaluation_intact": {
+        "after": {"evaluation.json": SEAL_EVALUATION},
+        "seal_files": {"evaluation.json": SEAL_EVALUATION},
+        "copy_files": {"evaluation.json": SEAL_EVALUATION},
+        "verify": verified(True, "same"),
+    },
     "notes_intact": {
         "after": {"notes.jsonl": SEAL_NOTE},
         "seal_files": {"notes.jsonl": SEAL_NOTE},
@@ -7864,6 +8308,17 @@ def bash(command: str, cwd: str = "{root}") -> dict:
     return pevent("Bash", cwd=cwd, command=command)
 
 
+KEY_POLICY = '{"answer_keys": ["keys/stock.json"]}\n'
+
+
+def key_deny(name: str) -> dict:
+    """The deny of a model tool call that names an answer key (#577)."""
+    return deny(
+        f"nookku: {name} names an answer key of the policy key answer_keys. A model tool call "
+        "may not read it or change it. Only a person and a test read it."
+    )
+
+
 STATE = "." + "nookku"
 T1 = f"{STATE}/tests/t1"
 RECORD = f"{T1}/relay.jsonl"
@@ -8071,6 +8526,14 @@ GUARD_CASES: dict[str, dict] = {
         "event": bash("cat > /tmp/notes.md <<'EOF'\nimport nookku\nEOF"),
         "answer": None,
     },
+    "shell_heredoc_data_goes_to_a_shell": {
+        "event": bash("cat <<'EOF' | bash\nnookku start\nEOF"),
+        "answer": drives("nookku start"),
+    },
+    "shell_heredoc_data_runs_a_drive_command": {
+        "event": bash("cat > /tmp/notes.md <<EOF\n$(nookku start)\nEOF"),
+        "answer": drives("nookku start"),
+    },
     "shell_searches_for_an_import": {
         "event": bash('grep -rn "import nookku" shop'),
         "answer": None,
@@ -8090,6 +8553,16 @@ GUARD_CASES: dict[str, dict] = {
             "nookku adjudicate t1 --turn 3 --outcome key_wrong --reason 'The key is old.'"
         ),
         "answer": drives("nookku adjudicate"),
+    },
+    "shell_writes_an_issue_row": {
+        # Only a person writes a human issue row, and the command sets the author type (#576).
+        "policy_text": '{"scripts": "model"}\n',
+        "event": bash("nookku evaluation add t1 --class tone --evidence x --text y --author Asha"),
+        "answer": drives("nookku evaluation"),
+    },
+    "shell_imports_the_model_rows": {
+        "event": bash("nookku evaluation import t1"),
+        "answer": drives("nookku evaluation"),
     },
     # The shell expands a word that can be the subcommand, so the relay cannot know it (#548).
     "shell_adjudicates_with_a_variable_as_the_subcommand": {
@@ -8118,6 +8591,248 @@ GUARD_CASES: dict[str, dict] = {
     "write_of_the_adjudications": {
         "event": pevent("Write", file_path=f"{T1}/adjudications.jsonl", content="{}"),
         "answer": records(f"{T1}/adjudications.jsonl"),
+    },
+    # The answer keys of the policy key answer_keys (SPEC.md section 5, #577). A model tool call
+    # may not name a key: a file, or a folder with each file in it. A read is denied too.
+    "key_read_with_a_file_tool": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Read", file_path="keys/stock.json"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_read_with_the_absolute_path_in_other_case": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Read", file_path="{root}/KEYS/Stock.JSON"),
+        "answer": key_deny("{root}/KEYS/Stock.JSON"),
+    },
+    "key_read_of_another_file_in_the_folder": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Read", file_path="keys/readme.md"),
+        "answer": None,
+    },
+    "key_read_with_no_policy_key": {
+        "event": pevent("Read", file_path="keys/stock.json"),
+        "answer": None,
+    },
+    "key_read_with_another_broken_policy_key": {
+        "policy_text": '{"answer_keys": ["keys/stock.json"], "scripts": "robot"}\n',
+        "event": pevent("Read", file_path="keys/stock.json"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_write_with_a_file_tool": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Write", file_path="keys/stock.json", content="{}"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_named_in_the_content_of_a_write": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Write", file_path="notes.md", content="The key is keys/stock.json."),
+        "answer": None,
+    },
+    "key_search_with_a_glob": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Glob", pattern="*.json", path="keys"),
+        "answer": key_deny("*.json"),
+    },
+    "key_search_of_a_parent_folder": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Grep", pattern="answer"),
+        "answer": None,
+    },
+    "key_shell_read": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat keys/stock.json"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_shell_read_with_a_glob": {
+        "policy_text": KEY_POLICY,
+        "event": bash("head -n 3 keys/st*"),
+        "answer": key_deny("keys/st*"),
+    },
+    "key_shell_read_after_cd": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cd keys && cat stock.json"),
+        "answer": key_deny("stock.json"),
+    },
+    "key_shell_read_after_cd_to_an_unknown_folder": {
+        "policy_text": KEY_POLICY,
+        "event": bash('cd "$WORK" && cat stock.json'),
+        "answer": key_deny("stock.json"),
+    },
+    "key_shell_read_through_a_variable": {
+        "policy_text": KEY_POLICY,
+        "event": bash('cat "$SHOP/keys/stock.json"'),
+        "answer": key_deny("$SHOP/keys/stock.json"),
+    },
+    "key_shell_read_in_code": {
+        "policy_text": KEY_POLICY,
+        "event": bash("python3 -c \"print(open('keys/stock.json').read())\""),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_shell_read_through_a_link": {
+        "policy_text": KEY_POLICY,
+        "links": {"notes/list.json": "keys/stock.json"},
+        "event": bash("cat notes/list.json"),
+        "answer": key_deny("notes/list.json"),
+    },
+    "key_shell_read_through_a_link_with_a_glob": {
+        "policy_text": KEY_POLICY,
+        "links": {"notes": "keys"},
+        "event": bash("cat notes/*.json"),
+        "answer": key_deny("notes/*.json"),
+    },
+    "key_shell_read_with_an_option_value": {
+        "policy_text": KEY_POLICY,
+        "event": bash("dd if=keys/stock.json of=/dev/stdout"),
+        "answer": key_deny("if=keys/stock.json"),
+    },
+    "key_shell_heredoc_data_names_the_key": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat > notes.md <<'EOF'\nThe key is the file keys/stock.json\nEOF"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_shell_heredoc_goes_to_a_shell": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat <<'EOF' | bash\ncat keys/stock.json\nEOF"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_shell_read_from_the_index": {
+        "policy_text": KEY_POLICY,
+        "event": bash("git show :keys/stock.json"),
+        "answer": key_deny(":keys/stock.json"),
+    },
+    "key_shell_read_with_a_character_class": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat keys/[[:alpha:]]tock.json"),
+        "answer": key_deny("keys/[[:alpha:]]tock.json"),
+    },
+    "key_shell_read_with_a_group_in_brackets": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat keys/(stock).json"),
+        "answer": key_deny("keys/*.json"),
+    },
+    "key_shell_read_from_a_commit": {
+        "policy_text": KEY_POLICY,
+        "event": bash("git show HEAD:keys/stock.json"),
+        "answer": key_deny("HEAD:keys/stock.json"),
+    },
+    "key_shell_search_with_a_glob_of_the_path": {
+        "policy_text": KEY_POLICY,
+        "event": bash("find . -path '*stock.json'"),
+        "answer": key_deny("*stock.json"),
+    },
+    "key_session_input_with_a_quote_in_the_word": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("write_stdin", session_id=1, chars='cat keys/st"ock".json\n'),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_shell_search_of_a_parent_folder": {
+        "policy_text": KEY_POLICY,
+        "event": bash("grep -rn answer ."),
+        "answer": None,
+    },
+    "key_shell_heredoc_runs_a_read_of_the_key": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat <<EOF\n$(cat keys/stock.json)\nEOF"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_shell_read_with_braces": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat keys/{stock.json,list.json}"),
+        "answer": key_deny("keys/{stock.json,list.json}"),
+    },
+    "key_shell_read_with_a_quote_in_the_word": {
+        "policy_text": KEY_POLICY,
+        "event": bash('cat keys/"stock.json"'),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_shell_read_with_a_backslash_in_the_word": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat keys/sto\\ck.json"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_shell_search_with_a_glob_of_each_folder": {
+        "policy_text": KEY_POLICY,
+        "event": bash("rg --glob '**/stock.json' answer ."),
+        "answer": key_deny("**/stock.json"),
+    },
+    "key_shell_search_with_a_glob_with_no_folder": {
+        "policy_text": KEY_POLICY,
+        "event": bash("grep -rn --include='*.json' answer ."),
+        "answer": key_deny("*.json"),
+    },
+    "key_shell_search_with_a_glob_of_other_files": {
+        "policy_text": KEY_POLICY,
+        "event": bash("rg -g '*.{md,txt}' answer ."),
+        "answer": None,
+    },
+    "key_search_with_a_glob_of_each_folder": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Grep", pattern="answer", glob="**/stock.json"),
+        "answer": key_deny("**/stock.json"),
+    },
+    "key_search_with_a_glob_with_no_folder": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Grep", pattern="answer", glob="*.{json,md}"),
+        "answer": key_deny("*.{json,md}"),
+    },
+    "key_search_with_a_glob_of_other_files": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Glob", pattern="**/*.md"),
+        "answer": None,
+    },
+    "key_search_with_a_glob_below_another_path": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Grep", pattern="answer", glob="*.json", path="shop"),
+        "answer": None,
+    },
+    # The link is a name in the key folder. The rule reads the names, not the files.
+    "key_folder_search_with_a_glob_of_each_folder": {
+        "policy_text": '{"answer_keys": ["keys"]}\n',
+        "links": {"keys/2026/stock.json": "shop/stock.json"},
+        "event": pevent("Glob", pattern="**/*.json"),
+        "answer": key_deny("**/*.json"),
+    },
+    "key_folder_search_with_a_glob_of_other_files": {
+        "policy_text": '{"answer_keys": ["keys"]}\n',
+        "links": {"keys/2026/stock.json": "shop/stock.json"},
+        "event": pevent("Glob", pattern="**/*.md"),
+        "answer": None,
+    },
+    "key_shell_read_of_another_file": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat shop/stock.json"),
+        "answer": None,
+    },
+    "key_folder_shell_list": {
+        "policy_text": '{"answer_keys": ["keys"]}\n',
+        "event": bash("ls keys"),
+        "answer": key_deny("keys"),
+    },
+    "key_folder_read_of_a_file_in_it": {
+        "policy_text": '{"answer_keys": ["keys"]}\n',
+        "event": pevent("Read", file_path="keys/2026/stock.json"),
+        "answer": key_deny("keys/2026/stock.json"),
+    },
+    "key_other_tool_path": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("mcp__files__read", path="keys/stock.json"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_other_tool_free_text": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("mcp__docs__create", body="The key is keys/stock.json."),
+        "answer": None,
+    },
+    "key_session_input_names_the_file": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("write_stdin", session_id=3, chars="cat stock.json\n"),
+        "answer": key_deny("stock.json"),
+    },
+    "test_key_shell_read": {
+        "policy_text": KEY_POLICY,
+        "test": True,
+        "event": bash("cat keys/stock.json"),
+        "answer": key_deny("keys/stock.json"),
     },
     "shell_verifies_a_gate": {
         "event": bash("nookku gate verify --json"),
@@ -9748,6 +10463,7 @@ def main() -> None:
         write(d / "database.jsonl", case.get("database"))
         write(d / "gateway.jsonl", case.get("gateway"))
         write(d / "egress.jsonl", case.get("egress"))
+        write(d / "ingress.jsonl", case.get("ingress"))
         write(d / "openinference.jsonl", case.get("openinference"))
         if "error" in case:
             text = json.dumps(case["error"], indent=1, ensure_ascii=False)

@@ -216,13 +216,14 @@ This output is from the test of the tutorial proof of nookku 0.5.9 ([data](../..
   "session_inferred": 0,
   "version_untested": 0,
   "missing_trace_point": 0,
-  "trace_points_unread": 0
+  "trace_points_unread": 0,
+  "action_without_approval": 0
  },
  "findings": []
 }
 ```
 
-`items` is the number of model items in `trace.jsonl`. `counts` has one number for each check. Nookku 0.5.9 has 29 checks ([trace.py](../../src/nookku/trace.py)). The toy shop has no model, so the trace has no item and no finding.
+`items` is the number of model items in `trace.jsonl`. `counts` has one number for each check. This version of Nookku has 30 checks ([trace.py](../../src/nookku/trace.py)). The toy shop has no model, so the trace has no item and no finding.
 
 A finding is a fact, not yet an issue. For example, a tool error can be the correct result of a request for an order that does not exist. The findings do not change the exit code of the audit.
 
@@ -249,7 +250,7 @@ Each finding in `findings.json` has `check`, `turn` and `detail`. A finding abou
 
 ### Trace checks
 
-The trace has 31 trace checks ([trace.py](../../src/nookku/trace.py)). `findings.json` sorts the findings in the order of this table.
+The trace has 32 trace checks ([trace.py](../../src/nookku/trace.py)). `findings.json` sorts the findings in the order of this table.
 
 | Check | Finding |
 |---|---|
@@ -284,6 +285,7 @@ The trace has 31 trace checks ([trace.py](../../src/nookku/trace.py)). `findings
 | `version_untested` | A session file comes from a harness version that the proofs do not cover. `findings.json` has one finding for each session. The transcript shows one line for each harness and version, with the count of sessions, for example `(claude-code, 4 sessions)`. |
 | `missing_trace_point` | A trace point of the [app spec](../reference/app-spec.md#trace-points) did not occur in a turn where its `When` needs it. `detail` names the trace point, its source, the count of items and the `When`. |
 | `trace_points_unread` | A part of the `Trace points` section of the app spec that the trace does not check, for example a row with a different count of cells. `detail` names the file, the line and the problem. |
+| `action_without_approval` | An action of the [`Approvals`](../reference/app-spec.md#approvals) table of the app spec has no approval before it in its turn. `detail` names the action, its source and the approval that the row needs. |
 
 ## 5. Read the report
 
@@ -414,6 +416,7 @@ A repeated text then shows as `(compact: the same text as [trace.jsonl:N], sha25
 | `version_untested`. | Run the proofs for the new harness version ([run-the-proofs.md](../contributing/run-the-proofs.md)). |
 | `missing_trace_point`. | Find the code of the app that sends the trace point, and check why the turn did not send it. If the spec is wrong, correct its `When`. |
 | `trace_points_unread`. | Correct the row or the table at the line that `detail` gives. Then the next test checks the trace point. |
+| `action_without_approval`. | Find the action in the transcript. If the app did the action with no approval, fix the app. If the approval has another form, correct the row of the `Approvals` table. |
 | `server_not_from_app`. | Give the app's model only the tools of the app ([isolate-agent-sdk.md](isolate-agent-sdk.md)). |
 | A row of the report. | Check its evidence (step 5). If the evidence agrees, fix the app and run the test again. |
 | A clean audit, no findings and no report rows. | The words arrived exactly. Read the transcript yourself, and judge each reply. |

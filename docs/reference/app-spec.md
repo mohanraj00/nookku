@@ -29,6 +29,7 @@ Use the section names exactly. The evaluation prompt names the files, and the mo
 | `Trace points` | The spans or the events that the app must send, as the [trace](glossary.md#trace) shows them | A table of `Name`, `Source` and `When`. The sources are below. |
 | `Verdict` | The most [findings](glossary.md#findings) of each class that a test can have | A table of `Finding` and `Most`. The verdict of a test compares the findings with it ([Verdict](#verdict)). |
 | `Answer key` | The key file of the expected reply values, with no model | A table of `File`, `Field`, `Match` and `Tolerance` ([Answer key](#answer-key)). |
+| `Approvals` | The actions that need an approval, with no model | A table of `Action`, `Source`, `Approval`, `By` and `Interrupt` ([Approvals](#approvals)). |
 
 Each part is optional.
 
@@ -81,7 +82,7 @@ At the end of each test, Nookku writes `verdict.json` in the [test folder](gloss
 
 | Column | Value |
 |---|---|
-| `Finding` | A finding class of the trace, for example `agent_error` or `repeated_reply` ([SPEC.md section 8.6](../../SPEC.md#86-findings)). |
+| `Finding` | A finding class of the trace, for example `agent_error` or `repeated_reply` ([SPEC.md section 8.6](../../SPEC.md#86-findings)), or an issue class of the evaluation, for example `tone` ([SPEC.md section 9.3](../../SPEC.md#93-report)). |
 | `Most` | The most findings of the class that a test can have: a whole number from 0 to 999999999. |
 
 The toy shop allows 0 `agent_error` and at most 1 `repeated_reply`:
@@ -97,6 +98,8 @@ The toy shop allows 0 `agent_error` and at most 1 `repeated_reply`:
 
 - A class with no row has no limit, so it always passes.
 - The verdict is `fail` if a class has more findings than its `Most`.
+- A row of an issue class is your opt-in. Then the verdict counts the issue rows of that class in `evaluation.json`, from the model and from you ([`nookku evaluation`](cli.md#nookku-evaluation)). With no such row, an issue of the model never fails a verdict.
+- A test has no `evaluation.json` at its end. Thus a row of an issue class fails the verdict until you run `nookku evaluation import`. A [gate run](cli.md#nookku-gate) has no evaluation, so such a row fails each test of the gate.
 - The section and the table follow the rules of [Trace points](#trace-points): a heading of any level, more columns in any order, and no table in a fenced code block.
 - If the bridge cannot read a row, the verdict is `fail`, and `problems` in `verdict.json` names the file, the line and the problem. Examples: a class that the trace does not have, a second row for one class, or a `Most` that is not a whole number.
 - The bridge reads the table at the start of the test and records it in the manifest. If you change the table after the start, the verdict of that test does not change.
@@ -143,8 +146,48 @@ An answer can have its own rule. Give it `match`, and for `number` a `tolerance`
 - The spec files have 1 `Answer key` row at most. If the bridge cannot read the row or the key file, the test does not start.
 - The bridge records the SHA-256 of the key file in the manifest. After the [entry](glossary.md#entry) stops, it copies the key file into the test folder as `answer_key.json`, so the entry cannot read the copy and the [seal](glossary.md#seal) covers the key. If you change the key after the start, the result of that test does not change.
 - The key file is in the project folder. If the entry can read it, the entry can give each keyed answer. Run the entry with no read access to the key file, for example as another user or in a sandbox.
+- The [harness model](glossary.md#harness-model) that builds the app can also read the key file. To deny its tool calls that name the key, add the path to the policy key [`answer_keys`](config.md#nookkupolicyjson): `nookku policy set answer_keys keys/stock.json`. If the policy key does not protect the key file, the start text of the test says so.
 
 To make CI fail on a `fail` verdict, give `--verdict` to [`nookku run`](cli.md#nookku-run) or [`nookku trace`](cli.md#nookku-trace). Then the command exits with 1. The command uses the verdict only if it agrees with the [seal](glossary.md#seal) and its copy in `~/.nookku/seals/`, so a test with no copy of the seal fails ([SPEC.md section 7.14](../../SPEC.md#714-verdict)).
+
+### Approvals
+
+An app can stop for an approval before an action, for example before a refund. The `Approvals` table names each action that needs an approval, and what gives the approval. The trace finds each action with no approval before it in its turn, with no model ([SPEC.md section 7.18](../../SPEC.md#718-approvals)).
+
+| Column | Value |
+|---|---|
+| `Action` | The name of the action, as the trace shows it. |
+| `Source` | The source of the action: `session`, `backend`, `model_api`, `otel` (as for a [trace point](#trace-points)) or `mcp`. |
+| `Approval` | The name of the approval. |
+| `By` | What gives the approval: `elicitation`, `message`, `session`, `backend`, `otel` or `mcp`. |
+| `Interrupt` | Only for `message`: the dot path of the interrupt in the JSON of the reply, for example `interrupt.action`. |
+
+```markdown
+## Approvals
+
+| Action | Source | Approval | By | Interrupt |
+|---|---|---|---|---|
+| `shop POST /refund` | backend | `payments` | elicitation | |
+| `mcp__refunds__refund` | mcp | `refunds` | elicitation | |
+| `shop POST /orders/cancel` | backend | `yes` | message | `interrupt.action` |
+| `shop POST /credit` | backend | `shop POST /approvals` | backend | |
+```
+
+| `By` | `Approval` | What counts as the approval |
+|---|---|---|
+| `elicitation` | The name of an MCP server of the app. | The server asks the user with an MCP elicitation, and the app answers `accept`. The MCP proxy of the server records both messages. |
+| `message` | The exact text of your message, for example `yes`. | The reply of the agent has a value at the `Interrupt` path, and your next message is this text. |
+| `session`, `backend`, `otel` or `mcp` | The name of an item of that source. | An item with that name that did not fail, for example a call of the app to an approval service. |
+
+- An action has an approval if the approval is in the same turn, and its time is not after the time of the action.
+- An MCP server can ask during its tool call. For an `mcp` action with `elicitation`, the approval also counts if the app accepted before the result of the tool call.
+- Each other action gives the finding `action_without_approval`. An action after the reply is in no turn, so it has no approval. A `Verdict` row can limit the class.
+- A name of the source `mcp` is `mcp__<server>__<tool>`, from the record of the MCP proxy of the server.
+- `findings.json` records each row in `approvals`, with the count of its actions and of its actions with no approval.
+- If the bridge cannot read a part of the section, the test does not start.
+- The app answers an elicitation of its MCP server. The record shows that the server asked and that the app answered `accept`, not that a person gave the answer. With `message`, you give the approval in the test, and the [tap](glossary.md#tap) keeps your message.
+- The check does not compare the content of an approval with the action. One approval covers each later action of its row in the turn.
+- An `accept` of an elicitation of the mode `url` says only that the user agreed to open a page, so it is not an approval. Name a trace item as the approval of such an app.
 
 ## Example: the toy shop
 

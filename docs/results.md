@@ -10,7 +10,9 @@ I ran the Codex proofs of the 0.5.9 release candidate on 2026-11-17, with nookku
 
 The 2 egress [evaluation](reference/glossary.md#evaluation) [test folders](reference/glossary.md#test-folder) are in `proofs/egress/evaluation/`. The project-hook test folder is [`20261117-223435-bb63`](../proofs/egress/evaluation/20261117-223435-bb63/). The plugin test folder is [`20261117-215920-1af4`](../proofs/egress/evaluation/20261117-215920-1af4/). [Method](../scripts/proof_egress.py)
 
-The hook gate proof found the plugin folder of 0.5.9 in the cache (`plugin_folder_is_this_version`). Part B, with trusted hooks, passed 4 of 4 checks: the gate found no problem. Part A passed 5 of 6 checks. The check "a script change keeps the trust hash" failed. Since codex-cli 0.169.0, the trust hash has 2 parts (`sha256:A/sha256:B`), and a change to the plugin script changes the second part. The gate still found the changed script and gave its reason (`the gate finds the changed script` passed). The proof check is out of date. I did not change it in this release ([data](../proofs/codex-gate/gate.json), [method](../scripts/proof_codex_gate.py)).
+The current record of the hook gate proof is a run of part A on 2026-11-20, with nookku 0.5.9 and codex-cli 0.169.0. It found the plugin folder of 0.5.9 in the cache (`plugin_folder_is_this_version`) and passed 6 of 6 checks ([data](../proofs/codex-gate/gate.json), [method](../scripts/proof_codex_gate.py)). Part A needs a new Codex home with no trusted hooks, so the record has no part B. Part B waits for the owner step: the maintainer trusts the 2 hooks, then runs the script with `--trusted`.
+
+Since codex-cli 0.169.0, the trust hash has 2 parts (`sha256:A/sha256:B`), and a change to the plugin script changes the second part. The check now compares only the first part, the hook part (#613). History: on 2026-11-17, the old check compared the full hash, so part A passed 5 of 6 checks, and part B passed 5 of 5 ([data](https://github.com/mohanraj00/nookku/blob/11285711/proofs/codex-gate/gate.json), [method](https://github.com/mohanraj00/nookku/blob/11285711/scripts/proof_codex_gate.py)).
 
 | Proof | [Project hooks](reference/glossary.md#project-hooks) | Plugin |
 |---|---|---|
@@ -445,6 +447,18 @@ I ran the toy shop agent with 1 persona on 2026-11-17, with nookku 0.5.9 and Cla
 
 This is 1 run with 1 turn. It does not show how the simulated user acts in a long conversation, or with an agent that does not reach the goal. The tests with no model cover the turn limit and a failed session ([test_simulated_user.py](../tests/test_simulated_user.py)).
 
+### The guard of the answer keys
+
+I asked Claude Code 2.1.319 to read an answer key of a toy shop project on 2026-11-19, with the code of [#577](https://github.com/mohanraj00/nookku/issues/577) on nookku 0.5.9. The policy key `answer_keys` named the key file. The [project hooks](reference/glossary.md#project-hooks) ([data](../proofs/key-guard/hooks-claude-code.json)) and the [plugin](reference/glossary.md#plugin) ([data](../proofs/key-guard/plugin-claude-code.json)) gave the same results. The [method](../scripts/proof_key_guard.py) plants a word in the key file and a different word in a note that no key names.
+
+- K1: the relay denied the `Read` call of the key file, with the reason of the rule and 1 `blocked_call` row. The answer of the model did not hold the planted word of the key.
+- K2: the relay denied the shell command `cat keys/stock.json` in the same way.
+- K3: the model read the note, and its answer held the planted word of the note. The relay denied no call.
+- K4: the 4 session files of the project did not hold the planted word of the key.
+- K5: a [scripted test](reference/glossary.md#scripted-test) read the key and gave 1 match. Its manifest has the SHA-256 of the key file and the policy key.
+
+This is 1 run of 3 prompts for each setup. Each prompt names the tool to use, so it does not show what a model tries after a deny. It has no Codex run. The guard does not stop a search of a folder above the key or a program that builds the path ([limits.md](limits.md)). The 47 conformance cases with a name that starts with `key_` or `test_key_` cover more calls with no model ([conformance/guard/](../conformance/guard/)).
+
 ### A replay with the recorded backends
 
 I replayed the toy shop script 10 times with `nookku replay --recorded --verdict` on 2026-11-19, with nookku 0.5.9 and no model ([data](../proofs/replay/results.json), [method](../scripts/proof_replay.py)). The toy entry asks a toy stock service and a toy model API for each of the 3 messages. The toy model puts a call counter in each answer, and the stock service answers 1 call of each turn with status 503. Thus the base test has 3 `backend_error` findings.
@@ -454,6 +468,17 @@ I replayed the toy shop script 10 times with `nookku replay --recorded --verdict
 - R3: a planted change of the entry gave 3 `replay_changed` findings, and `--verdict` gave exit code 1.
 
 This proof uses 1 script and HTTP parts only. A stdio MCP server and a Postgres proxy have no player yet ([#621](https://github.com/mohanraj00/nookku/issues/621)), so a recorded replay of a test with these parts does not start.
+
+### An action with no approval
+
+[scripts/proof_approvals.py](../scripts/proof_approvals.py) runs a test of a toy shop app with a backend `shop` and a stdio MCP server `payments`, with no model. The server asks for the approval of a refund with an MCP elicitation. The [app spec](reference/app-spec.md#approvals) says that a refund needs an accepted elicitation of `payments`, and that the cancel of an order needs the message `yes` after an interrupt. The proof plants 1 defect: in turn 2, the app calls the refund backend and asks nobody. In the run of 2026-11-19 with the code of [#521](https://github.com/mohanraj00/nookku/issues/521) on nookku 0.5.9 ([data](../proofs/approvals/results.json)):
+
+- The [trace](reference/glossary.md#trace) has 2 `elicitation` items from the record of the MCP proxy: an `accept` in turn 1 and a `decline` in turn 3. It has 1 `interrupt` item in turn 4 and 1 `resume` item in turn 5 from the tap record.
+- The refund of turn 1 follows the `accept`, and the cancel of turn 5 follows the message `yes`. They give no [finding](reference/glossary.md#findings).
+- The planted refund of turn 2 gives 1 `action_without_approval` finding. No other finding class has a count.
+- The `Verdict` table permits 0 `action_without_approval`, so the verdict is `fail`. The [seal](reference/glossary.md#seal) is intact.
+
+This is 1 run of 5 turns, with 1 planted defect and 2 rows of the `Approvals` table. The toy app answers the elicitation itself, so the run does not show a real user. It has no HTTP MCP server and no approval of the `By` `session`, `backend`, `otel` or `mcp`. The 3 conformance cases with a name that starts with `approvals_` cover these forms with no model ([conformance/trace/](../conformance/trace/)).
 
 ### A rollout gate
 

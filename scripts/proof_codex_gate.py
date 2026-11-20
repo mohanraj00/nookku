@@ -6,8 +6,11 @@ AVAILABLE. It never calls a trust API.
 
 Part A, with no person, in a new CODEX_HOME:
 1. With untrusted hooks, `nookku start` refuses the test, and relay mode stays off.
-2. The trust hash of Codex: a change to the plugin script keeps it, and a change to a timeout
-   changes it. Thus the gate also checks the SHA-256 of the script.
+2. The hook part of the trust hash of Codex: a change to the plugin script keeps it, and a
+   change to a timeout changes it. Thus the gate also checks the SHA-256 of the script. Since
+   codex-cli 0.169.0, the trust hash has 2 parts, `sha256:A/sha256:B`. The first part covers
+   the hook. The second part changes with the files of the plugin, also with the script. An
+   older Codex gives 1 part, the hook part.
 3. With a changed script, the gate gives the reason.
 
 Part B, after the maintainer trusts the hooks:
@@ -200,6 +203,11 @@ def hashes(result: dict[str, Any]) -> dict[str, str]:
     return {h["event"]: h["hash"] for h in result["hooks"]}
 
 
+def hook_parts(result: dict[str, Any]) -> dict[str, str]:
+    """The hook part of each trust hash: the part before the first "/"."""
+    return {event: str(value).split("/")[0] for event, value in hashes(result).items()}
+
+
 def installed_record(installed: Path) -> dict[str, Any]:
     """Name the installed plugin folder. Codex names the folder with the plugin version."""
     return {
@@ -242,9 +250,11 @@ def part_a(installed: Path) -> dict[str, Any]:
             "the installed plugin is this version": installed.name == __version__,
             "start refuses untrusted hooks": "is untrusted, not trusted" in start.stdout,
             "relay mode stays off": mode == "off",
-            "a script change keeps the trust hash": hashes(after_script) == hashes(before),
-            "a timeout change changes the trust hash of that hook": (
-                hashes(after_timeout)["preToolUse"] != hashes(before)["preToolUse"]
+            "a script change keeps the hook part of the trust hash": (
+                hook_parts(after_script) == hook_parts(before)
+            ),
+            "a timeout change changes the hook part of the trust hash of that hook": (
+                hook_parts(after_timeout)["preToolUse"] != hook_parts(before)["preToolUse"]
             ),
             "the gate finds the changed script": any(
                 "its script" in p for p in after_script["problems"]

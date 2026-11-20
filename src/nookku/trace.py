@@ -12,7 +12,7 @@ import datetime
 import hashlib
 import json
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Literal, NamedTuple
@@ -21,10 +21,12 @@ from urllib.parse import urlsplit
 from . import (
     answer_key,
     app_spec,
+    approvals,
     backend,
     db_proxy,
     egress_spans,
     gateway,
+    ingress_spans,
     mcp_proxy,
     model_api,
     openinference,
@@ -90,6 +92,7 @@ CHECKS = (
     "version_untested",
     "missing_trace_point",
     "trace_points_unread",
+    "action_without_approval",
 )
 # The default of the config key repeated_reply: the count of consecutive turns with the same
 # reply that gives a repeated_reply finding (SPEC.md section 8.6).
@@ -683,6 +686,79 @@ def _unfinished_mcp_tasks(items: list[dict[str, Any]]) -> Iterator[dict[str, Any
             )
 
 
+def _mcp_elicitations(
+    messages: list[_McpMessage], failed: dict[int, str], calls: list[dict[str, Any]]
+) -> Iterator[dict[str, Any]]:
+    """One `elicitation` item for each `elicitation/create` request of a server (SPEC.md section
+    7.18). The `output` is the `action` of the answer of the app: `accept`, `decline` or
+    `cancel`. The `ts` is the time of the answer, because an approval counts from its answer.
+    A request with no answer has the time of the request, no `output` and an `error`.
+
+    The answer is the first message to the server with the same `id` and no `method`, of the
+    same server and the same MCP session, that no earlier elicitation has. An HTTP record has
+    the row of the answer before the row of the stream that holds the request, so the reader
+    looks at each message. `calls` holds the tool calls of the record. `input.during` names
+    each one of the same server and session that had no result at the time of the answer."""
+    used: set[int] = set()
+    for msg in messages:
+        if msg.up or msg.body.get("method") != "elicitation/create" or "id" not in msg.body:
+            continue
+        params = _object(msg.body.get("params"))
+        found = next(
+            (
+                j
+                for j, a in enumerate(messages)
+                if j not in used
+                and a.up
+                and a.server == msg.server
+                and a.channel == msg.channel
+                and a.body.get("id") == msg.body["id"]
+                and "method" not in a.body
+            ),
+            None,
+        )
+        it = _item("mcp", msg.server, mcp_proxy.FILE, msg.line, msg.ts)
+        # A request with no mode has the mode `form` (MCP 2025-11-25).
+        mode = params.get("mode", approvals.FORM)
+        it.update(
+            kind="elicitation", server=msg.server, name=mode if isinstance(mode, str) else None
+        )
+        it["input"] = {"message": params.get("message"), "during": []}
+        if found is None:
+            it["error"] = failed.get(msg.line, "no answer in mcp.jsonl")
+            yield it
+            continue
+        used.add(found)
+        answer = messages[found]
+        it["ts"] = answer.ts
+        it["source"]["result_line"] = answer.line
+        it["input"]["during"] = [
+            {"line": c["line"], "tool": c["tool"]}
+            for c in calls
+            if (c["server"], c["channel"]) == (msg.server, msg.channel) and _open_at(c, answer.ts)
+        ]
+        if isinstance(answer.body.get("error"), dict):
+            it["error"] = str(answer.body["error"].get("message") or "error")
+        else:
+            action = _object(answer.body.get("result")).get("action")
+            it["output"] = action if isinstance(action, str) else None
+            if it["output"] is None:
+                it["error"] = "the answer has no action"
+        yield it
+
+
+def _open_at(call: dict[str, Any], ts: Any) -> bool:
+    """True if a tool call had its request and no result at a time."""
+    start, end = call["ts"], call["end"]
+    if not _is_time(ts) or not _is_time(start) or start > ts:
+        return False
+    return end is None or (_is_time(end) and ts <= end)
+
+
+def _is_time(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
 def read_mcp(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """The tool calls, task states and scope steps of mcp.jsonl (SPEC.md section 8.4)."""
     ignored: Counter[str] = Counter()
@@ -723,7 +799,8 @@ def read_mcp(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         if row.get("error") is not None:
             failed[n] = str(row["error"])
     items.extend(_mcp_tasks(messages))
-    for i, (n, ts, server, up, m, _) in enumerate(messages):
+    calls: list[dict[str, Any]] = []
+    for i, (n, ts, server, up, m, channel) in enumerate(messages):
         if not up or m.get("method") != "tools/call" or "id" not in m:
             continue
         params = m["params"] if isinstance(m.get("params"), dict) else {}
@@ -732,8 +809,8 @@ def read_mcp(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         it["input"] = params.get("arguments")
         answer = next(
             (
-                (ln, r)
-                for ln, _, srv, to, r, _ in messages[i + 1 :]
+                (ln, r, at)
+                for ln, at, srv, to, r, _ in messages[i + 1 :]
                 if not to and srv == server and r.get("id") == m["id"] and "method" not in r
             ),
             None,
@@ -744,6 +821,18 @@ def read_mcp(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
             it["output"], it["error"] = _mcp_result(answer[1])
             it["source"]["result_line"] = answer[0]
         items.append(it)
+        end = None if answer is None else answer[2]
+        calls.append(
+            {
+                "server": server,
+                "channel": channel,
+                "line": n,
+                "tool": it["name"],
+                "ts": ts,
+                "end": end,
+            }
+        )
+    items.extend(_mcp_elicitations(messages, failed, calls))
     return items, {
         "file": mcp_proxy.FILE,
         "rows": rows,
@@ -1568,6 +1657,28 @@ def citations_not_read(
     return out
 
 
+# The detail of the action_without_approval finding for approvals that the check cannot use.
+APPROVALS_UNUSABLE = "the approvals cannot be used: the key approvals of manifest.json is not valid"
+
+
+def actions_without_approval(
+    items: list[dict[str, Any]], rows: Sequence[dict[str, str]] | None
+) -> list[dict[str, Any]]:
+    """The findings of the approvals (SPEC.md section 7.18): one action_without_approval
+    finding for each action of a row with no approval before it in its turn. `rows` holds the
+    rows of the manifest (approvals.valid), or None for a key that is not valid. Then the check
+    gives 1 finding with no turn, so it fails closed."""
+    if rows is None:
+        return [_finding("action_without_approval", None, APPROVALS_UNUSABLE)]
+    found, _ = approvals.check(list(rows), items, _succeeded)
+    out = []
+    for f in found:
+        it = f["item"]
+        where = {"harness": it["harness"], "session": it["session"], "source": it["source"]}
+        out.append(_finding("action_without_approval", f["turn"], f["detail"], **where))
+    return out
+
+
 def answer_results(
     exchanges: list[dict[str, Any]], key: dict[str, Any] | str | None
 ) -> list[dict[str, Any]] | None:
@@ -1894,6 +2005,7 @@ def check(
     egress: list[dict[str, Any]] | None = None,
     key: dict[str, Any] | str | None = None,
     calls: list[dict[str, Any]] | None = None,
+    approved: Sequence[dict[str, str]] | None = (),
 ) -> list[dict[str, Any]]:
     """The findings of SPEC.md section 8.6. They do not change the audit's exit code. `seen`
     holds the addresses of the proxies (egress_seen), or None if the test has no egress answer.
@@ -1980,6 +2092,7 @@ def check(
     out += drivers_without_span(items, drivers or [])
     out += others_without_span(items, clients or [])
     out.extend(_unfinished_mcp_tasks(items))
+    out += actions_without_approval(items, approved)
     out += egress or []
     for e in errors or []:
         turn = _turn(e["ts"], spans)
@@ -2089,6 +2202,7 @@ def build(folder: Path) -> dict[str, Any]:
         items += found
     keys = trace_keys(manifest)
     egress_info, egress_found = egress_findings(folder, manifest, keys, spans)
+    ingress_info = ingress_counts(folder, manifest, spans)
     exported = None
     if (folder / openinference.FILE).exists():
         exported = openinference.read(folder / openinference.FILE)
@@ -2104,6 +2218,12 @@ def build(folder: Path) -> dict[str, Any]:
             items.append(it)
     items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     assign(items, spans)
+    approved = approvals.valid(manifest.get("approvals"))
+    if approved:
+        # The interrupts and the resumes of the tap record (SPEC.md section 7.18). Each one has
+        # the turn of its exchange.
+        items += _tap_items(folder, approved)
+        items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     if exported is not None:
         egress_found += openinference.missing(items, exported)
     seen = egress_seen(manifest)
@@ -2127,6 +2247,7 @@ def build(folder: Path) -> dict[str, Any]:
         egress_found,
         key,
         calls=codex_calls,
+        approved=approved,
     )
     # The checks of a replay with the recorded backends (SPEC.md section 8.6).
     from nookku import replay
@@ -2161,15 +2282,39 @@ def build(folder: Path) -> dict[str, Any]:
     if key is not None:
         # Only a test with an answer key has the key (SPEC.md section 7.17).
         report["answers"] = answer_results(exchanges, key)
+    if approved or approved is None:
+        # Only a test with approvals has the key (SPEC.md section 7.18).
+        report["approvals"] = (
+            None if approved is None else approvals.check(approved, items, _succeeded)[1]
+        )
     if exported is not None:
         report["openinference"] = {"file": openinference.FILE, "spans": len(exported)}
     if gateway_calls is not None:
         # Only a test with gateway logs has the key (SPEC.md section 8.9).
         report["gateway"] = gateway_calls
+    if ingress_info is not None:
+        # Only a test with ingress spans has the key (SPEC.md section 8.12).
+        report["ingress"] = ingress_info
     text = json_text(report, indent=1) + "\n"
     (folder / "findings.json").write_text(text, encoding="utf-8")
     # The caller prints the report, so it gets the escaped text of findings.json.
     return dict(json.loads(text))
+
+
+def _tap_items(folder: Path, rows: list[dict[str, str]]) -> list[dict[str, Any]]:
+    """The interrupt and resume items of tap.jsonl for the rows of the approvals."""
+    path = folder / approvals.TAP_FILE
+    exchanges = [
+        (n, r) for n, r in read_rows("tap", path, missing_ok=True) if r["type"] == "exchange"
+    ]
+
+    def value_at(reply: str, field: str) -> Any:
+        return _at(_structured(reply), field)
+
+    def new_item(line: int, ts: Any) -> dict[str, Any]:
+        return _item(approvals.TAP, "", approvals.TAP_FILE, line, ts)
+
+    return approvals.tap_items(rows, exchanges, value_at, new_item)
 
 
 def answer_key_of(folder: Path, manifest: dict[str, Any]) -> dict[str, Any] | str | None:
@@ -2199,6 +2344,18 @@ def egress_findings(
     out = egress_spans.not_in_discovery(found, egress_spans.answer_hosts(answer))
     out += egress_spans.denied(found, lambda ts: _turn(ts, spans))
     return info, out
+
+
+def ingress_counts(
+    folder: Path, manifest: dict[str, Any], spans: list[tuple[float, float]]
+) -> dict[str, Any] | None:
+    """The counts of ingress.jsonl in a test folder (SPEC.md section 8.12), or None if the folder
+    has no such file. A span of a later format version raises RecordError."""
+    path = folder / ingress_spans.FILE
+    if not path.exists():
+        return None
+    start, end = manifest.get("started"), manifest.get("ended")
+    return ingress_spans.read(path, start, end, lambda ts: _turn(ts, spans), len(spans))
 
 
 def trace_keys(manifest: dict[str, Any]) -> dict[str, Any]:

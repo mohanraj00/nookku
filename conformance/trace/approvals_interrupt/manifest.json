@@ -1,0 +1,20 @@
+{
+ "test": "20261119-090000-ap02",
+ "model_sessions": [],
+ "approvals": [
+  {
+   "action": "shop POST /orders/cancel",
+   "source": "backend",
+   "approval": "yes",
+   "by": "message",
+   "interrupt": "interrupt.action"
+  },
+  {
+   "action": "shop POST /credit",
+   "source": "backend",
+   "approval": "shop POST /approvals",
+   "by": "backend",
+   "interrupt": ""
+  }
+ ]
+}
