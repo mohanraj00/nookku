@@ -26,6 +26,9 @@ CHECK_HARNESS = "nookku-check"
 # The header of the tap token (SPEC.md section 4.2). A browser cannot send this header to the tap
 # without a preflight, and the tap refuses a preflight.
 TOKEN_HEADER = "X-Nookku-Token"
+# The header of a message that the tap gives to the agent during the turn of the message
+# before it (SPEC.md section 4.2). Only a scripted test sends it.
+DURING_HEADER = "X-Nookku-During"
 # The key of the tap token in current.json.
 TOKEN_KEY = "tap_token"
 
@@ -83,10 +86,14 @@ def public(cur: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in cur.items() if k != TOKEN_KEY}
 
 
-def tap_headers(token: str) -> dict[str, str]:
+def tap_headers(token: str, during: bool = False) -> dict[str, str]:
     """The headers of a POST to the stdio tap. A page server of the bridge, or a process that
-    reads current.json, sends each message with these headers."""
-    return {"Content-Type": "application/json", TOKEN_HEADER: token}
+    reads current.json, sends each message with these headers. With `during`, the tap gives
+    the message to the agent during the turn of the message before it (SPEC.md section 4.2)."""
+    headers = {"Content-Type": "application/json", TOKEN_HEADER: token}
+    if during:
+        headers[DURING_HEADER] = "1"
+    return headers
 
 
 def state(root: Path) -> Path:
@@ -373,8 +380,11 @@ def history(relay: Path) -> History:
     ]
 
 
-def send(cur: dict[str, Any], said: str, timeout: float = TIMEOUT) -> tuple[str, bool]:
-    """Relay one message to the running test. Return (the text to show, whether it is the reply)."""
+def send(
+    cur: dict[str, Any], said: str, timeout: float = TIMEOUT, during: bool = False
+) -> tuple[str, bool]:
+    """Relay one message to the running test. Return (the text to show, whether it is the reply).
+    With `during`, the agent gets the message during the turn of the message before it."""
     # Imported here, so that an event that does not relay stays fast (#214).
     import urllib.error
     import urllib.request
@@ -384,7 +394,7 @@ def send(cur: dict[str, Any], said: str, timeout: float = TIMEOUT) -> tuple[str,
     body = contract.request(rid, cur["test"], said, history(Path(cur["dir"]) / "relay.jsonl"))
     # A current.json with no token gets a 403 from the tap, so the relay fails closed.
     token = cur.get(TOKEN_KEY)
-    headers = tap_headers(token if isinstance(token, str) else "")
+    headers = tap_headers(token if isinstance(token, str) else "", during)
     req = urllib.request.Request(cur["tap_url"], data=body, method="POST", headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:

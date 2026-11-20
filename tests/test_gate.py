@@ -428,7 +428,12 @@ def test_the_relay_denies_a_gate_run_of_the_model(command: str, denied: bool) ->
 def _case_test(folder: Path, given: dict) -> bytes:
     """A sealed test folder with the records of a case, and the bytes of its script."""
     folder.mkdir(parents=True)
-    body = "".join(json.dumps({"said": m}) + "\n" for m in given["messages"]).encode()
+    during = given.get("during") or [None] * len(given["messages"])
+    rows = [
+        {"said": m} if after is None else {"said": m, "during": after}
+        for m, after in zip(given["messages"], during, strict=True)
+    ]
+    body = "".join(json.dumps(r) + "\n" for r in rows).encode()
     manifest = {
         "test": folder.name,
         "entry": given["entry"],
@@ -440,7 +445,10 @@ def _case_test(folder: Path, given: dict) -> bytes:
         "verdict": {"limits": given["limits"], "unread": []},
     }
     (folder / "manifest.json").write_text(json.dumps(manifest))
-    (folder / "findings.json").write_text(json.dumps({"counts": given["counts"]}))
+    findings = {"counts": given["counts"]}
+    if "second_messages" in given:
+        findings["second_messages"] = given["second_messages"]
+    (folder / "findings.json").write_text(json.dumps(findings))
     verdict.build(folder)
     (folder / "audit.json").write_text(json.dumps(given["audit"]))
     _records(folder, given["messages"], given["replies"], given.get("tap"))
@@ -768,3 +776,29 @@ def test_a_very_large_integer_gives_a_compare_and_not_an_error(
     assert above["value"] == big and above["failures"][0]["reason"] == "above_limit"
     assert (same["verdict"], same["value"]) == ("pass", big)
     assert main(["gate", "verify", "--root", str(root)]) == 1
+
+
+TIMED = b'{"said": "a"}\n{"said": "b", "during": 0.5}\n{"said": "c"}\n{"said": "d", "during": 1}\n'
+
+
+@pytest.mark.parametrize(
+    ("script_bytes", "findings", "late"),
+    [
+        (TIMED, {"second_messages": [{"turn": 2}, {"turn": 4}]}, []),
+        (TIMED, {"second_messages": [{"turn": 2}, "x", {"turn": "4"}]}, [4]),
+        (TIMED, {"second_messages": "all"}, [2, 4]),
+        (TIMED, {}, [2, 4]),
+        (TIMED, None, [2, 4]),
+        (TIMED, [], [2, 4]),
+        # A script with no `during` has no check.
+        (b'{"said": "a"}\n{"said": "b"}\n', {}, None),
+        # The check `turns` fails for a script that is not valid.
+        (b"not a script", {}, None),
+        (None, {}, None),
+    ],
+)
+def test_a_message_with_during_needs_its_row_in_the_findings(
+    script_bytes: bytes | None, findings: object, late: list[int] | None
+) -> None:
+    data = None if findings is None else json.dumps(findings).encode()
+    assert gate._late_messages(script_bytes, data) == late

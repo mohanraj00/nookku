@@ -480,6 +480,17 @@ This proof uses 1 script and HTTP parts only. A stdio MCP server and a Postgres 
 
 This is 1 run of 5 turns, with 1 planted defect and 2 rows of the `Approvals` table. The toy app answers the elicitation itself, so the run does not show a real user. It has no HTTP MCP server and no approval of the `By` `session`, `backend`, `otel` or `mcp`. The 3 conformance cases with a name that starts with `approvals_` cover these forms with no model ([conformance/trace/](../conformance/trace/)).
 
+### A second message during a slow turn
+
+[scripts/proof_second_message.py](../scripts/proof_second_message.py) runs 2 [scripted tests](reference/glossary.md#scripted-test) of a toy shop app with a stdio MCP server `payments`, with no model. The tool `refund` of the server takes 1.5 seconds. The app reads its stdin during a turn, and a message during a refund stops the refund: the app sends `notifications/cancelled`, and the server sends no result. The 2 tests have the same 3 messages. In the test `second`, the row of message 2 has `"during": 0.5`. In the test `control`, no row has it. In the run of 2026-11-19 with the code of [#522](https://github.com/mohanraj00/nookku/issues/522) on nookku 0.5.9 ([data](../proofs/second-message/results.json)):
+
+- In the test `second`, the [tap](reference/glossary.md#tap) gave message 2 to the [entry](reference/glossary.md#entry) 0.491 seconds after message 1, and the reply of turn 1 came at 0.498 seconds. `findings.json` has 1 row in `second_messages`: turn 2 during turn 1, with `reply_first` `false`.
+- The app stopped the refund. The `refund` tool call of turn 1 has no result in the record of the MCP proxy, and it gives 1 `call_cut` [finding](reference/glossary.md#findings). The `Verdict` table permits 0, so the verdict is `fail`.
+- In the test `control`, turn 2 started after the reply of turn 1, at 1.504 seconds. The tool call has its result, the test has no second message and no finding, and the verdict is `pass`.
+- The audit of each test exits with 0, and each [seal](reference/glossary.md#seal) is intact.
+
+This is 1 run of each test, with 1 app that stops its first turn. It does not show an app that refuses the second message or does both turns, and it has no backend call, no database query and no Claude Code session. The tests in [tests/test_second_message.py](../tests/test_second_message.py) cover a queue, a refusal and a stop with no model, and the case [conformance/trace/second_message/](../conformance/trace/second_message/) covers the rules of the trace.
+
 ## 2. Benchmark under pressure
 
 The question: does the mechanism stay exact in long, messy conversations with the agent?

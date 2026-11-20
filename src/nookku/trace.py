@@ -93,6 +93,7 @@ CHECKS = (
     "missing_trace_point",
     "trace_points_unread",
     "action_without_approval",
+    "call_cut",
 )
 # The default of the config key repeated_reply: the count of consecutive turns with the same
 # reply that gives a repeated_reply finding (SPEC.md section 8.6).
@@ -1456,10 +1457,12 @@ def _exchanges(tap: Path) -> list[dict[str, Any]]:
 
 def windows(exchanges: list[dict[str, Any]]) -> list[tuple[float, float]]:
     """The time window of each turn. A 0.1 row has no `started`: its window starts at the end of
-    the turn before it."""
+    the turn before it. A row with `replied` ends at that time: the reply of a second message
+    came before the tap wrote its row (SPEC.md section 8.3)."""
     out: list[tuple[float, float]] = []
     for r in exchanges:
-        end = float(r.get("ts", 0.0))
+        replied = r.get("replied")
+        end = float(replied) if isinstance(replied, (int, float)) else float(r.get("ts", 0.0))
         started = r.get("started")
         if isinstance(started, (int, float)):
             start = float(started)
@@ -1469,8 +1472,66 @@ def windows(exchanges: list[dict[str, Any]]) -> list[tuple[float, float]]:
     return out
 
 
+def second_messages(exchanges: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The second messages of a test (SPEC.md section 8.3): each exchange whose `started` is
+    in the window of the exchange before it, and before the end of that window. `turn` is the
+    turn of the second message, and `during` is the turn before it. `after` is the seconds from
+    the start of that turn to the second message. `reply_first` is True if the reply of the
+    second message came before the end of that turn."""
+    spans = windows(exchanges)
+    out: list[dict[str, Any]] = []
+    for n in range(2, len(exchanges) + 1):
+        started, before = exchanges[n - 1].get("started"), exchanges[n - 2].get("started")
+        start, end = spans[n - 2]
+        if not isinstance(started, (int, float)) or not isinstance(before, (int, float)):
+            continue
+        if not start <= started < end:
+            continue
+        row = {"turn": n, "during": n - 1, "after": round(started - start, 3)}
+        out.append({**row, "reply_first": spans[n - 1][1] < end})
+    return out
+
+
+# The readers whose item has `result_line` in its `source` if the call has a result.
+RESULT_LINE_HARNESSES = ("claude-code", "mcp", "database")
+
+
+def _no_result(it: dict[str, Any]) -> bool:
+    """True if the record shows the start of a call and no result (SPEC.md section 8.6,
+    `call_cut`): an `http` item with no status, or a `tool_call` or `query` item of a reader
+    that gives `result_line`, with no `result_line`."""
+    if it["kind"] == "http":
+        return it["exit_code"] is None
+    if it["kind"] in ("tool_call", "query") and it["harness"] in RESULT_LINE_HARNESSES:
+        return "result_line" not in it["source"]
+    return False
+
+
+def calls_cut(items: list[dict[str, Any]], exchanges: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """One call_cut finding for each call of a turn that started before a second message came
+    during that turn, and that has no result (SPEC.md section 8.6)."""
+    out: list[dict[str, Any]] = []
+    for second in second_messages(exchanges):
+        came = exchanges[second["turn"] - 1]["started"]
+        for it in items:
+            if it["turn"] != second["during"] or not _no_result(it):
+                continue
+            if not _is_time(it["ts"]) or it["ts"] > came:
+                continue
+            name = str(it["name"])
+            if it["kind"] in ("http", "query"):
+                name = f"{it['session']}: {name}"
+            detail = f"{name}: no result. The call started before the message of turn "
+            detail += f"{second['turn']}, which came during this turn"
+            where = {"harness": it["harness"], "session": it["session"], "source": it["source"]}
+            out.append(_finding("call_cut", second["during"], detail, **where))
+    return out
+
+
 def _turn(ts: float | None, spans: list[tuple[float, float]]) -> int | None:
-    """The 1-based number of the exchange whose window holds the time `ts`, or None."""
+    """The 1-based number of the exchange whose window holds the time `ts`, or None. The
+    windows of a turn and of a second message during it share a time. An item at such a time
+    is in the first of the 2 turns."""
     return next((i for i, (a, b) in enumerate(spans, 1) if ts is not None and a <= ts <= b), None)
 
 
@@ -2093,6 +2154,7 @@ def check(
     out += others_without_span(items, clients or [])
     out.extend(_unfinished_mcp_tasks(items))
     out += actions_without_approval(items, approved)
+    out += calls_cut(items, exchanges)
     out += egress or []
     for e in errors or []:
         turn = _turn(e["ts"], spans)
@@ -2287,6 +2349,11 @@ def build(folder: Path) -> dict[str, Any]:
         report["approvals"] = (
             None if approved is None else approvals.check(approved, items, _succeeded)[1]
         )
+    seconds = second_messages(exchanges)
+    if seconds:
+        # Only a test with a second message has the key (SPEC.md section 8.3).
+        cut = Counter(f["turn"] for f in findings if f["check"] == "call_cut")
+        report["second_messages"] = [{**s, "calls_cut": cut[s["during"]]} for s in seconds]
     if exported is not None:
         report["openinference"] = {"file": openinference.FILE, "spans": len(exported)}
     if gateway_calls is not None:
