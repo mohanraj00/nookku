@@ -51,7 +51,7 @@ from nookku.config import NO_ENTRY as NO_ENTRY
 from nookku.config import STATE_DIR as STATE_DIR
 from nookku.config import BodyLimit, ConfigError, read_config, spec_contents, spec_copy
 from nookku.config import has_entry as has_entry
-from nookku.record import RecordError, Writer, loads, turns
+from nookku.record import RecordError, Writer, loads, read_rows, turns
 from nookku.state import (
     TESTS_DIRS,
     TOKEN_KEY,
@@ -1490,7 +1490,8 @@ def run_script(
     give the replies: the evaluation reads the records. The run stops at the first turn with no
     reply, and the audit then reports each message that was not sent."""
     try:
-        messages = script.read(script_path)[0]
+        messages, _, data = script.read(script_path)
+        during = script.timing(data)
     except script.ScriptError as e:
         raise BridgeError(str(e)) from None
     cur = start(root, entry_name=entry_name, script_path=script_path, egress=egress, play=play)
@@ -1498,15 +1499,19 @@ def run_script(
     relay = folder / "relay.jsonl"
     sent, failed = 0, None
     try:
-        for said in messages:
-            shown, ok = send(cur, said)
-            Writer(relay).append(
-                {"type": "turn", "harness": "script", "said": said, "shown": shown, "ok": ok}
-            )
-            sent += 1
-            if not ok:
-                failed = sent
-                break
+        while sent < len(messages) and failed is None:
+            after = during[sent + 1] if sent + 1 < len(messages) else None
+            if after is None:
+                results = [send(cur, messages[sent])]
+            else:
+                # The next message goes to the entry during this turn (SPEC.md section 7.10).
+                results = _send_pair(cur, messages[sent], messages[sent + 1], after)
+            for shown, ok in results:
+                row = {"type": "turn", "harness": "script", "said": messages[sent]}
+                Writer(relay).append({**row, "shown": shown, "ok": ok})
+                sent += 1
+                if not ok and failed is None:
+                    failed = sent
         time.sleep(2 * POLL)
     finally:
         manifest = end(root, find_stopped=False) or {}
@@ -1515,7 +1520,53 @@ def run_script(
     first = (
         None if failed is None else f"The entry sent no reply to message {failed} of the script."
     )
-    return _report(folder, manifest, lines, first, gate)
+    late = _late(folder, during[:sent])
+    passed, lines, folder = _report(folder, manifest, lines, first or late, gate)
+    if first is not None and late is not None:
+        lines.append(f"FAIL: {late}")
+    return passed, lines, folder
+
+
+def _send_pair(
+    cur: dict[str, Any], first: str, second: str, after: float
+) -> list[tuple[str, bool]]:
+    """Send a message of a script, and send the next message `after` seconds later, during the
+    turn of the first one (SPEC.md section 7.10). Return the result of each send, in the order
+    of the script. The tap gives the second reply after the first one."""
+    results: list[tuple[str, bool]] = [("", False), ("", False)]
+
+    def go() -> None:
+        results[0] = send(cur, first)
+
+    thread = threading.Thread(target=go)
+    start_time = time.monotonic()
+    thread.start()
+    time.sleep(max(0.0, after - (time.monotonic() - start_time)))
+    results[1] = send(cur, second, during=True)
+    thread.join()
+    return results
+
+
+def _late(folder: Path, during: list[float | None]) -> str | None:
+    """The problem of a scripted test with a message that has the key `during` and that the
+    entry did not get during the turn before it, or None. The tap record gives the times."""
+    wanted = [n for n, after in enumerate(during, 1) if after is not None]
+    if not wanted:
+        return None
+    try:
+        rows = [r for _, r in read_rows("tap", folder / "tap.jsonl") if r["type"] == "exchange"]
+    except (OSError, RecordError):
+        return "The tap record does not show if each message with `during` came during a turn."
+    got = {s["turn"] for s in trace.second_messages(rows)}
+    missed = [n for n in wanted if n not in got]
+    if not missed:
+        return None
+    first = missed[0]
+    return (
+        f"Message {first} of the script has `during`, but the entry did not get it during turn "
+        f"{first - 1}: the reply of turn {first - 1} came first. Make the turn slower or the "
+        "number smaller."
+    )
 
 
 def _report(

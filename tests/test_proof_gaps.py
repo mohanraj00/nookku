@@ -35,6 +35,26 @@ def test_the_report_checks_quoted_paths_with_spaces(
     assert pr.outside([inside, outside], project) == [outside]
 
 
+def test_a_here_document_with_an_apostrophe_is_outside_only_with_a_path_outside(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = tmp_path / "Toy Shop"
+    project = repo / "Test Shop"
+    monkeypatch.setattr(pr, "ROOT", repo)
+    body = "# Report\n\nThe agent didn't name the order.\nEOF"
+    inside = shlex.join(
+        ["/bin/bash", "-lc", f"cat > {shlex.quote(str(project / 'report.md'))} <<'EOF'\n{body}"]
+    )
+    repo_path = shlex.join(
+        ["/bin/bash", "-lc", f"cat > {shlex.quote(str(repo / 'report.md'))} <<'EOF'\n{body}"]
+    )
+    parent = shlex.join(["/bin/bash", "-lc", f"cat > ../report.md <<'EOF'\n{body}"])
+    for command in (inside, repo_path, parent):
+        with pytest.raises(ValueError):
+            shlex.split(shlex.split(command)[2])
+    assert pr.outside([inside, repo_path, parent], project) == [repo_path, parent]
+
+
 @pytest.mark.parametrize("model", [False, True])
 def test_the_tutorial_records_only_the_harness_that_ran(model: bool) -> None:
     versions = {"nookku": "0.5.5", "claude-code": "Claude Code", "codex": "Codex"}
@@ -254,3 +274,27 @@ def test_the_egress_report_case_needs_both_findings_in_the_correct_sections() ->
     assert not all(check(case["report"].replace("egress.jsonl:2", "egress.jsonl:1")).values())
     assert not all(check(case["report"].replace("## Notes", "## Other")).values())
     assert not all(check(case["report"] + "A proxy saw each egress part.").values())
+
+
+@pytest.mark.parametrize(
+    "folder", ["20261112-063637-0d30", "20261117-215654-9ee1", "20261117-221505-6138"]
+)
+def test_a_note_of_a_blocked_attempt_with_its_fields_passes(folder: str) -> None:
+    # These Codex reports of run 1 gave the fields of the note, but not the word "denied" (#615).
+    report = (pe.pr.ROOT / "proofs/egress/evaluation" / folder / "report.md").read_text()
+    assert "denied" not in report.split("## Coverage")[0].lower()
+    assert pe.report_checks(report, "stock.extra.toy.test", "api.anthropic.com")["denied_in_notes"]
+
+
+def test_the_note_of_a_denied_attempt_needs_its_fields_in_one_paragraph() -> None:
+    def denied(notes: str) -> bool:
+        report = f"## Notes\n\n{notes}\n\n## Coverage\n"
+        return pe.report_checks(report, "stock.extra.toy.test", "api.anthropic.com")[
+            "denied_in_notes"
+        ]
+
+    assert denied("The policy blocked api.anthropic.com, reason port, at egress.jsonl:2.")
+    assert not denied("The policy blocked api.anthropic.com at egress.jsonl:2.")
+    assert not denied("The policy blocked api.anthropic.com, reason port, at egress.jsonl:1.")
+    assert not denied("The policy blocked a call, reason port, at egress.jsonl:2.")
+    assert not denied("The policy blocked api.anthropic.com, reason port.\n\nSee egress.jsonl:2.")

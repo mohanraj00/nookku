@@ -1,0 +1,157 @@
+{
+ "date": "2026-11-19",
+ "versions": {
+  "nookku": "0.5.9",
+  "python": "3.13.12",
+  "os": "Darwin"
+ },
+ "second": {
+  "script": [
+   {
+    "said": "Refund order 5120."
+   },
+   {
+    "said": "Stop. Do not refund it.",
+    "during": 0.5
+   },
+   {
+    "said": "Is order 5120 refunded?"
+   }
+  ],
+  "passed": false,
+  "problems": [
+   "FAIL: The verdict is fail. Read verdict.json in the test folder."
+  ],
+  "turns": [
+   {
+    "said": "Refund order 5120.",
+    "shown": "I stopped the refund of order 5120."
+   },
+   {
+    "said": "Stop. Do not refund it.",
+    "shown": "The refund is stopped."
+   },
+   {
+    "said": "Is order 5120 refunded?",
+    "shown": "Order 5120 is not refunded."
+   }
+  ],
+  "tap": [
+   {
+    "started": 0.0,
+    "ts": 0.498
+   },
+   {
+    "started": 0.491,
+    "ts": 0.499
+   },
+   {
+    "started": 0.5,
+    "ts": 0.501
+   }
+  ],
+  "second_messages": [
+   {
+    "turn": 2,
+    "during": 1,
+    "after": 0.491,
+    "reply_first": false,
+    "calls_cut": 1
+   }
+  ],
+  "tool_calls": [
+   {
+    "turn": 1,
+    "name": "refund",
+    "output": null,
+    "error": "no response in mcp.jsonl",
+    "has_result": false
+   }
+  ],
+  "counts": {
+   "tool_error": 1,
+   "call_cut": 1
+  },
+  "call_cut": [
+   {
+    "turn": 1,
+    "detail": "refund: no result. The call started before the message of turn 2, which came during this turn",
+    "harness": "mcp",
+    "session": "payments"
+   }
+  ],
+  "verdict": "fail",
+  "audit_exit": 0,
+  "seal_intact": true
+ },
+ "control": {
+  "script": [
+   {
+    "said": "Refund order 5120."
+   },
+   {
+    "said": "Stop. Do not refund it."
+   },
+   {
+    "said": "Is order 5120 refunded?"
+   }
+  ],
+  "passed": true,
+  "problems": [],
+  "turns": [
+   {
+    "said": "Refund order 5120.",
+    "shown": "The refund of order 5120 is sent."
+   },
+   {
+    "said": "Stop. Do not refund it.",
+    "shown": "The refund is already sent."
+   },
+   {
+    "said": "Is order 5120 refunded?",
+    "shown": "Order 5120 is refunded."
+   }
+  ],
+  "tap": [
+   {
+    "started": 0.0,
+    "ts": 1.502
+   },
+   {
+    "started": 1.504,
+    "ts": 1.504
+   },
+   {
+    "started": 1.506,
+    "ts": 1.506
+   }
+  ],
+  "second_messages": null,
+  "tool_calls": [
+   {
+    "turn": 1,
+    "name": "refund",
+    "output": "refund of order 5120 sent",
+    "error": null,
+    "has_result": true
+   }
+  ],
+  "counts": {},
+  "call_cut": [],
+  "verdict": "pass",
+  "audit_exit": 0,
+  "seal_intact": true
+ },
+ "checks": {
+  "the entry got message 2 during turn 1": true,
+  "the app stopped the refund": true,
+  "the stopped tool call has no result": true,
+  "the stopped call gives 1 call_cut finding": true,
+  "the limit of 0 fails the verdict and the run": true,
+  "the audit of both tests is clean": true,
+  "the control has no second message and no finding": true,
+  "the control refund has its result": true,
+  "the seal of both tests is intact": true
+ },
+ "pass": true
+}

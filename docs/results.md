@@ -10,7 +10,7 @@ I ran the Codex proofs of the 0.5.9 release candidate on 2026-11-17, with nookku
 
 The 2 egress [evaluation](reference/glossary.md#evaluation) [test folders](reference/glossary.md#test-folder) are in `proofs/egress/evaluation/`. The project-hook test folder is [`20261117-223435-bb63`](../proofs/egress/evaluation/20261117-223435-bb63/). The plugin test folder is [`20261117-215920-1af4`](../proofs/egress/evaluation/20261117-215920-1af4/). [Method](../scripts/proof_egress.py)
 
-The current record of the hook gate proof is a run of part A on 2026-11-20, with nookku 0.5.9 and codex-cli 0.169.0. It found the plugin folder of 0.5.9 in the cache (`plugin_folder_is_this_version`) and passed 6 of 6 checks ([data](../proofs/codex-gate/gate.json), [method](../scripts/proof_codex_gate.py)). Part A needs a new Codex home with no trusted hooks, so the record has no part B. Part B waits for the owner step: the maintainer trusts the 2 hooks, then runs the script with `--trusted`.
+The current record of the hook gate proof is a run on 2026-11-21, with nookku 0.5.9 and codex-cli 0.169.0. Part A found the plugin folder of 0.5.9 in the cache (`plugin_folder_is_this_version`) and passed 6 of 6 checks. Then the maintainer trusted the 2 hooks, and part B passed 5 of 5 checks with `--trusted` ([data](../proofs/codex-gate/gate.json), [method](../scripts/proof_codex_gate.py)).
 
 Since codex-cli 0.169.0, the trust hash has 2 parts (`sha256:A/sha256:B`), and a change to the plugin script changes the second part. The check now compares only the first part, the hook part (#613). History: on 2026-11-17, the old check compared the full hash, so part A passed 5 of 6 checks, and part B passed 5 of 5 ([data](https://github.com/mohanraj00/nookku/blob/11285711/proofs/codex-gate/gate.json), [method](https://github.com/mohanraj00/nookku/blob/11285711/scripts/proof_codex_gate.py)).
 
@@ -28,7 +28,7 @@ Since codex-cli 0.169.0, the trust hash has 2 parts (`sha256:A/sha256:B`), and a
 | Egress with [evaluation](reference/glossary.md#evaluation) | [Pass](../proofs/egress/hooks-codex-evaluation.json) | [Pass](../proofs/egress/plugin-codex-evaluation.json) |
 | Transcript evaluation | [Pass](../proofs/evaluation/hooks-codex.json) | [Pass](../proofs/evaluation/plugin-codex.json) |
 
-The table gives the run that passed. 20 of the 22 proofs passed at run 1. The plugin egress proof with the evaluation passed at run 2, because the report of run 1 did not name the denied attempt in its notes. The project-hook spec-classes proof passed at run 2, because the command check of the proof counted a command as outside the project. That command wrote `report.md` with a here-document that holds an apostrophe, and the check could not parse it. The [run notes](../proofs/release/codex-0.5.9.md#the-failed-runs) give each cause, and the loss of a first set of project-hook results that an error of mine caused.
+The table gives the run that passed. 20 of the 22 proofs passed at run 1. The plugin egress proof with the evaluation passed at run 2. The report of run 1 named the denied attempt in its notes with the host, the reason and the source line, but the check also required the word "denied" (#615). The project-hook spec-classes proof passed at run 2, because the command check of the proof counted a command as outside the project. That command wrote `report.md` with a here-document that holds an apostrophe, and the check could not parse it. The [run notes](../proofs/release/codex-0.5.9.md#the-failed-runs) give each cause, and the loss of a first set of project-hook results that an error of mine caused.
 
 The project-hook telemetry run passes T2. Its `business_rule` row of turn 2 cites `trace.jsonl:13, trace.jsonl:17-18, trace.jsonl:20`, and its `missing_action` row cites the range `trace.jsonl:13-20`. Both rows hold both reserve calls. Since [#603](https://github.com/mohanraj00/nookku/pull/603), T2 reads each line and each range of a comma list, so it counts both rows. [Data](../proofs/telemetry/hooks-codex.json), [method](../scripts/proof_telemetry.py)
 
@@ -479,6 +479,17 @@ This proof uses 1 script and HTTP parts only. A stdio MCP server and a Postgres 
 - The `Verdict` table permits 0 `action_without_approval`, so the verdict is `fail`. The [seal](reference/glossary.md#seal) is intact.
 
 This is 1 run of 5 turns, with 1 planted defect and 2 rows of the `Approvals` table. The toy app answers the elicitation itself, so the run does not show a real user. It has no HTTP MCP server and no approval of the `By` `session`, `backend`, `otel` or `mcp`. The 3 conformance cases with a name that starts with `approvals_` cover these forms with no model ([conformance/trace/](../conformance/trace/)).
+
+### A second message during a slow turn
+
+[scripts/proof_second_message.py](../scripts/proof_second_message.py) runs 2 [scripted tests](reference/glossary.md#scripted-test) of a toy shop app with a stdio MCP server `payments`, with no model. The tool `refund` of the server takes 1.5 seconds. The app reads its stdin during a turn, and a message during a refund stops the refund: the app sends `notifications/cancelled`, and the server sends no result. The 2 tests have the same 3 messages. In the test `second`, the row of message 2 has `"during": 0.5`. In the test `control`, no row has it. In the run of 2026-11-19 with the code of [#522](https://github.com/mohanraj00/nookku/issues/522) on nookku 0.5.9 ([data](../proofs/second-message/results.json)):
+
+- In the test `second`, the [tap](reference/glossary.md#tap) gave message 2 to the [entry](reference/glossary.md#entry) 0.491 seconds after message 1, and the reply of turn 1 came at 0.498 seconds. `findings.json` has 1 row in `second_messages`: turn 2 during turn 1, with `reply_first` `false`.
+- The app stopped the refund. The `refund` tool call of turn 1 has no result in the record of the MCP proxy, and it gives 1 `call_cut` [finding](reference/glossary.md#findings). The `Verdict` table permits 0, so the verdict is `fail`.
+- In the test `control`, turn 2 started after the reply of turn 1, at 1.504 seconds. The tool call has its result, the test has no second message and no finding, and the verdict is `pass`.
+- The audit of each test exits with 0, and each [seal](reference/glossary.md#seal) is intact.
+
+This is 1 run of each test, with 1 app that stops its first turn. It does not show an app that refuses the second message or does both turns, and it has no backend call, no database query and no Claude Code session. The tests in [tests/test_second_message.py](../tests/test_second_message.py) cover a queue, a refusal and a stop with no model, and the case [conformance/trace/second_message/](../conformance/trace/second_message/) covers the rules of the trace.
 
 ### A rollout gate
 

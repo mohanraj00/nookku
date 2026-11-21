@@ -1,0 +1,132 @@
+{
+ "v": "0.2",
+ "test": "20261119-090000-sm01",
+ "turns": 6,
+ "items": 6,
+ "sessions": [],
+ "otel": null,
+ "backend": {
+  "file": "backend.jsonl",
+  "rows": 4,
+  "items": 4,
+  "ignored": {}
+ },
+ "model_api": null,
+ "mcp": {
+  "file": "mcp.jsonl",
+  "rows": 3,
+  "items": 2,
+  "ignored": {}
+ },
+ "database": null,
+ "second_messages": [
+  {
+   "turn": 2,
+   "during": 1,
+   "after": 2.0,
+   "reply_first": false,
+   "calls_cut": 2
+  },
+  {
+   "turn": 4,
+   "during": 3,
+   "after": 2.0,
+   "reply_first": true,
+   "calls_cut": 0
+  }
+ ],
+ "egress": null,
+ "trace_points": null,
+ "counts": {
+  "agent_error": 0,
+  "repeated_reply": 0,
+  "reply_not_from_model": 0,
+  "citation_not_read": 0,
+  "answer_key_mismatch": 0,
+  "answer_key_missing": 0,
+  "tool_error": 1,
+  "command_failed": 0,
+  "span_error": 0,
+  "backend_error": 2,
+  "model_api_error": 0,
+  "questions_lost": 0,
+  "database_error": 0,
+  "proxy_call_without_span": 0,
+  "mcp_task_unfinished": 0,
+  "replay_changed": 0,
+  "replay_miss": 0,
+  "unseen_call": 0,
+  "driver_without_span": 0,
+  "other_without_span": 0,
+  "egress_not_in_discovery": 0,
+  "egress_denied": 0,
+  "model_error": 0,
+  "turn_without_model": 0,
+  "item_between_turns": 0,
+  "otel_tool_not_in_session": 0,
+  "server_not_from_app": 0,
+  "session_inferred": 0,
+  "version_untested": 0,
+  "missing_trace_point": 0,
+  "trace_points_unread": 0,
+  "action_without_approval": 0,
+  "call_cut": 2
+ },
+ "findings": [
+  {
+   "check": "tool_error",
+   "turn": 1,
+   "detail": "reserve: no response in mcp.jsonl",
+   "harness": "mcp",
+   "session": "stock",
+   "source": {
+    "file": "mcp.jsonl",
+    "line": 3
+   }
+  },
+  {
+   "check": "backend_error",
+   "turn": 1,
+   "detail": "shop: POST /refund: the test ended before the backend answered",
+   "harness": "backend",
+   "session": "shop",
+   "source": {
+    "file": "backend.jsonl",
+    "line": 1
+   }
+  },
+  {
+   "check": "backend_error",
+   "turn": 1,
+   "detail": "shop: POST /refund: the test ended before the backend answered",
+   "harness": "backend",
+   "session": "shop",
+   "source": {
+    "file": "backend.jsonl",
+    "line": 2
+   }
+  },
+  {
+   "check": "call_cut",
+   "turn": 1,
+   "detail": "shop: POST /refund: no result. The call started before the message of turn 2, which came during this turn",
+   "harness": "backend",
+   "session": "shop",
+   "source": {
+    "file": "backend.jsonl",
+    "line": 1
+   }
+  },
+  {
+   "check": "call_cut",
+   "turn": 1,
+   "detail": "reserve: no result. The call started before the message of turn 2, which came during this turn",
+   "harness": "mcp",
+   "session": "stock",
+   "source": {
+    "file": "mcp.jsonl",
+    "line": 3
+   }
+  }
+ ]
+}

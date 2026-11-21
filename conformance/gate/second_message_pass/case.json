@@ -1,0 +1,41 @@
+{
+ "subject": "sha256:ab12cd34",
+ "errors": {},
+ "tests": {
+  "refund": {
+   "messages": [
+    "What is your refund policy?",
+    "Do you ship to Pune?"
+   ],
+   "replies": [
+    true,
+    true
+   ],
+   "entry": [
+    "python",
+    "agent.py"
+   ],
+   "entry_name": null,
+   "limits": {},
+   "counts": {},
+   "audit": {
+    "exit": 0,
+    "breaks": [],
+    "errors": []
+   },
+   "during": [
+    null,
+    0.5
+   ],
+   "second_messages": [
+    {
+     "turn": 2,
+     "during": 1,
+     "after": 0.5,
+     "reply_first": false,
+     "calls_cut": 0
+    }
+   ]
+  }
+ }
+}

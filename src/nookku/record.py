@@ -217,11 +217,12 @@ _SCHEMA: dict[str, dict[str, dict[str, tuple[type, ...]]]] = {
 # The ratings of a note. null is no rating.
 RATINGS = ("up", "down")
 # Types and optional fields that a "0.1" row must not have.
-_SINCE_02 = {"model_session", "started", "originator", "stream", "note"}
+_SINCE_02 = {"model_session", "started", "replied", "originator", "stream", "note"}
 _HEX64 = re.compile(r"[0-9a-f]{64}")
 # Optional fields: (row type, field) -> allowed types
 _OPTIONAL: dict[tuple[str, str], tuple[type, ...]] = {
     ("exchange", "started"): _NUM,
+    ("exchange", "replied"): _NUM,
     ("exchange", "stream_id"): _STR,
     ("exchange", "first_part_seconds"): (*_NUM, type(None)),
     ("exchange", "stream_protocol"): _STR,

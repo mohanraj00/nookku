@@ -198,6 +198,12 @@
    "count": null,
    "most": null,
    "verdict": "pass"
+  },
+  {
+   "check": "call_cut",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
   }
  ],
  "problems": []
