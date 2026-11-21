@@ -36,6 +36,7 @@ How-to guides. Each guide does one task. The guides are in the order of the task
 - [Test an agent in Codex](how-to/codex.md): the plugin, the project hooks and the trust step.
 - [Gate a CI job on a verdict](how-to/gate-a-ci-job.md): a GitHub Actions job that runs a [scripted test](reference/glossary.md#scripted-test) with no model and fails on a `fail` verdict, with an example agent that cites its source.
 - [Gate a release with a set of tests](how-to/gate-a-release.md): run a declared set of scripted tests, and read one sealed result with the subject digest in CI.
+- [Gate a rollout on a gate result](how-to/gate-a-rollout.md): the files and the fields that a rollout controller reads, with an example that stops a rollout.
 
 ### Read the results
 
