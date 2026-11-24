@@ -1,0 +1,55 @@
+{
+ "proof": "rollout-gate",
+ "date": "2026-11-20",
+ "nookku": "0.5.9",
+ "python": "3.13.12",
+ "example": "examples/rollout-gate",
+ "stages": [
+  {
+   "version": "agent_v1.py",
+   "subject": "sha256:856b6fe6ad123cd20bbd3470c8e47fdf4bb0d85294111d8d5f760606a2182a22",
+   "gate_exit": 0,
+   "verify_exit": 0,
+   "verdict": "pass",
+   "reasons": [],
+   "failed_checks": {},
+   "decision": "promote",
+   "decision_reason": "the verdict is pass for this subject",
+   "live_after": "agent_v1.py"
+  },
+  {
+   "version": "agent_v2.py",
+   "subject": "sha256:32769901861d1d496e379dbe0b53066fe1581555f2067948f7e3583ae110b0f3",
+   "gate_exit": 1,
+   "verify_exit": 1,
+   "verdict": "fail",
+   "reasons": [
+    {
+     "test": "stock-questions",
+     "check": "limits"
+    }
+   ],
+   "failed_checks": {
+    "limits": "backend_error: 3, the limit is 0."
+   },
+   "decision": "stop",
+   "decision_reason": "the verdict is not pass",
+   "live_after": "agent_v1.py"
+  }
+ ],
+ "other_subject": {
+  "action": "stop",
+  "reason": "the result is for another subject"
+ },
+ "changed_result": {
+  "action": "stop",
+  "reason": "result.json does not have the SHA-256 of the copy of the seal"
+ },
+ "checks": {
+  "R1": true,
+  "R2": true,
+  "R3": true,
+  "R4": true
+ },
+ "pass": true
+}

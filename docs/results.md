@@ -491,6 +491,17 @@ This is 1 run of 5 turns, with 1 planted defect and 2 rows of the `Approvals` ta
 
 This is 1 run of each test, with 1 app that stops its first turn. It does not show an app that refuses the second message or does both turns, and it has no backend call, no database query and no Claude Code session. The tests in [tests/test_second_message.py](../tests/test_second_message.py) cover a queue, a refusal and a stop with no model, and the case [conformance/trace/second_message/](../conformance/trace/second_message/) covers the rules of the trace.
 
+### A rollout gate
+
+I ran a gate run for each of 2 versions of a toy shop agent on 2026-11-20, with nookku 0.5.9 and no model ([data](../proofs/rollout-gate/results.json), [method](../scripts/proof_rollout_gate.py)). The toy rollout controller of [examples/rollout-gate/](../examples/rollout-gate/) read `result.json` and the copy of the seal of each gate run ([gate-a-rollout.md](how-to/gate-a-rollout.md)). Version 2 has a planted defect: 1 backend call with status 503 in each of its 3 turns. Its replies are the same as the replies of version 1. The gate file permits 0 `backend_error` findings.
+
+- R1: version 1 passed the gate, `nookku gate verify` gave exit code 0, and the controller promoted it.
+- R2: version 2 failed the gate with the check `limits` (`backend_error: 3, the limit is 0.`), and the controller stopped. Version 1 kept the traffic.
+- R3: the controller stopped for the result of version 1 with the digest of version 2 as the subject.
+- R4: the controller stopped for a copy of the result of version 2 with `verdict` changed to `pass`, because its SHA-256 was not the value in the copy of the seal.
+
+This is 1 run of each version with 1 [scripted test](reference/glossary.md#scripted-test) of 3 messages. The controller is a toy: it moves no traffic, and "kept the traffic" is a variable of the proof. The proof does not use a rollout tool.
+
 ## 2. Benchmark under pressure
 
 The question: does the mechanism stay exact in long, messy conversations with the agent?

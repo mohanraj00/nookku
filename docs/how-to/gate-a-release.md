@@ -80,7 +80,7 @@ The result folder is `.nookku/gates/<gate id>/`. In CI, set `NOOKKU_HOME` to a f
 
 ## Read the result in a CI job or a rollout controller
 
-`result.json` is plain JSON, so a reader needs no Nookku process. Do these steps:
+`result.json` is plain JSON, so a reader needs no Nookku process. [Gate a rollout on a gate result](gate-a-rollout.md) names each file and each field that a controller reads, with an example. Do these steps:
 
 1. Read the aggregate verdict and the subject:
 

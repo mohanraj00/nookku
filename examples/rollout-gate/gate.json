@@ -1,0 +1,12 @@
+{
+ "v": 1,
+ "tests": [
+  {
+   "name": "stock-questions",
+   "script": "script.jsonl",
+   "limits": {
+    "backend_error": 0
+   }
+  }
+ ]
+}
