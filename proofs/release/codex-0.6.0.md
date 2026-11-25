@@ -8,8 +8,8 @@ The runs of both harnesses, for example the trace proof and the plugin load proo
 
 | Proof | Setup | Result | Data |
 |---|---|---|---|
-| Hook gate, part A |  | 6 of 6 checks pass, run 1 | [results](../codex-gate/gate.json) |
-| Hook gate, part B |  | 5 of 5 checks pass, run 1 | [results](../codex-gate/gate.json) |
+| Hook gate, part A |  | 6 of 6 checks pass, run 1 | [results](https://github.com/mohanraj00/nookku/blob/10469a24/proofs/codex-gate/gate.json) |
+| Hook gate, part B |  | 5 of 5 checks pass, run 1 | [results](https://github.com/mohanraj00/nookku/blob/10469a24/proofs/codex-gate/gate.json) |
 | P1 to P4 | plugin-codex | pass, run 1 | [results](../plugin-codex/results.json) |
 | P1 to P4 | hooks-codex | pass, run 1 | [results](../hooks-codex/results.json) |
 | P1 to P4, `--stream` | plugin-codex | pass, run 1 | [results](../plugin-codex-stream/results.json) |

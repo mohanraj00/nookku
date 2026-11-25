@@ -6,7 +6,7 @@ I ran the Codex proofs of the 0.5.8 release candidate on 2026-11-12, on macOS, i
 
 | Proof | Setup | Result | Data |
 |---|---|---|---|
-| Hook gate, parts A and B | | pass, run 1 | [results](../codex-gate/gate.json) |
+| Hook gate, parts A and B | | pass, run 1 | [results](https://github.com/mohanraj00/nookku/blob/27dfc9eb/proofs/codex-gate/gate.json) |
 | P1 to P4 | plugin-codex | pass, run 1 | [results](../plugin-codex/results.json) |
 | P1 to P4 | hooks-codex | pass, run 3 | [results](../hooks-codex/results.json) |
 | P1 to P4, `--stream` | plugin-codex | pass, run 1 | [results](../plugin-codex-stream/results.json) |

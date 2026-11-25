@@ -16,7 +16,7 @@
    "scripts/proof_codex_gate.py",
    "--trusted"
   ],
-  "result": "proofs/codex-gate/gate.json",
+  "result": "https://github.com/mohanraj00/nookku/blob/d2a321c1/proofs/codex-gate/gate.json",
   "pass": true
  },
  "results": [
