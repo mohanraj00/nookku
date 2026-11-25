@@ -9,9 +9,9 @@ Only the Codex hook gate proof ran with Codex for this release. The runs of both
 | Proof | Command | Result | Data |
 |---|---|---|---|
 | Hook gate, part A | `uv run python scripts/proof_codex_gate.py` | 8 of 8 checks pass, run 1 | [results](../codex-gate/gate.json) |
-| Hook gate, part B | `uv run python scripts/proof_codex_gate.py --trusted`, after the owner trusts the 2 hooks | PART_B_TBD | [results](../codex-gate/gate.json) |
+| Hook gate, part B | `uv run python scripts/proof_codex_gate.py --trusted`, after the owner trusts the 2 hooks | 5 of 5 checks pass, run 1 | [results](../codex-gate/gate.json) |
 
-Part A has 2 more checks than in 0.6.0: each trust hash starts with `sha256:`, and a script change changes each trust hash with 2 parts ([#652](https://github.com/mohanraj00/nookku/issues/652)). Part A also found the plugin folder of 0.6.1 in the cache.
+Part A has 2 more checks than in 0.6.0: each trust hash starts with `sha256:`, and a script change changes each trust hash with 2 parts ([#652](https://github.com/mohanraj00/nookku/issues/652)). Part A also found the plugin folder of 0.6.1 in the cache. Then the owner trusted the 2 hooks one time, and part B passed with `--trusted`. `gate.json` holds the results of both parts.
 
 ## The failed runs
 
@@ -19,7 +19,7 @@ No run failed.
 
 ## The carried records
 
-The 0.6.1 changes that touch Codex are the refusal of a hook with `"async": true` ([#643](https://github.com/mohanraj00/nookku/issues/643)) and the change of the stdio tap ([#656](https://github.com/mohanraj00/nookku/issues/656)). The hook gate proof ran on 0.6.1, and a hook of this version has no `async` key ([data](../codex-gate/hook-keys.json)). A message with no `X-Nookku-During` header goes through the tap as before, and the tap proofs with no model passed on 0.6.1 ([Claude Code run notes](claude-code-0.6.1.md#the-carried-records)). The relay proofs P1 to P4 did not run on 0.6.1.
+The 0.6.1 changes that touch Codex are the refusal of a hook with `"async": true` ([#643](https://github.com/mohanraj00/nookku/issues/643)) and the change of the stdio tap ([#656](https://github.com/mohanraj00/nookku/issues/656)). The hook gate proof ran on 0.6.1, and the trusted hooks of this version pass the gate (part B). A message with no `X-Nookku-During` header goes through the tap as before, and the tap proofs with no model passed on 0.6.1 ([Claude Code run notes](claude-code-0.6.1.md#the-carried-records)). The relay proofs P1 to P4 did not run on 0.6.1.
 
 Thus each record below is the 0.6.0 record. The [Codex run notes of 0.6.0](codex-0.6.0.md#runs) give each command, its run number and its data.
 
