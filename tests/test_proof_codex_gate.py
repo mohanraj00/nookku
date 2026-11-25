@@ -1,7 +1,9 @@
+import json
 import signal
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -112,8 +114,11 @@ def test_home_start_binds_the_start_time_only_to_a_process_of_the_home(tmp_path:
         outside.wait()
 
 
-def _gate(**hashes: str) -> dict[str, list[dict[str, str]]]:
-    return {"hooks": [{"event": event, "hash": value} for event, value in hashes.items()]}
+def _gate(*, problems: tuple[str, ...] = (), **hashes: str | None) -> dict[str, Any]:
+    return {
+        "hooks": [{"event": event, "hash": value} for event, value in hashes.items()],
+        "problems": list(problems),
+    }
 
 
 def test_the_hook_part_is_the_part_before_the_slash() -> None:
@@ -123,8 +128,107 @@ def test_the_hook_part_is_the_part_before_the_slash() -> None:
     assert proof.hook_parts(gate) == {"preToolUse": "sha256:aa", "userPromptSubmit": "sha256:cc"}
 
 
-def test_a_script_change_that_changes_only_the_second_part_keeps_the_hook_part() -> None:
-    before = _gate(preToolUse="sha256:aa/sha256:bb", userPromptSubmit="sha256:cc/sha256:bb")
-    after = _gate(preToolUse="sha256:aa/sha256:dd", userPromptSubmit="sha256:cc/sha256:dd")
-    assert proof.hashes(after) != proof.hashes(before)
-    assert proof.hook_parts(after) == proof.hook_parts(before)
+@pytest.fixture
+def installed_plugin(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    project = tmp_path / "project"
+    state_dir = project / proof.STATE_DIR
+    state_dir.mkdir(parents=True)
+    (state_dir / "mode").write_text("off\n")
+    monkeypatch.setattr(proof, "PROJECT", project)
+    installed = tmp_path / proof.__version__
+    hooks = installed / "hooks"
+    hooks.mkdir(parents=True)
+    (hooks / "nookku-hook.sh").write_text("#!/bin/sh\n")
+    (hooks / "hooks.json").write_text('{"hooks":{"PreToolUse":[{"hooks":[{"timeout":1}]}]}}')
+    return installed
+
+
+@pytest.fixture
+def untrusted_start(monkeypatch: pytest.MonkeyPatch) -> None:
+    def run(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(cmd, 1, "is untrusted, not trusted", "")
+
+    monkeypatch.setattr(proof, "run", run)
+
+
+@pytest.mark.parametrize("value", [None, "md5:cc"])
+@pytest.mark.parametrize("snapshot", [0, 1, 2])
+def test_part_a_fails_if_a_trust_hash_does_not_start_with_sha256(
+    installed_plugin: Path,
+    untrusted_start: None,
+    monkeypatch: pytest.MonkeyPatch,
+    value: str | None,
+    snapshot: int,
+) -> None:
+    results = [
+        _gate(preToolUse="sha256:aa", userPromptSubmit="sha256:cc"),
+        _gate(preToolUse="sha256:aa", userPromptSubmit="sha256:cc", problems=("its script",)),
+        _gate(preToolUse="sha256:bb", userPromptSubmit="sha256:cc"),
+    ]
+    results[snapshot]["hooks"][1]["hash"] = value
+    monkeypatch.setattr(proof, "gate", iter(results).__next__)
+
+    checks = proof.part_a(installed_plugin)["checks"]
+
+    assert checks["each trust hash starts with sha256:"] is False
+
+
+@pytest.mark.parametrize(
+    ("before_suffix", "pre_tool_suffix", "prompt_suffix", "expected"),
+    [
+        ("/sha256:bb", "/sha256:dd", "/sha256:dd", True),
+        ("/sha256:bb", "/sha256:bb", "/sha256:dd", False),
+        ("/sha256:bb", "", "/sha256:dd", False),
+        ("", "", "", None),
+    ],
+)
+def test_part_a_checks_each_two_part_hash_after_a_script_change(
+    installed_plugin: Path,
+    untrusted_start: None,
+    monkeypatch: pytest.MonkeyPatch,
+    before_suffix: str,
+    pre_tool_suffix: str,
+    prompt_suffix: str,
+    expected: bool | None,
+) -> None:
+    before = _gate(
+        preToolUse=f"sha256:aa{before_suffix}", userPromptSubmit=f"sha256:cc{before_suffix}"
+    )
+    after_script = _gate(
+        preToolUse=f"sha256:aa{pre_tool_suffix}",
+        userPromptSubmit=f"sha256:cc{prompt_suffix}",
+        problems=("its script",),
+    )
+    after_timeout = _gate(
+        preToolUse=f"sha256:ee{before_suffix}", userPromptSubmit=f"sha256:cc{before_suffix}"
+    )
+    monkeypatch.setattr(proof, "gate", iter([before, after_script, after_timeout]).__next__)
+
+    checks = proof.part_a(installed_plugin)["checks"]
+
+    assert checks.get("a script change changes each two-part trust hash") is expected
+    assert checks["each trust hash starts with sha256:"] is True
+    assert checks["a script change keeps the hook part of the trust hash"] is True
+    assert all(checks.values()) is (expected is not False)
+
+
+@pytest.mark.parametrize("has_hooks", [True, False])
+def test_part_b_records_each_check_as_a_boolean(
+    installed_plugin: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, has_hooks: bool
+) -> None:
+    gate = _gate(preToolUse="sha256:aa", userPromptSubmit="sha256:cc") if has_hooks else _gate()
+    monkeypatch.setattr(proof, "gate", lambda: gate)
+    (tmp_path / "manifest.json").write_text(
+        json.dumps({"codex_gate": {"start": gate, "end": gate}})
+    )
+
+    def run(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(cmd, 0, json.dumps({"dir": str(tmp_path)}), "")
+
+    monkeypatch.setattr(proof, "run", run)
+
+    result = proof.part_b(installed_plugin)
+
+    assert result["gate"]["hooks"] == gate["hooks"]
+    assert all(isinstance(value, bool) for value in result["checks"].values())
+    assert result["checks"]["the gate passes with trusted hooks"] is has_hooks

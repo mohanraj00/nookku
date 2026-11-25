@@ -1275,6 +1275,11 @@ def _evaluation_command(args: argparse.Namespace) -> int:
         if len(rows) > issues.MAX_ROWS:
             raise ValueError(f"evaluation.json can have {issues.MAX_ROWS} rows at most.")
         shown = None if report is None else issues.with_person_part(report, rows)
+        if shown is not None and len(shown) > issues.MAX_REPORT:
+            raise ValueError(
+                f"The new {issues.REPORT} would have {len(shown)} bytes. "
+                f"The limit is {issues.MAX_REPORT} bytes. Shorten the report and import it again."
+            )
         test = records.manifest.get("test")
         data = issues.file_bytes(
             test if isinstance(test, str) else folder.name,
