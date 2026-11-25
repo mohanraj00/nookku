@@ -7,6 +7,7 @@ import re
 import sys
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +15,7 @@ import pytest
 from test_bridge import homes, project, relay_turns  # noqa: F401
 from test_contract import post, wait_for
 
-from nookku import bridge, contract, script, trace
+from nookku import bridge, contract, script, stdio, trace
 from nookku.audit import audit
 from nookku.record import Writer
 from nookku.stdio import DURING_HEADER, Agent, StdioTap, start_in_thread
@@ -70,9 +71,11 @@ def _run(
     second: dict[str, str] | None,
     delay: float = 0.3,
     timeout: float = 10,
+    plant: Callable[[StdioTap], None] | None = None,
 ) -> tuple[list[tuple[int, bytes]], list[dict[str, Any]], list[dict[str, Any]]]:
     """Send `slow`, and send `stock` after `delay` seconds with the headers `second`. Return
-    the 2 HTTP results, the rows of the tap record and the lines that the agent got."""
+    the 2 HTTP results, the rows of the tap record and the lines that the agent got. `plant`
+    can change the tap before the first send."""
     script, got = tmp_path / "agent.py", tmp_path / "got.jsonl"
     script.write_text(AGENT)
     argv = [sys.executable, str(script), mode, str(got)]
@@ -88,6 +91,8 @@ def _run(
 
     try:
         wait_for(got)
+        if plant is not None:
+            plant(tap)
         first = threading.Thread(target=send, args=(0, "slow", None))
         first.start()
         time.sleep(delay)
@@ -101,7 +106,8 @@ def _run(
     return results, rows, lines
 
 
-DURING = {DURING_HEADER: "1"}
+# The header names the request id of the first message.
+DURING = {DURING_HEADER: "m-1"}
 
 
 def test_the_agent_gets_a_second_message_during_the_turn(tmp_path: Path) -> None:
@@ -152,13 +158,71 @@ def test_a_message_with_no_header_waits_for_the_reply_of_the_first_turn(tmp_path
     assert [r[0] for r in results] == [200, 200]
     first, second = rows
     # The tap sends one request at a time: the agent got the line after the first reply.
-    assert second["reply"] == "ok: stock" and "replied" not in second
+    assert second["reply"] == "ok: stock" and "replied" not in second and "replied" not in first
     assert first["ts"] <= second["started"] and first["ts"] <= lines[1]["ts"]
 
 
 def test_the_header_with_no_turn_in_flight_changes_nothing(tmp_path: Path) -> None:
     # The second message comes after the reply of the first one.
     results, rows, _ = _run(tmp_path, "refuse", DURING, delay=1.5)
+    assert [r[0] for r in results] == [200, 200]
+    first, second = rows
+    assert second["reply"] == "ok: stock" and "replied" not in second and "replied" not in first
+    assert first["ts"] <= second["started"]
+
+
+def test_a_message_after_the_reply_is_not_during_a_slow_record_write(tmp_path: Path) -> None:
+    # Gap 1 of #656. The slow turn takes 1 second, and the write of its row takes 1 second more.
+    # The second message comes after the reply and before the end of that write.
+    def plant(tap: StdioTap) -> None:
+        append = tap.writer.append
+
+        def slow(row: dict[str, Any]) -> None:
+            if row.get("input") == "slow":
+                time.sleep(1.0)
+            append(row)
+
+        tap.writer.append = slow  # type: ignore[method-assign]
+
+    results, rows, lines = _run(tmp_path, "refuse", DURING, delay=1.4, plant=plant)
+    assert [r[0] for r in results] == [200, 200]
+    first, second = rows
+    # The agent got the line after its reply, so the line is not a second message.
+    assert second["reply"] == "ok: stock" and "replied" not in second and "replied" not in first
+    assert first["ts"] <= second["started"] and first["ts"] <= lines[1]["ts"]
+    assert trace.second_messages(rows) == []
+
+
+def test_a_second_message_reaches_the_agent_after_the_first_one(tmp_path: Path) -> None:
+    # Gap 2 of #656. The second message comes at once (`during: 0`), and the first one is slow
+    # to get to the agent: the tap reads the waiting stdout lines for 0.3 seconds first.
+    def plant(tap: StdioTap) -> None:
+        stray = tap.agent.stray
+
+        def slow() -> list[bytes]:
+            time.sleep(0.3)
+            return stray()
+
+        tap.agent.stray = slow  # type: ignore[method-assign]
+
+    results, rows, lines = _run(tmp_path, "queue", DURING, delay=0, plant=plant)
+    assert [r[0] for r in results] == [200, 200]
+    assert [x["message"] for x in lines] == ["slow", "stock"]
+    assert [(r["input"], r["reply"]) for r in rows] == [
+        ("slow", "slow is done"),
+        ("stock", "ok: stock"),
+    ]
+    first, second = rows
+    assert first["started"] < second["started"] < first["ts"]
+    assert [m["turn"] for m in trace.second_messages(rows)] == [2]
+
+
+def test_a_second_message_for_an_unknown_request_waits_and_goes_alone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # No request `m-9` comes, so the message goes after its wait, as a message with no header.
+    monkeypatch.setattr(stdio, "DURING_WAIT", 0.2)
+    results, rows, _ = _run(tmp_path, "refuse", {DURING_HEADER: "m-9"}, delay=1.5)
     assert [r[0] for r in results] == [200, 200]
     first, second = rows
     assert second["reply"] == "ok: stock" and "replied" not in second
@@ -329,3 +393,20 @@ def test_a_second_message_after_the_reply_fails_the_run(tmp_path: Path) -> None:
     problem += "turn 1: the reply of turn 1 came first."
     assert any(line.startswith(problem) for line in lines), lines
     assert "second_messages" not in json.loads((folder / "findings.json").read_text())
+
+
+@pytest.mark.usefixtures("homes")
+def test_a_second_message_with_during_0_comes_after_the_first_one(tmp_path: Path) -> None:
+    app, got = tmp_path / "agent.py", tmp_path / "got.jsonl"
+    app.write_text(AGENT)
+    root = project(tmp_path, [sys.executable, str(app), "queue", str(got)])
+    passed, lines, folder = bridge.run_script(root, _script(tmp_path / "turns.jsonl", 0))
+    assert passed, lines
+    # The send of the second message names the first one, so the agent gets them in order.
+    assert [json.loads(x)["message"] for x in got.read_text().split("\n") if x] == [
+        "slow",
+        "stock",
+        "thanks",
+    ]
+    (second,) = json.loads((folder / "findings.json").read_text())["second_messages"]
+    assert (second["turn"], second["during"]) == (2, 1)

@@ -86,13 +86,14 @@ def public(cur: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in cur.items() if k != TOKEN_KEY}
 
 
-def tap_headers(token: str, during: bool = False) -> dict[str, str]:
+def tap_headers(token: str, during: str | None = None) -> dict[str, str]:
     """The headers of a POST to the stdio tap. A page server of the bridge, or a process that
-    reads current.json, sends each message with these headers. With `during`, the tap gives
-    the message to the agent during the turn of the message before it (SPEC.md section 4.2)."""
+    reads current.json, sends each message with these headers. `during` is the request id of
+    the message before it. Then the tap gives the message to the agent during the turn of that
+    message (SPEC.md section 4.2)."""
     headers = {"Content-Type": "application/json", TOKEN_HEADER: token}
-    if during:
-        headers[DURING_HEADER] = "1"
+    if during is not None:
+        headers[DURING_HEADER] = during
     return headers
 
 
@@ -381,16 +382,21 @@ def history(relay: Path) -> History:
 
 
 def send(
-    cur: dict[str, Any], said: str, timeout: float = TIMEOUT, during: bool = False
+    cur: dict[str, Any],
+    said: str,
+    timeout: float = TIMEOUT,
+    during: str | None = None,
+    rid: str | None = None,
 ) -> tuple[str, bool]:
     """Relay one message to the running test. Return (the text to show, whether it is the reply).
-    With `during`, the agent gets the message during the turn of the message before it."""
+    `rid` is the request id, or None for a new id. `during` is the request id of the message
+    before it. Then the agent gets the message during the turn of that message."""
     # Imported here, so that an event that does not relay stays fast (#214).
     import urllib.error
     import urllib.request
     import uuid
 
-    rid = uuid.uuid4().hex
+    rid = rid or uuid.uuid4().hex
     body = contract.request(rid, cur["test"], said, history(Path(cur["dir"]) / "relay.jsonl"))
     # A current.json with no token gets a 403 from the tap, so the relay fails closed.
     token = cur.get(TOKEN_KEY)
