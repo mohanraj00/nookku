@@ -29,6 +29,8 @@ MODEL_APIS = ("model_api", "gateway")
 PROXIES = ("backend", "model_api", "mcp")
 DATABASE = "database"
 DATABASE_FILE = "database.jsonl"
+MCP = "mcp"
+MCP_FILE = "mcp.jsonl"
 # The start of the error of a `connect` row of a Postgres proxy with no connection (7.13).
 NO_CONNECTION = "no connection: "
 # The text of the OS error of a refused connection, on Linux and on macOS.
@@ -59,24 +61,67 @@ def _good(item: dict[str, Any]) -> bool:
     return item["kind"] in CALLS and ok
 
 
-def refused_connections(folder: Path, turn_of: Callable[[Any], int | None]) -> list[dict[str, Any]]:
-    """Each `connect` row of database.jsonl whose connection the database refused, as a call
-    with its database and its turn. The reader of the queries keeps no `connect` row (section
-    8.4), so the trace has no item for it."""
+def _rows(path: Path) -> list[tuple[int, dict[str, Any]]]:
+    """The line number and the object of each line of a record that is a JSON object."""
     try:
-        lines = (folder / DATABASE_FILE).read_text(encoding="utf-8").split("\n")
+        lines = path.read_text(encoding="utf-8").split("\n")
     except (OSError, UnicodeDecodeError):
         return []
-    found = []
-    for line in lines:
+    rows = []
+    for n, line in enumerate(lines, 1):
         try:
             row = json.loads(line)
         except (ValueError, RecursionError):
             continue
-        connect = isinstance(row, dict) and row.get("type") == "connect"
-        if connect and _refused(row.get("error"), NO_CONNECTION):
+        if isinstance(row, dict):
+            rows.append((n, row))
+    return rows
+
+
+def _time(value: Any) -> float | None:
+    number = isinstance(value, (int, float)) and not isinstance(value, bool)
+    return float(value) if number else None
+
+
+def refused_connections(folder: Path, turn_of: Callable[[Any], int | None]) -> list[dict[str, Any]]:
+    """Each `connect` row of database.jsonl whose connection the database refused, as a call
+    with its database and its turn. The reader of the queries keeps no `connect` row (section
+    8.4), so the trace has no item for it."""
+    found = []
+    for _, row in _rows(folder / DATABASE_FILE):
+        if row.get("type") == "connect" and _refused(row.get("error"), NO_CONNECTION):
             call = {"session": str(row.get("database") or ""), "ts": row.get("ts")}
             found.append({**call, "turn": turn_of(row.get("ts"))})
+    return found
+
+
+def refused_mcp_calls(
+    folder: Path, items: list[dict[str, Any]], turn_of: Callable[[Any], int | None]
+) -> list[tuple[int | None, bool]]:
+    """The turn of each `call` row of mcp.jsonl that the server refused and that gave no item of
+    the trace, and whether a good row followed it. The reader of mcp.jsonl gives an item for a
+    tool call, and no item for a call such as `initialize` or `tools/list` (section 8.4). A
+    good row is a later `call` row of the same server in the same turn, with no error and with
+    a status below 400."""
+    counted = {
+        (item.get("source") or {}).get("line")
+        for item in items
+        if item["harness"] == MCP and _reason(item)
+    }
+    calls = []
+    for n, row in _rows(folder / MCP_FILE):
+        if row.get("type") == "call":
+            started = _time(row.get("started"))
+            at = _time(row.get("ts")) if started is None else started
+            status = row.get("status")
+            good = row.get("error") is None and isinstance(status, int) and status < 400
+            calls.append((n, str(row.get("server") or ""), turn_of(at), good, row.get("error")))
+    found = []
+    for i, (n, server, turn, _, error) in enumerate(calls):
+        if n in counted or not _refused(error, NO_ANSWER):
+            continue
+        later = (c for c in calls[i + 1 :] if (c[1], c[2]) == (server, turn) and c[3])
+        found.append((turn, turn is not None and any(later)))
     return found
 
 
@@ -84,10 +129,13 @@ def found(
     items: list[dict[str, Any]],
     errors: list[dict[str, Any]],
     connections: list[dict[str, Any]],
+    refused: list[tuple[int | None, bool]] | None = None,
 ) -> list[dict[str, Any]]:
     """The value of the key `outside_failures`: one row for each reason with a call, or an
     empty list. `items` holds the items of the trace in their order, `errors` the model errors
     of the Codex session files, and `connections` the refused connections of the databases.
+    `refused` holds the turn of each other refused call that has no item, and whether a good
+    call followed it.
 
     A call is retried if a later good call of the same record and the same name is in its
     turn. A call in no turn is never retried."""
@@ -116,6 +164,7 @@ def found(
         )
         retried = call["turn"] is not None and any(_good(x) for x in good)
         calls[LOCAL_SERVICE].append((call["turn"], retried))
+    calls[LOCAL_SERVICE] += refused or []
     rows = []
     for reason in REASONS:
         if calls[reason]:
@@ -140,7 +189,8 @@ def of_trace(
 ) -> list[dict[str, Any]]:
     """The rows of the key for the trace of a test folder. `turn_of` gives the turn of a time."""
     timed = [{**e, "turn": turn_of(e.get("ts"))} for e in errors]
-    return found(items, timed, refused_connections(folder, turn_of))
+    refused = refused_mcp_calls(folder, items, turn_of)
+    return found(items, timed, refused_connections(folder, turn_of), refused)
 
 
 def _count(value: Any) -> bool:
