@@ -20,13 +20,13 @@
    "ignored": {
     "ai-title": 2,
     "api-request": 6,
-    "api-request-blob": 4,
+    "api-request-blob": 7,
     "api-request-shape": 1,
-    "assistant.thinking": 2,
-    "atis-latch": 3,
-    "attachment": 11,
+    "assistant.thinking": 1,
+    "atis-latch": 4,
+    "attachment": 17,
     "cost-state": 1,
-    "last-prompt": 3,
+    "last-prompt": 4,
     "queue-operation": 8
    }
   },
@@ -34,20 +34,22 @@
    "harness": "codex",
    "inferred": true,
    "version": "0.169.0",
-   "items": 17,
+   "items": 18,
    "ignored": {
     "event_msg.task_complete": 4,
     "event_msg.task_started": 4,
     "event_msg.thread_settings_applied": 1,
-    "event_msg.token_count": 10,
+    "event_msg.token_count": 11,
+    "item_completed.Reasoning": 1,
     "response_item.additional_tools": 1,
-    "response_item.custom_tool_call": 6,
-    "response_item.custom_tool_call_output": 6,
-    "response_item.message": 19,
+    "response_item.custom_tool_call": 7,
+    "response_item.custom_tool_call_output": 7,
+    "response_item.message": 17,
+    "response_item.reasoning": 1,
     "session_meta": 1,
-    "token_usage_record": 10,
+    "token_usage_record": 11,
     "turn_context": 4,
-    "world_state": 3
+    "world_state": 1
    }
   }
  ],
@@ -59,7 +61,7 @@
   "answer_key_mismatch": 0,
   "answer_key_missing": 0,
   "tool_error": 2,
-  "command_failed": 2,
+  "command_failed": 3,
   "span_error": 0,
   "backend_error": 0,
   "model_api_error": 0,
@@ -80,7 +82,7 @@
   "otel_tool_not_in_session": 0,
   "server_not_from_app": 0,
   "session_inferred": 1,
-  "version_untested": 1,
+  "version_untested": 0,
   "missing_trace_point": 0,
   "trace_points_unread": 0,
   "action_without_approval": 0,
@@ -221,7 +223,7 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "89e94b0d3494a332948a9a27c49c5b0e81a33aa6525ebe39a4680ee9c2e05fc6",
+    "sha256": "7c6063270d31bebfdff01b06a095c2363b51b46c37016acd33c74f1a13aed786",
     "chars": 397
    },
    "output": {
@@ -255,7 +257,7 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "3ed2887b96677379a8f4a52835f0fd98eb37ccf82dcbee49f671a77002de4989",
+    "sha256": "a98f7287dca486861a08035568231852a58c84ba3919f8648540250386fdfbe8",
     "chars": 492
    },
    "output": {
@@ -273,7 +275,7 @@
    "name": "lookup_order",
    "exit_code": null,
    "harness_internal": false,
-   "line": 22,
+   "line": 25,
    "input": {
     "order": "4471"
    },
@@ -306,7 +308,7 @@
     "tool_use_id"
    ],
    "input": {
-    "sha256": "b6a6d9642404c5c0c2c80259b18cd00ab220c39ce8820b9c12f49dfeeeef23c0",
+    "sha256": "e9fc5b07443e2835b651ebf3e8e7e53e327fdf3a2f669f9c0a04388813bf2a0b",
     "chars": 497
    },
    "output": {
@@ -343,7 +345,7 @@
     "tool_use_id"
    ],
    "input": {
-    "sha256": "50dc0101a769e6a308aaed8d4703c3644305dac70686e22a3af9abf4c9927cba",
+    "sha256": "f130a009877cf9d4587be5622f0b275406f302007a4da0fd4dc4fdc004ea91f7",
     "chars": 573
    },
    "output": {
@@ -361,10 +363,10 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 30,
+   "line": 35,
    "output": {
-    "sha256": "1a0ce86625630a257cddc6d8ddf6d587439e0956e708796093fe9ab50973a884",
-    "chars": 47
+    "sha256": "0f73f7de039d0b21ef7e5bfc4efb037b0e99262c1af5882a9bd155d94f18c594",
+    "chars": 51
    }
   },
   {
@@ -392,8 +394,8 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "ca1631feb519940ff498575e50e9a4e0cc057f2fc09c067dfdaa65a812fb8d4e",
-    "chars": 487
+    "sha256": "b01b541790da3eac44f68bc764c6671fc276ed5509dea41b5971a279dbc501aa",
+    "chars": 491
    },
    "output": {
     "sha256": "6478f68d3b620d941073e9245da7aa7821ef4c291780328c60af34d7341ad500",
@@ -427,8 +429,8 @@
    "harness_internal": false,
    "line": 14,
    "output": {
-    "sha256": "a7c7743eb4174dba6028ba67e29b166558ca14c72ef676f695cdc9ef30016820",
-    "chars": 36
+    "sha256": "d71a9b4aacc4dc674c3bf6fa260e0868dd195853505a6f4bf93e0770b0addade",
+    "chars": 37
    }
   },
   {
@@ -456,10 +458,10 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 23,
+   "line": 21,
    "output": {
-    "sha256": "5ce4b0f409b5774f690301960f0cdee75e79d67520175428270197aa4b55da19",
-    "chars": 58
+    "sha256": "0e261ac6d629fd5ebaf93b2eb73bcd606d40531508bbac6b4e15c9b57ff0c500",
+    "chars": 62
    }
   },
   {
@@ -471,7 +473,7 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 33,
+   "line": 38,
    "output": {
     "sha256": "8fe790b82848fa46a5110bb9c31e623209fdb3a8a04c9e56453706694bebc305",
     "chars": 23
@@ -500,7 +502,7 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "af9860e3ad633213b50ba69afb5e2ce17f78b808e69592273843a6ed6a102ec9",
+    "sha256": "318b0a52b446035ea2bc52caceffb0ff06364e60d320d9cbe221b123435c0d90",
     "chars": 398
    },
    "output": {
@@ -518,7 +520,7 @@
    "name": "lookup_order",
    "exit_code": null,
    "harness_internal": false,
-   "line": 35,
+   "line": 42,
    "input": {
     "order": "9999"
    },
@@ -551,7 +553,7 @@
     "tool_use_id"
    ],
    "input": {
-    "sha256": "220f0c8943ca7678f274747233e3d88fc9961863518b65b476873739c5503f68",
+    "sha256": "aa9ee3b4846133ed98d8721f318240f2c1dca3109ed756ec11d779f91d0b3801",
     "chars": 498
    },
    "output": {
@@ -589,8 +591,8 @@
     "tool_use_id"
    ],
    "input": {
-    "sha256": "841bd96aad9c4f40cae25d7ae68bae68bbd0c3cbb35e5f784fd1ad14ec67aae6",
-    "chars": 620
+    "sha256": "78a904bccacb15885d0c539ee6f4d27e2a55e227e72db23ded2ef82c351ce1e4",
+    "chars": 619
    },
    "output": {
     "sha256": "8826c8b6219392c375cdff139255b158566532a3d44f28d3ee3e1fa91d4ad19a",
@@ -610,10 +612,10 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 39,
+   "line": 48,
    "output": {
-    "sha256": "3faf117033f1cf0c15a44db07c04cdc1df3d21aa52aa9235c5835262a108600a",
-    "chars": 81
+    "sha256": "58d5d486bdcea8c85b9a11ed3dabc269c0fa7a09386b9cf8ab8eef39c03b3d47",
+    "chars": 104
    }
   },
   {
@@ -641,8 +643,8 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "eed0494b9c4098d95f649bf77c9f4eef7fc0494af76d3ed10d7efc8e04578143",
-    "chars": 521
+    "sha256": "1b1cb4c9abb1d1565341a254889bfbc7e95b05d99a45f6c6be48535d549e2933",
+    "chars": 545
    },
    "output": {
     "sha256": "6478f68d3b620d941073e9245da7aa7821ef4c291780328c60af34d7341ad500",
@@ -659,7 +661,7 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 33,
+   "line": 29,
    "output": {
     "sha256": "8fe790b82848fa46a5110bb9c31e623209fdb3a8a04c9e56453706694bebc305",
     "chars": 23
@@ -674,10 +676,10 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 34,
+   "line": 30,
    "output": {
-    "sha256": "9adfa2145dbe075b371ae50b43c1b37469c55398b6529f7b84a61a9dfc0ccc4a",
-    "chars": 36
+    "sha256": "c42a1c65c6af44b5f96de10f43a2a5bd3ad2c68bdeca74a31a5aedf608294f21",
+    "chars": 37
    }
   },
   {
@@ -689,7 +691,7 @@
    "name": "lookup_order",
    "exit_code": null,
    "harness_internal": false,
-   "line": 38,
+   "line": 34,
    "input": {
     "order": "9999"
    },
@@ -705,10 +707,10 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 41,
+   "line": 37,
    "output": {
-    "sha256": "9c46d0d06f56de546b75130abb5c3f99d42d61b96afa078d75fe86f5141deed7",
-    "chars": 89
+    "sha256": "0624dc7bc056de278347d549d4330641d113cf56b0c2d24c4d2202e61e0fbd47",
+    "chars": 96
    }
   },
   {
@@ -720,7 +722,7 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 42,
+   "line": 51,
    "output": {
     "sha256": "95d6c9735a5aa1e3865403d5caf01f5437f46885524f34529b5cdc303a3cd1c1",
     "chars": 23
@@ -749,7 +751,7 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "97f82c03066b49449638b3eea387c3bea2b28ce1aef087e03ad896e9c3207b31",
+    "sha256": "a34db06c88f636c1aa9640485ba257cb1ebc63cc81ef08afb4291d2c1c564412",
     "chars": 398
    },
    "output": {
@@ -767,10 +769,10 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 45,
+   "line": 55,
    "output": {
-    "sha256": "d3f8bd25615f71a21f99524f3fcad54ce196c1acf3703b516b57680ab9e81414",
-    "chars": 91
+    "sha256": "1c655dc4d71a0f5c7912a45f9de14417efb959a5ec9b84b8d53528ed7c3e88f2",
+    "chars": 75
    }
   },
   {
@@ -798,8 +800,8 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "643256a579eda3a8493b5d58dac2733da731fa336962e17c2f1f032cd39e82f5",
-    "chars": 531
+    "sha256": "b4e66cb2aaeccc6e5da566a9a20a7e23917a0c357479590ad5121a05900a801d",
+    "chars": 515
    },
    "output": {
     "sha256": "6478f68d3b620d941073e9245da7aa7821ef4c291780328c60af34d7341ad500",
@@ -816,7 +818,7 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 49,
+   "line": 45,
    "output": {
     "sha256": "95d6c9735a5aa1e3865403d5caf01f5437f46885524f34529b5cdc303a3cd1c1",
     "chars": 23
@@ -831,7 +833,7 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 50,
+   "line": 46,
    "output": {
     "sha256": "d1d55f2661c15f603770f70409413928f193f0191287fb28b8f547eb8a2fb17e",
     "chars": 42
@@ -846,7 +848,7 @@
    "name": "check_stock",
    "exit_code": null,
    "harness_internal": false,
-   "line": 58,
+   "line": 54,
    "input": {
     "product": "teapot"
    },
@@ -862,10 +864,10 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 61,
+   "line": 57,
    "output": {
-    "sha256": "5e0cda1b531ddf12c5b478c4e5c0d5e0f4ef7517dad5edbd98cd2c32da5c9c11",
-    "chars": 27
+    "sha256": "047935cb46b4f26110bff388aff8a069a592fbb05ec361c60d4f0d8e55bec1ae",
+    "chars": 37
    }
   },
   {
@@ -877,7 +879,7 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 48,
+   "line": 58,
    "output": {
     "sha256": "b02c321f0b34584cafd4220bb2b571f0c7ba70a2722a01d1cb2a48fbdffc76cf",
     "chars": 19
@@ -906,7 +908,7 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "7b46a379bffc38a63db3a4d239391a2e89fa2157ef38e6376978375886d21d40",
+    "sha256": "5704dade6bdac149f1b1396cca02728142341ad7bfe5961d91bd009202cd02a7",
     "chars": 390
    },
    "output": {
@@ -924,10 +926,10 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 51,
+   "line": 61,
    "output": {
-    "sha256": "f4aa2f77fdb701c5dbcfa945554ac7ed1dfdd7392ee200e62400b2816eed4340",
-    "chars": 123
+    "sha256": "ee8bbd5d53bbbb4fb4557b21be29170cd6d27d9c7a08902ef791a728893e553d",
+    "chars": 162
    }
   },
   {
@@ -955,8 +957,8 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "f2a80d915141e37b1e9b5dc9d733642bdfdd781644c3842efd78991d377106eb",
-    "chars": 564
+    "sha256": "3845b39b563356b528387bf72f7dbbddc56d006eb22e567d531a433895a78718",
+    "chars": 603
    },
    "output": {
     "sha256": "6478f68d3b620d941073e9245da7aa7821ef4c291780328c60af34d7341ad500",
@@ -973,7 +975,7 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 69,
+   "line": 65,
    "output": {
     "sha256": "b02c321f0b34584cafd4220bb2b571f0c7ba70a2722a01d1cb2a48fbdffc76cf",
     "chars": 19
@@ -988,7 +990,7 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 70,
+   "line": 66,
    "output": {
     "sha256": "a232af4969bbaf0a562442326fff3e4757cb481a5861c604b8a562bba4b733af",
     "chars": 45
@@ -1003,7 +1005,7 @@
    "name": null,
    "exit_code": 1,
    "harness_internal": false,
-   "line": 74,
+   "line": 70,
    "input": [
     "/bin/zsh",
     "-lc",
@@ -1021,11 +1023,29 @@
    "name": null,
    "exit_code": 1,
    "harness_internal": false,
-   "line": 79,
+   "line": 75,
    "input": [
     "/bin/zsh",
     "-lc",
-    "rg --files --hidden -g returns.txt -g '!.git' <repo>"
+    "rg --files --hidden -g returns.txt -g '!**/.git/**' . ../.."
+   ],
+   "output": "",
+   "error": null
+  },
+  {
+   "turn": 4,
+   "harness": "codex",
+   "kind": "command",
+   "role": null,
+   "server": null,
+   "name": null,
+   "exit_code": 1,
+   "harness_internal": false,
+   "line": 82,
+   "input": [
+    "/bin/zsh",
+    "-lc",
+    "rg --files --hidden --no-ignore -g returns.txt -g '!**/.git/**' . ../../examples"
    ],
    "output": "",
    "error": null
@@ -1039,12 +1059,12 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 82,
+   "line": 85,
    "output": {
-    "sha256": "daf8879f26a35cf2f284630eb80d302b25ed8a261d6396bf596f513967d09a75",
-    "chars": 103
+    "sha256": "1d9169264efbdd92f3dd5ab1ab58bc63deb5b4fdfd9548aed95cbfc8a04cb0eb",
+    "chars": 105
    }
   }
  ],
- "pass": false
+ "pass": true
 }
