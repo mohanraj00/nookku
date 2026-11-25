@@ -153,9 +153,19 @@ def _installs(plugin: str, root: Path) -> list[Path] | None:
     return out
 
 
+def _timeout_ok(hook: dict[str, Any], event: str) -> bool:
+    """True if the timeout of a plugin hook is a whole number of seconds, and is the timeout of
+    this version or more. After a timeout of the hook, Claude Code sends the prompt to the model
+    (proofs/hook-timeout/claude-code.json), so a shorter timeout can stop the block of the
+    prompt. A hook with no timeout gets a default of Claude Code, which can change, so the check
+    refuses it. A newer plugin can have a longer timeout."""
+    value = hook.get("timeout")
+    return type(value) is int and value >= kit.HOOK_EVENTS[event][1]
+
+
 def _plugin_hook_ok(group: Any, event: str) -> bool:
     """True if a group of the hooks file of the plugin runs the hook script for `event`, with
-    the matcher of this version."""
+    the matcher of this version and a timeout that is not shorter."""
     if not isinstance(group, dict):
         return False
     if group.get("matcher") != kit.HOOK_EVENTS[event][0].get("matcher"):
@@ -165,7 +175,7 @@ def _plugin_hook_ok(group: Any, event: str) -> bool:
         if not isinstance(hook, dict) or hook.get("type") != "command" or set(hook) - HOOK_KEYS:
             continue
         match = PLUGIN_COMMAND.fullmatch(str(hook.get("command", "")))
-        if match and match.group(1) == event:
+        if match and match.group(1) == event and _timeout_ok(hook, event):
             return True
     return False
 
@@ -184,7 +194,8 @@ def _install_problems(folder: Path) -> list[str]:
         if not any(_plugin_hook_ok(g, event) for g in (groups if isinstance(groups, list) else [])):
             out.append(
                 f"the plugin hook {event} is missing in {folder / PLUGIN_HOOKS}, or its matcher "
-                "or its command differs from the hook of nookku."
+                "or its command differs from the hook of nookku, or its timeout is not "
+                f"{kit.HOOK_EVENTS[event][1]} seconds or more."
             )
     return out
 
