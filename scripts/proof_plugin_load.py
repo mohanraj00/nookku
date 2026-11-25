@@ -220,23 +220,26 @@ def app_server(home: Path, project: Path, calls: list[tuple[str, dict[str, Any]]
         text=True,
     )
     assert proc.stdin is not None and proc.stdout is not None
-    results: dict[int, Any] = {}
+    results: list[Any] = []
     try:
-        proc.stdin.write(json.dumps(lines[0]) + "\n" + json.dumps(lines[1]) + "\n")
-        proc.stdin.flush()
-        for line in proc.stdout:
-            answer = loads(line)
-            if answer.get("id") == 1:
-                proc.stdin.write("".join(json.dumps(x) + "\n" for x in lines[2:]))
-                proc.stdin.flush()
-            elif answer.get("id") in range(2, len(calls) + 2):
-                results[answer["id"]] = answer.get("result", answer.get("error"))
-                if len(results) == len(calls):
-                    break
+        for request in lines:
+            proc.stdin.write(json.dumps(request) + "\n")
+            proc.stdin.flush()
+            if "id" not in request:
+                continue
+            for line in proc.stdout:
+                answer = loads(line)
+                if answer.get("id") != request["id"]:
+                    continue
+                if request["id"] != 1:
+                    results.append(answer.get("result", answer.get("error")))
+                break
+            else:
+                raise EOFError(f"The app-server closed before it answered {request['method']}.")
     finally:
         proc.terminate()
         proc.wait(timeout=10)
-    return [results[n] for n in range(2, len(calls) + 2)]
+    return results
 
 
 def codex(work: Path) -> dict[str, Any]:
@@ -263,8 +266,18 @@ def codex(work: Path) -> dict[str, Any]:
     run(["codex", "plugin", "add", "nookku@nookku", "--json"], ROOT, env)
     run(["codex", "plugin", "add", "probe@nookku", "--json"], ROOT, env)
     cwds = {"cwds": [str(project)]}
-    hooks, servers, skills = app_server(
-        home, project, [("hooks/list", cwds), ("mcpServerStatus/list", {}), ("skills/list", cwds)]
+    # Codex 0.169.0 starts a plugin MCP server in CODEX_HOME for mcpServerStatus/list, and in
+    # the project for a thread with the project as its cwd. A real session has a thread. The
+    # thread starts last, so the probe records the server of the thread.
+    hooks, servers, skills, _ = app_server(
+        home,
+        project,
+        [
+            ("hooks/list", cwds),
+            ("mcpServerStatus/list", {}),
+            ("skills/list", cwds),
+            ("thread/start", {"cwd": str(project)}),
+        ],
     )
     ours = [h for h in hooks["data"][0]["hooks"] if h.get("pluginId") == "nookku@nookku"]
     server = next(s for s in servers["data"] if s.get("pluginId") == "nookku@nookku")

@@ -279,9 +279,12 @@ def _error(rid: Any, code: int, text: str) -> dict[str, Any]:
 
 
 def project_root() -> Path:
-    """The project of the server: its working folder. Claude Code and Codex start a plugin MCP
-    server in the project (proofs/plugin/load.json). The server does not read CLAUDE_PROJECT_DIR,
-    because a Codex can inherit it from a Claude Code session of another project."""
+    """Return the working folder of the server.
+
+    Claude Code starts a plugin MCP server in the project. Codex starts it in the project when
+    a thread starts with the project as its `cwd`. The server does not read CLAUDE_PROJECT_DIR
+    because Codex can inherit it from a Claude Code session in a different project.
+    """
     return Path.cwd().resolve()
 
 

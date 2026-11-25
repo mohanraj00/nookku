@@ -6,7 +6,10 @@ import os
 import shlex
 import subprocess
 import sys
+from collections.abc import Iterator
+from io import StringIO
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
@@ -98,6 +101,76 @@ def test_the_probe_mcp_server_answers_unknown_requests(tmp_path: Path) -> None:
     replies = [json.loads(line) for line in done.stdout.splitlines()]
     assert [r["id"] for r in replies] == [0, 2, 3]
     assert replies[-1]["error"]["code"] == -32601
+
+
+def test_the_codex_plugin_proof_records_the_mcp_server_of_a_thread(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = tmp_path / "codex-project"
+    cwds = {"cwds": [str(project)]}
+    plugin = {"pluginId": "nookku@nookku"}
+    hooks = [
+        {
+            "eventName": name,
+            "matcher": None,
+            "timeoutSec": 30,
+            "trustStatus": "untrusted",
+            "enabled": False,
+        }
+        for name in ("userPromptSubmit", "preToolUse")
+    ]
+    server = {
+        **plugin,
+        "name": "nookku",
+        "toolsError": None,
+        "tools": ["transcript", "status", "run_script"],
+    }
+    hook_data = {"hooks": [{**plugin, **h} for h in hooks], "warnings": []}
+    calls = [
+        ("hooks/list", cwds, {"data": [hook_data]}),
+        ("mcpServerStatus/list", {}, {"data": [server]}),
+        ("skills/list", cwds, {"data": [{"skills": [{**plugin, "name": "nookku:setup"}]}]}),
+        ("thread/start", {"cwd": str(project)}, {"thread": {"id": "toy-shop"}}),
+    ]
+    requests = StringIO()
+
+    def replies() -> Iterator[str]:
+        yield json.dumps({"id": 1, "result": {}})
+        for index, (method, params, result) in enumerate(calls, 2):
+            sent = requests.getvalue().splitlines()
+            assert json.loads(sent[index]) == {"id": index, "method": method, "params": params}
+            assert len(sent) == index + 1
+            # As in Codex 0.169.0: the status list starts the server in CODEX_HOME, and a
+            # thread starts it in its cwd. The probe writes the folder of the last start.
+            folder = {"mcpServerStatus/list": tmp_path / "codex-home", "thread/start": project}
+            if method in folder:
+                seen = {"cwd": str(folder[method]), "CLAUDE_PROJECT_DIR": None}
+                (tmp_path / "codex-mcp.json").write_text(json.dumps(seen))
+            yield json.dumps({"id": index, "result": result})
+
+    def fake_run(cmd: list[str], *_args: object) -> str:
+        return "codex-cli test" if cmd[1:] == ["--version"] else '{"installedPath": "toy shop"}'
+
+    start = Mock(return_value=Mock(stdin=requests, stdout=replies()))
+    monkeypatch.setattr(pl.subprocess, "Popen", start)
+    monkeypatch.setattr(pl, "run", fake_run)
+
+    result = pl.codex(tmp_path)
+
+    start.assert_called_once()
+    assert len(requests.getvalue().splitlines()) == len(calls) + 2
+    checks = result.pop("checks")
+    assert checks["the MCP server starts in the project"]
+    assert all(checks.values()), checks
+    assert result == {
+        "version": "codex-cli test",
+        "hooks": hooks,
+        "hook_warnings": [],
+        "mcp_server": "nookku",
+        "mcp_tools": ["run_script", "status", "transcript"],
+        "mcp_error": None,
+        "skills": ["nookku:setup"],
+    }
 
 
 def test_discovery_checks_new_removed_and_changed_project_files(tmp_path: Path) -> None:
