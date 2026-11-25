@@ -15,6 +15,7 @@ import subprocess
 import sys
 import threading
 import time
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -1532,17 +1533,20 @@ def _send_pair(
 ) -> list[tuple[str, bool]]:
     """Send a message of a script, and send the next message `after` seconds later, during the
     turn of the first one (SPEC.md section 7.10). Return the result of each send, in the order
-    of the script. The tap gives the second reply after the first one."""
+    of the script. The tap gives the second reply after the first one. The second send names
+    the request id of the first one, so the tap writes it to the agent only after the first one,
+    also for `after` 0 (SPEC.md section 4.2)."""
     results: list[tuple[str, bool]] = [("", False), ("", False)]
+    rid = uuid.uuid4().hex
 
     def go() -> None:
-        results[0] = send(cur, first)
+        results[0] = send(cur, first, rid=rid)
 
     thread = threading.Thread(target=go)
     start_time = time.monotonic()
     thread.start()
     time.sleep(max(0.0, after - (time.monotonic() - start_time)))
-    results[1] = send(cur, second, during=True)
+    results[1] = send(cur, second, during=rid)
     thread.join()
     return results
 

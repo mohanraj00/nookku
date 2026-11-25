@@ -28,6 +28,9 @@ TIMEOUT = 240.0
 TAIL = 20
 # The fix for an agent that writes logs on stdout. `nookku check` prints it too.
 STRAY_HINT = "Use nookku.agent.serve() or write logs to stderr."
+# The seconds that a second message waits for the agent to get the message before it (SPEC.md
+# section 4.2). This is a chosen value. Each wait ends when that message is at the agent.
+DURING_WAIT = 10.0
 # The variable that gives `nookku tap --cmd` its token. With no value, the tap makes one.
 TOKEN_ENV = "NOOKKU_TAP_TOKEN"
 # The length of a token that the tap makes. A token from TOKEN_ENV must not be shorter.
@@ -55,7 +58,11 @@ class Agent:
         # The requests whose line the tap wrote during the turn of another request: the request
         # id, and the reply line with its time, or None before the line comes.
         self._early: dict[str, tuple[bytes, float] | None] = {}
-        self._early_lock = threading.Lock()
+        # The state of the turns. `_got`: the ids of the requests whose line the agent got.
+        # `_waiting`: the ids of those with no reply line yet. The condition guards all 3.
+        self._got: set[str] = set()
+        self._waiting: set[str] = set()
+        self._turn = threading.Condition()
         self._stdin_lock = threading.Lock()
         self.proc: subprocess.Popen[bytes] | None = None
         self._reader: threading.Thread | None = None
@@ -101,28 +108,46 @@ class Agent:
             return False
         return True
 
-    def send_early(self, line: bytes, rid: str) -> None:
-        """Write the input line of a request now, during the turn of another request. The
-        reader of that turn keeps the reply line for `rid`, so it is not a stray line. Then
-        ask(..., sent=<time>) gives the reply when the turn of this request comes."""
-        with self._early_lock:
+    def send_during(
+        self, line: bytes, rid: str, before: str, wait: float | None = None
+    ) -> float | None:
+        """Write the input line of request `rid` now, during the turn of request `before`.
+        Return the Unix time of the write, or None if the tap must not write the line now.
+
+        First wait until the agent got the line of `before`, for `wait` seconds at most (None
+        means DURING_WAIT). Write the line only if the reply line of `before` did not come. The
+        check and the time of the write are in one step with the read of a reply line, so the
+        time is before the tap has that reply line. The write itself comes after that step: if
+        the stdin pipe is full, the write waits, and the reader of the other turn does not wait
+        for it. The reader of that turn keeps the reply line for `rid`, so it is not a stray
+        line. Then ask(..., sent=<time>) gives the reply when the turn of this request comes."""
+        with self._turn:
+            limit = DURING_WAIT if wait is None else wait
+            self._turn.wait_for(lambda: before in self._got, timeout=limit)
+            if self.failed or before not in self._waiting:
+                return None
+            sent = time.time()
             self._early[rid] = None
-        if not self.failed:
-            self._write(line)
+            self._got.add(rid)
+            self._waiting.add(rid)
+            self._turn.notify_all()
+        self._write(line)
+        return sent
 
     def early_reply(self, rid: str) -> tuple[bytes, float] | None:
-        """The reply line of a request of send_early and the time when it came, or None if it
+        """The reply line of a request of send_during and the time when it came, or None if it
         did not come yet. The request then waits for its line as each other request."""
-        with self._early_lock:
+        with self._turn:
             return self._early.pop(rid, None)
 
     def _keep(self, line: bytes) -> bool:
-        """True if the line is the reply line of a request of send_early. The agent keeps the
+        """True if the line is the reply line of a request of send_during. The agent keeps the
         first such line of each request, with its time."""
-        with self._early_lock:
+        with self._turn:
             for rid, got in self._early.items():
                 if got is None and _is_for(line, rid):
                     self._early[rid] = (line, time.time())
+                    self._waiting.discard(rid)
                     return True
         return False
 
@@ -159,14 +184,22 @@ class Agent:
         """Send one input line. Return ("line", output) or ("exited" | "timeout", reason).
 
         The output is the first line for the request id `rid`. A line for a request of
-        send_early stays for that request. Each other line is a stray line, and `stray` gets it.
-        The timeout is one deadline for the full request. With `sent`, send_early wrote the line
-        at that Unix time, and the deadline counts from it.
+        send_during stays for that request. Each other line is a stray line, and `stray` gets it.
+        The timeout is one deadline for the full request. With `sent`, send_during wrote the
+        line at that Unix time, and the deadline counts from it.
         """
         if self.failed:
             return "exited", self.failed
         if sent is None:
-            if not self._write(line):
+            # The write is not under the condition: a full stdin pipe must not stop a reader.
+            written = self._write(line)
+            with self._turn:
+                # A second message for this request waits until the agent got this line.
+                self._got.add(rid)
+                if written:
+                    self._waiting.add(rid)
+                self._turn.notify_all()
+            if not written:
                 return "exited", self._exited()
             deadline = time.monotonic() + self.timeout
         else:
@@ -186,6 +219,9 @@ class Agent:
             if out is None:
                 return "exited", self._exited()
             if _is_for(out, rid):
+                with self._turn:
+                    # The turn ends: a second message for this request now waits for its turn.
+                    self._waiting.discard(rid)
                 return "line", out
             if self._keep(out):
                 continue
@@ -414,11 +450,11 @@ class _Handler(BaseHTTPRequestHandler):
                 self._error(400, f"nookku tap: the message has {found}")
             return
         early: float | None = None
-        if self.headers.get(DURING_HEADER) == "1" and tap.lock.locked():
-            # A second message: the agent gets it now, during the turn of the message before
-            # it. Its row comes after the row of that message (SPEC.md section 4.2).
-            early = time.time()
-            tap.agent.send_early(body, rid)
+        before = self.headers.get(DURING_HEADER)
+        if before is not None:
+            # A second message: the agent gets it now, during the turn of the message `before`.
+            # Its row comes after the row of that message (SPEC.md section 4.2).
+            early = tap.agent.send_during(body, rid, before)
         with tap.lock:
             self.lost = None
             replied: float | None = None
