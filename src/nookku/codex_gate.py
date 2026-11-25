@@ -155,6 +155,11 @@ def _origin(hook: dict[str, Any]) -> str | None:
 
 def _definition_problem(origin: str, event: str, hook: dict[str, Any], root: Path) -> str | None:
     """Why a nookku hook differs from the hook of this version, or None."""
+    # Codex does not wait for a hook with "async": true, so the hook cannot block the prompt or
+    # the tool call. hooks/list gives the key (proofs/codex-gate/hook-keys.json). A Codex whose
+    # list has no key does not run an async hook, and does not list it (SPEC.md section 7.8).
+    if hook.get("async", False) is not False:
+        return "its key async is not false, and Codex does not wait for an async hook"
     matcher, timeout = kit.HOOK_EVENTS[event]
     if hook.get("matcher") != matcher.get("matcher") or hook.get("timeoutSec") != timeout:
         return "its matcher or its timeout differs from this version of nookku"
