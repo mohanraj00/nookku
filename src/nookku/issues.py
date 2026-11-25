@@ -1,7 +1,8 @@
 """The issue rows of an evaluation: `evaluation.json` (SPEC.md section 9.4).
 
-The model writes `report.md`, and no code trusts it. `nookku evaluation import` reads the issue
-table of `report.md` and writes each row as a `model` row. `nookku evaluation add` writes a
+The model writes `report.md`. `nookku evaluation import` reads the issue table of `report.md` and
+writes each row as a `model` row. It trusts the bytes of the file, and no record binds the file
+to the evaluation (section 9.4, "The trust of report.md"). `nookku evaluation add` writes a
 `human` row. The command sets the author type, and the text of a row never sets it. The seal
 covers `evaluation.json`. The verdict counts the rows of an issue class only if the app spec
 gives the class a limit (SPEC.md section 7.14)."""

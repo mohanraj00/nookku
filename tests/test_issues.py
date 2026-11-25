@@ -292,6 +292,35 @@ def test_add_needs_an_import_of_the_report_first(
     assert (folder / issues.FILE).read_bytes() == before
 
 
+def test_the_import_trusts_a_report_that_changed_after_the_evaluation(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # SPEC.md section 9.4, "The trust of report.md" (#645).
+    root = _shop(tmp_path, "| `tone` | 0 |\n")
+    _, folder = _test(root, capsys)
+    report = folder / issues.REPORT
+    # The evaluation writes a report with a `tone` row. Then a writer of the test folder
+    # replaces it with an empty issue table, before the first import.
+    report.write_text(REPORT)
+    report.write_text(EMPTY)
+    assert _evaluation(root, folder, "import") == 0
+    # No record has the bytes of the evaluation, so the import seals the rows of the new file.
+    assert "0 model rows" in capsys.readouterr().out
+    found, why = verdict.checked(folder)
+    assert why is None and found is not None and found["verdict"] == "pass"
+    assert seal.verify(folder)["intact"]
+    # After the import, `report` binds the file. A changed file gets no human row.
+    report.write_text(REPORT)
+    before = (folder / issues.FILE).read_bytes()
+    words = ("--class", "tone", "--evidence", "x", "--text", "y")
+    assert _evaluation(root, folder, "add", *words) == 2
+    assert (folder / issues.FILE).read_bytes() == before and seal.verify(folder)["intact"]
+    # Only a new import reads the rows of the changed file.
+    assert _evaluation(root, folder, "import") == 0
+    found, why = verdict.checked(folder)
+    assert why is None and found is not None and found["verdict"] == "fail"
+
+
 def test_a_report_that_is_a_symlink_is_not_read(tmp_path: Path) -> None:
     folder = tmp_path / "t1"
     folder.mkdir()
