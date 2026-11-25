@@ -292,6 +292,56 @@ def test_add_needs_an_import_of_the_report_first(
     assert (folder / issues.FILE).read_bytes() == before
 
 
+@pytest.fixture
+def sealed_test(tmp_path: Path) -> tuple[Path, Path]:
+    folder = tmp_path / ".nookku" / "tests" / "20261031-090000-ab12"
+    folder.mkdir(parents=True)
+    (folder / verdict.MANIFEST).write_text(json.dumps({"test": folder.name}))
+    (folder / verdict.FINDINGS).write_text(json.dumps({"counts": {}}))
+    verdict.build(folder)
+    assert seal.write(folder) is None
+    return tmp_path, folder
+
+
+def test_add_that_would_make_the_report_too_large_writes_nothing(
+    sealed_test: tuple[Path, Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, folder = sealed_test
+    issue_text = "The reply says « dépêche-toi | vite »."
+    row = issues.row("tone", None, "turn 2", issue_text, "Asha")
+    body = EMPTY.encode()
+    new_size = issues.MAX_REPORT + 1
+    padding = new_size - len(issues.with_person_part(body, [row]))
+    (folder / issues.REPORT).write_bytes(body + b"x" * (padding - 1) + b"\n")
+    assert _evaluation(root, folder, "import") == 0
+    before = {p: p.read_bytes() for p in folder.rglob("*") if p.is_file()}
+
+    words = ("--class", "tone", "--evidence", "turn 2", "--text", issue_text, "--author", "Asha")
+    assert _evaluation(root, folder, "add", *words) == 2
+    error = capsys.readouterr().err
+    assert "no issue row was written" in error
+    assert f"The new report.md would have {new_size} bytes" in error
+    assert f"The limit is {issues.MAX_REPORT} bytes" in error
+    assert {p: p.read_bytes() for p in folder.rglob("*") if p.is_file()} == before
+
+
+def test_add_and_import_can_read_a_report_near_the_limit(sealed_test: tuple[Path, Path]) -> None:
+    root, folder = sealed_test
+    row = issues.row("tone", None, "turn 2", "The reply uses slang.", "Asha")
+    body = EMPTY.encode()
+    padding = issues.MAX_REPORT - len(issues.with_person_part(body, [row, row]))
+    report = folder / issues.REPORT
+    report.write_bytes(body + b"x" * (padding - 1) + b"\n")
+    assert _evaluation(root, folder, "import") == 0
+
+    words = ("--class", "tone", "--evidence", "turn 2", "--text", row["text"], "--author", "Asha")
+    assert _evaluation(root, folder, "add", *words) == 0
+    assert _evaluation(root, folder, "add", *words) == 0
+    assert report.stat().st_size == issues.MAX_REPORT
+    assert _evaluation(root, folder, "import") == 0
+    assert json.loads((folder / issues.FILE).read_text())["issues"] == [row, row]
+
+
 def test_a_report_that_is_a_symlink_is_not_read(tmp_path: Path) -> None:
     folder = tmp_path / "t1"
     folder.mkdir()
