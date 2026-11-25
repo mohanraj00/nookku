@@ -30,6 +30,8 @@ I ran the Codex proofs of the 0.5.8 release candidate on 2026-11-12, on macOS, i
 | P5, `proof_evaluation.py` | plugin-codex | pass, run 1 | [results](../evaluation/plugin-codex.json) |
 | P5, `proof_evaluation.py` | hooks-codex | pass, run 3 | [results](../evaluation/hooks-codex.json) |
 
+The hook gate link goes to `gate.json` at 27dfc9eb, the commit that recorded the gate result of this run. A later run writes `gate.json` again, so the link is pinned.
+
 ## The failed runs
 
 A run that passed replaced the result file of the run before it. So the data of a failed run is only in my run logs, except where this section names a folder.

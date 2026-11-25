@@ -2,7 +2,7 @@
 
 The [run record](codex-0.5.5.json) gives the candidate method, commands, file hashes and tested harness versions. The base is [merged main](https://github.com/mohanraj00/nookku/commit/3024299478c7a2941e6a9ef52faf46232c178918). I set the package and plugin version fields to the candidate version for the runs, then restored those files. The release PR will set the version.
 
-The final run of each listed command passed. The [trusted gate](https://github.com/mohanraj00/nookku/blob/d2a321c1/proofs/codex-gate/gate.json) also passed. Each proof ran in the main checkout with its existing Codex homes. No trust setting changed. The result files record the tested versions.
+The final run of each listed command passed. The [trusted gate](https://github.com/mohanraj00/nookku/blob/d2a321c1/proofs/codex-gate/gate.json) also passed. The link goes to `gate.json` at d2a321c1, the commit that recorded this result, because a later run writes the file again. Each proof ran in the main checkout with its existing Codex homes. No trust setting changed. The result files record the tested versions.
 
 ## Spec citation check
 
