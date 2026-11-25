@@ -40,12 +40,14 @@ KEY_SPEC = """# Toy shop
 |---|---|---|---|
 | `keys/stock.json` | `count` | number | 0.5 |
 """
+TINY = "0.000000001"
 STOCK_KEY = {
     "source": "the stock list of the toy shop",
     "version": "1",
     "answers": [
         {"question": "What is the price of the blue mug?", "answer": 12.4},
-        {"question": "Is the teapot in stock?", "answer": 3},
+        # A small tolerance: the text of its Decimal has an exponent, 1E-9.
+        {"question": "Is the teapot in stock?", "answer": 3, "match": "number", "tolerance": TINY},
     ],
 }
 REPORT = """# Evaluation
@@ -115,10 +117,11 @@ def test_an_adjudicated_mismatch_and_an_issue_row_of_a_person_give_records(
     assert reply["count"] == 12
     assert key["script"]["messages"] == SCRIPT
     assert key["script"]["sha256"] == seal.sha256_of((root / "script.jsonl").read_bytes())
+    # The tolerance has no exponent, so the reader of the record accepts it.
     assert key["expected"] == {
         "value": "3",
         "match": "number",
-        "tolerance": "0.5",
+        "tolerance": TINY,
         "field": "count",
     }
     assert key["observed"] == "12" and key["issue"] is None
@@ -307,7 +310,7 @@ def test_the_cases_cover_the_issue_and_the_version_rules() -> None:
         ({"observed": 12}, "its observed is not a string or null"),
         ({"issue": {}}, "its issue is not null"),
         ({"subject": ""}, "the subject must have 1 to 512 characters"),
-        ({"gate": {"id": "g"}}, "its gate has no name text"),
+        ({"gate": {"id": "g"}}, "its gate has no key name"),
         ({"id": "\ud83d"}, "it has a lone surrogate U+D83D at character 0"),
     ],
 )
@@ -315,6 +318,33 @@ def test_the_reader_names_the_first_problem(change: dict[str, Any], problem: str
     valid = json.loads((CASES[0].parent / "valid_answer_key_mismatch.json").read_text())["record"]
     assert finding_record.problem({**valid, **change}) == problem
     assert finding_record.problem([valid]) == "it is not a JSON object"
+
+
+@pytest.mark.parametrize(
+    "name", ["valid_answer_key_mismatch", "valid_issue_row", "valid_gate_record"]
+)
+def test_the_reader_gives_a_problem_and_no_error_for_each_wrong_value(name: str) -> None:
+    valid = json.loads((CASES[0].parent / f"{name}.json").read_text(encoding="utf-8"))["record"]
+    schema = json.loads(finding_record.schema_text())
+    junk: list[Any] = [None, True, 0, 1.5, "", "x", [], ["x"], {}, {"x": 1}]
+    for field, value in valid.items():
+        for wrong in junk:
+            if wrong != value:
+                changed = {**valid, field: wrong}
+                found = finding_record.problem(changed)
+                # A null is valid in some fields of some kinds. Then the schema agrees.
+                assert isinstance(found, str) or _valid(changed, schema), (field, wrong)
+        if not isinstance(value, dict):
+            continue
+        for key in finding_record.KEYS[field]:
+            less = {**valid, field: {k: v for k, v in value.items() if k != key}}
+            assert finding_record.problem(less) == f"its {field} has no key {key}"
+            assert not _valid(less, schema)
+            for wrong in junk:
+                if wrong != value[key]:
+                    changed = {**valid, field: {**value, key: wrong}}
+                    found = finding_record.problem(changed)
+                    assert isinstance(found, str) or _valid(changed, schema), (field, key, wrong)
 
 
 def test_the_schema_names_each_field_of_the_reader(capsys: pytest.CaptureFixture[str]) -> None:

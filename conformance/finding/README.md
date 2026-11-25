@@ -11,6 +11,7 @@ Each file is one case of the reader of a finding record (SPEC.md section 10). `r
 | `valid_unknown_field` | A field that version 1 does not have, in the record and in `expected`. The reader ignores each one. |
 | `valid_newer_minor_version` | A record of version `1.7` with a field that the reader does not know. The reader reads it. |
 | `missing_field` | A record with no `subject`. |
+| `missing_key_of_an_object` | A `script` with no key `sha256`. An object of a record has each of its keys, also a key with the value `null`. |
 | `unknown_major_version` | A record of version `2.0`. The reader refuses it. |
 | `seal_digest_mismatch` | `seal.sha256` is not the SHA-256 of `seal.text`. |
 | `seal_file_not_covered` | `seal.files` gives a SHA-256 of `findings.json` that the seal text does not have. |
