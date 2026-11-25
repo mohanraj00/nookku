@@ -106,6 +106,14 @@ In the harness, in the project folder of your app, type `!nookku setup`. Then ty
 
 Nookku adapts to your app through a thin [entry](docs/reference/glossary.md#entry) in `.nookku/`, and your app's code does not change. The cost is plumbing: you write the entry once, and you change it when the start or the wiring of your app changes.
 
+### Test an agent in a cluster
+
+The steps above test an agent on your computer. If your agent runs behind a Service in a Kubernetes cluster, give the tap the Service URL of the agent ([HTTP tap guide](docs/how-to/http-tap.md#an-agent-in-a-cluster)). The relay, the tap and the audit are the same as on your computer.
+
+In a kind cluster, with no harness and no model, 5 of 5 messages and 5 of 5 replies were exact in each of 3 forms of the tap ([data](proofs/cluster-tap/results.json), [method](docs/results.md#the-http-tap-to-an-agent-at-a-cluster-service-url)). After a test, `nookku trace --egress` and `nookku trace --ingress` read the spans of Koodam ([SPEC.md section 8.8](SPEC.md#88-egress-spans), [section 8.12](SPEC.md#812-ingress-spans)).
+
+A harness that runs in a pod, and an evaluation inside a restricted Workspace, are later work ([#431](https://github.com/mohanraj00/nookku/issues/431), [#555](https://github.com/mohanraj00/nookku/issues/555)).
+
 ### Choose a relay
 
 You install the [relay](SPEC.md#5-relays) as the plugin or as the project hooks. Both work in Claude Code and in Codex, with the same rules. Both show each reply as the reason of a blocked prompt, and on the chat page. [docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md) compares them. Then read the guide of your setup: [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code project hooks](docs/how-to/claude-code-project-hooks.md) or [Codex](docs/how-to/codex.md).
