@@ -8,8 +8,8 @@ The runs of both harnesses, for example the trace proof and the plugin load proo
 
 | Proof | Setup | Result | Data |
 |---|---|---|---|
-| Hook gate, part A |  | 6 of 6 checks pass, run 1 | [results](../codex-gate/gate.json) |
-| Hook gate, part B |  | 5 of 5 checks pass, run 1 | [results](../codex-gate/gate.json) |
+| Hook gate, part A |  | 6 of 6 checks pass, run 1 | [results](https://github.com/mohanraj00/nookku/blob/10469a24/proofs/codex-gate/gate.json) |
+| Hook gate, part B |  | 5 of 5 checks pass, run 1 | [results](https://github.com/mohanraj00/nookku/blob/10469a24/proofs/codex-gate/gate.json) |
 | P1 to P4 | plugin-codex | pass, run 1 | [results](../plugin-codex/results.json) |
 | P1 to P4 | hooks-codex | pass, run 1 | [results](../hooks-codex/results.json) |
 | P1 to P4, `--stream` | plugin-codex | pass, run 1 | [results](../plugin-codex-stream/results.json) |
@@ -39,6 +39,8 @@ The runs of both harnesses, for example the trace proof and the plugin load proo
 | `proof_egress.py --evaluate`, 2 of 3 | hooks-codex | pass | [results](../egress/hooks-codex-evaluation-run2.json), [test folder](../egress/evaluation/20261124-164517-e803/) |
 | `proof_egress.py --evaluate`, 3 of 3 | hooks-codex | pass | [results](../egress/hooks-codex-evaluation-run3.json), [test folder](../egress/evaluation/20261124-165042-4534/) |
 | `bench/run.py mechanism codex` |  | no new data: each of the 40 sessions of 2026-10-04 has a done `meta.json`, so the script skipped it | [run](../../bench/runs/codex-mechanism/harness.json) |
+
+The hook gate links go to `gate.json` at 10469a24, the commit that recorded the gate result of this run. The proofs ran on the code of 9cbbbabe, but 9cbbbabe holds the gate result of 0.5.9. A later run writes `gate.json` again, so the links are pinned.
 
 The hook gate ran before the other runs. The owner trusted the hooks one time, and the trust step did not run again for the second run. Part A now compares only the hook part of the trust hash, so the check that failed in 0.5.9 passes ([#613](https://github.com/mohanraj00/nookku/issues/613)).
 

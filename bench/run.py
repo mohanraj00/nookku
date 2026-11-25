@@ -184,8 +184,6 @@ CODEX_PROMPT_ARGS = [
 def run_session(arm: str, harness: str, s: dict[str, Any], out: Path) -> str:
     d = out / s["id"]
     meta_path = d / "meta.json"
-    if meta_path.exists() and json.loads(meta_path.read_text()).get("done"):
-        return f"{s['id']} skipped"
     shutil.rmtree(d, ignore_errors=True)
     d.mkdir(parents=True)
     agent = BenchAgent(s)
@@ -297,7 +295,24 @@ def main() -> int:
     elif args.only:
         wanted = set(args.only.split(","))
         sessions = [s for s in sessions if s["id"] in wanted]
+    if not sessions:
+        ap.error("No sessions match the selection. Check the session IDs.")
     out = BENCH / ("smoke" if args.smoke else "runs") / f"{args.harness}-{args.arm}"
+    pending = []
+    for session in sessions:
+        session_id = session["id"]
+        meta_path = out / session_id / "meta.json"
+        if meta_path.exists() and json.loads(meta_path.read_text()).get("done"):
+            print(f"{session_id} skipped", flush=True)
+        else:
+            pending.append(session)
+    if not pending:
+        print(
+            f"Each session in {out} is already done, so this run measured no turn. "
+            "Use a new run folder for a new version.",
+            file=sys.stderr,
+        )
+        return 1
     out.mkdir(parents=True, exist_ok=True)
     version = subprocess.run(
         [args.harness.replace("-code", ""), "--version"], capture_output=True, text=True
@@ -305,7 +320,7 @@ def main() -> int:
     (out / "harness.json").write_text(json.dumps({"version": version}) + "\n")
     parallel = 1 if (args.arm, args.harness) == ("mechanism", "codex") else args.parallel
     with ThreadPoolExecutor(parallel) as ex:
-        for msg in ex.map(lambda s: run_session(args.arm, args.harness, s, out), sessions):
+        for msg in ex.map(lambda s: run_session(args.arm, args.harness, s, out), pending):
             print(msg, flush=True)
     return 0
 
