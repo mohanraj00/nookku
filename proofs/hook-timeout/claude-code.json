@@ -1,0 +1,40 @@
+{
+ "date": "2026-11-25",
+ "versions": {
+  "claude-code": "2.1.319 (Claude Code)",
+  "python": "3.13.12",
+  "os": "Darwin"
+ },
+ "method": "scripts/proof_hook_timeout.py",
+ "runs": {
+  "in_time": {
+   "hook": {
+    "type": "command",
+    "command": "sleep 1; exit 2",
+    "timeout": 30
+   },
+   "exit": 0,
+   "seconds": 6.0,
+   "says_blocked": true,
+   "model_calls": 2,
+   "turn_calls_with_the_prompt": 0,
+   "title_calls_with_the_prompt": 2
+  },
+  "timed_out": {
+   "hook": {
+    "type": "command",
+    "command": "sleep 20; exit 2",
+    "timeout": 1
+   },
+   "exit": 1,
+   "seconds": 5.9,
+   "says_blocked": false,
+   "model_calls": 8,
+   "turn_calls_with_the_prompt": 6,
+   "title_calls_with_the_prompt": 2
+  }
+ },
+ "in_time_blocks_the_prompt": true,
+ "timed_out_sends_the_prompt": true,
+ "pass": true
+}
