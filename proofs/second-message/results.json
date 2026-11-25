@@ -39,22 +39,22 @@
   "tap": [
    {
     "started": 0.0,
-    "ts": 0.5
+    "ts": 0.445
    },
    {
-    "started": 0.49,
-    "ts": 0.501
+    "started": 0.435,
+    "ts": 0.446
    },
    {
-    "started": 0.502,
-    "ts": 0.502
+    "started": 0.447,
+    "ts": 0.448
    }
   ],
   "second_messages": [
    {
     "turn": 2,
     "during": 1,
-    "after": 0.49,
+    "after": 0.435,
     "reply_first": false,
     "calls_cut": 1
    }
@@ -115,15 +115,15 @@
   "tap": [
    {
     "started": 0.0,
-    "ts": 1.503
+    "ts": 1.847
    },
    {
-    "started": 1.505,
-    "ts": 1.505
+    "started": 1.85,
+    "ts": 1.851
    },
    {
-    "started": 1.505,
-    "ts": 1.505
+    "started": 1.853,
+    "ts": 1.853
    }
   ],
   "second_messages": null,

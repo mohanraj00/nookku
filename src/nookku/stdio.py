@@ -116,10 +116,11 @@ class Agent:
 
         First wait until the agent got the line of `before`, for `wait` seconds at most (None
         means DURING_WAIT). Write the line only if the reply line of `before` did not come. The
-        check and the write are in one step with the read of a reply line, so the agent gets the
-        line before the tap has that reply line. The reader of that turn keeps the reply line
-        for `rid`, so it is not a stray line. Then ask(..., sent=<time>) gives the reply when
-        the turn of this request comes."""
+        check and the time of the write are in one step with the read of a reply line, so the
+        time is before the tap has that reply line. The write itself comes after that step: if
+        the stdin pipe is full, the write waits, and the reader of the other turn does not wait
+        for it. The reader of that turn keeps the reply line for `rid`, so it is not a stray
+        line. Then ask(..., sent=<time>) gives the reply when the turn of this request comes."""
         with self._turn:
             limit = DURING_WAIT if wait is None else wait
             self._turn.wait_for(lambda: before in self._got, timeout=limit)
@@ -129,9 +130,9 @@ class Agent:
             self._early[rid] = None
             self._got.add(rid)
             self._waiting.add(rid)
-            self._write(line)
             self._turn.notify_all()
-            return sent
+        self._write(line)
+        return sent
 
     def early_reply(self, rid: str) -> tuple[bytes, float] | None:
         """The reply line of a request of send_during and the time when it came, or None if it
@@ -190,9 +191,10 @@ class Agent:
         if self.failed:
             return "exited", self.failed
         if sent is None:
+            # The write is not under the condition: a full stdin pipe must not stop a reader.
+            written = self._write(line)
             with self._turn:
                 # A second message for this request waits until the agent got this line.
-                written = self._write(line)
                 self._got.add(rid)
                 if written:
                     self._waiting.add(rid)

@@ -229,6 +229,42 @@ def test_a_second_message_for_an_unknown_request_waits_and_goes_alone(
     assert first["ts"] <= second["started"]
 
 
+# An agent that reads one line, replies to it after 0.3 seconds, and reads no more stdin for
+# 3 seconds. A large second line thus fills the stdin pipe during the first turn.
+LAZY = """
+import json, sys, time
+r = json.loads(sys.stdin.buffer.readline())
+time.sleep(0.3)
+sys.stdout.write(json.dumps({"v": 1, "id": r["id"], "reply": "ok"}) + "\\n")
+sys.stdout.flush()
+time.sleep(3)
+for raw in sys.stdin.buffer:
+    r = json.loads(raw)
+    sys.stdout.write(json.dumps({"v": 1, "id": r["id"], "reply": "late"}) + "\\n")
+    sys.stdout.flush()
+"""
+
+
+def test_a_full_stdin_pipe_does_not_stop_the_reply_of_the_first_turn(tmp_path: Path) -> None:
+    # A second message of 1 MB waits for the stdin pipe. The first turn still gets its reply.
+    path = tmp_path / "agent.py"
+    path.write_text(LAZY)
+    agent = Agent([sys.executable, str(path)], tmp_path, tmp_path / "app.log", timeout=2)
+    agent.start()
+    first = json.dumps({"v": 1, "id": "m-1", "message": "slow"}).encode()
+    big = json.dumps({"v": 1, "id": "m-2", "message": "x" * 1_000_000}).encode()
+    during = threading.Thread(target=agent.send_during, args=(big, "m-2", "m-1"), daemon=True)
+    try:
+        during.start()
+        start = time.monotonic()
+        kind, out = agent.ask(first, "m-1", lambda line: None)
+        took = time.monotonic() - start
+    finally:
+        agent.kill()
+    assert (kind, json.loads(out)["reply"]) == ("line", "ok")
+    assert took < 1.5
+
+
 def test_a_timeout_of_the_first_turn_gives_the_second_message_no_reply(tmp_path: Path) -> None:
     results, rows, _ = _run(tmp_path, "queue", DURING, delay=0.1, timeout=0.5)
     assert [r[0] for r in results] == [504, 502]
