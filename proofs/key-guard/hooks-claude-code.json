@@ -1,8 +1,8 @@
 {
- "date": "2026-11-19",
+ "date": "2026-11-21",
  "setup": "hooks-claude-code",
  "versions": {
-  "nookku": "0.5.9",
+  "nookku": "0.6.0",
   "claude-code": "2.1.319 (Claude Code)"
  },
  "policy": {

@@ -96,7 +96,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install the tested Claude Code version
-        run: npm install -g @anthropic-ai/claude-code@2.1.302
+        run: npm install -g @anthropic-ai/claude-code@2.1.319
       - run: claude plugin validate plugins/nookku
       - run: claude plugin test plugins/nookku
   # The seam test of a Koodam TestKey (#585). A test in a Workspace on kind uses its own gateway

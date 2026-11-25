@@ -1,10 +1,10 @@
 {
- "date": "2026-10-23",
- "nookku": "0.5.5",
+ "date": "2026-11-24",
+ "nookku": "0.6.0",
  "harness": null,
  "litellm_image": "ghcr.io/berriai/litellm-database:v1.104.2",
  "litellm_version": "1.104.2",
- "clock_skew_seconds": 0.004,
+ "clock_skew_seconds": 0.027,
  "aliases": {
   "agent": "kd-<uuid4>",
   "workspace": "ws-shop-toy-<hash8>"
@@ -91,7 +91,9 @@
   "ignored": {
    "source": 1
   },
-  "other_calls": 0
+  "harness_calls": {},
+  "other_calls": 0,
+  "same_calls": 0
  },
  "file_gateway": {
   "file": "gateway.jsonl",
@@ -100,7 +102,9 @@
   "ignored": {
    "source": 1
   },
-  "other_calls": 0
+  "harness_calls": {},
+  "other_calls": 0,
+  "same_calls": 0
  },
  "tags": [
   "toy-shop"

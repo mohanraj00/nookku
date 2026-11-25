@@ -1,11 +1,11 @@
 {
- "date": "2026-11-17",
+ "date": "2026-11-21",
  "relay": "hooks-codex",
  "version": "codex-cli 0.169.0",
- "nookku": "0.5.9",
+ "nookku": "0.6.0",
  "plugins": null,
  "answers": {
-  "memory_sha256": "807daa793b1690b6032ee15641a7dbbe402c3430d07262dee45bf480520a6d53",
+  "memory_sha256": "4690355f3e35374713ceac4dd1f75390d379200c2f0db275ba3e85bba35d95ab",
   "read": "“ZX-4471-Q”"
  },
  "audit_exit": 0,

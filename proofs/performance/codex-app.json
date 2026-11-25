@@ -1,10 +1,10 @@
 {
- "date": "2026-10-23",
+ "date": "2026-11-21",
  "method": "scripts/proof_codex_performance.py",
  "versions": {
-  "nookku": "0.5.5",
-  "claude-code": "2.1.302 (Claude Code)",
-  "codex": "codex-cli 0.162.1"
+  "nookku": "0.6.0",
+  "claude-code": "2.1.319 (Claude Code)",
+  "codex": "codex-cli 0.169.0"
  },
  "messages": [
   "Where is my order 4471?",
@@ -13,178 +13,182 @@
  "repeat_total_events": 0,
  "rollout_token_count": [
   {
-   "line": 15,
-   "timestamp": "2026-10-23T14:56:21.982Z",
+   "line": 21,
+   "timestamp": "2026-11-21T01:01:44.770Z",
    "total_token_usage": {
-    "input_tokens": 23884,
+    "input_tokens": 25830,
     "cached_input_tokens": 0,
     "cache_write_input_tokens": 0,
-    "output_tokens": 22,
+    "output_tokens": 98,
     "reasoning_output_tokens": 0,
-    "total_tokens": 23906
+    "total_tokens": 25928
    },
    "last_token_usage": {
-    "input_tokens": 23884,
+    "input_tokens": 25830,
     "cached_input_tokens": 0,
     "cache_write_input_tokens": 0,
-    "output_tokens": 22,
+    "output_tokens": 98,
     "reasoning_output_tokens": 0,
-    "total_tokens": 23906
+    "total_tokens": 25928
    },
+   "last_usage_includes_reasoning": true,
    "model_context_window": 475000
   },
   {
-   "line": 19,
-   "timestamp": "2026-10-23T14:56:23.889Z",
+   "line": 25,
+   "timestamp": "2026-11-21T01:01:46.441Z",
    "total_token_usage": {
-    "input_tokens": 47835,
-    "cached_input_tokens": 23680,
+    "input_tokens": 53377,
+    "cached_input_tokens": 25728,
     "cache_write_input_tokens": 0,
-    "output_tokens": 40,
+    "output_tokens": 115,
     "reasoning_output_tokens": 0,
-    "total_tokens": 47875
+    "total_tokens": 53492
    },
    "last_token_usage": {
-    "input_tokens": 23951,
-    "cached_input_tokens": 23680,
+    "input_tokens": 27547,
+    "cached_input_tokens": 25728,
     "cache_write_input_tokens": 0,
-    "output_tokens": 18,
+    "output_tokens": 17,
     "reasoning_output_tokens": 0,
-    "total_tokens": 23969
+    "total_tokens": 27564
    },
+   "last_usage_includes_reasoning": true,
    "model_context_window": 475000
   },
   {
-   "line": 31,
-   "timestamp": "2026-10-23T14:56:25.941Z",
+   "line": 39,
+   "timestamp": "2026-11-21T01:01:49.050Z",
    "total_token_usage": {
-    "input_tokens": 82576,
-    "cached_input_tokens": 47488,
+    "input_tokens": 91742,
+    "cached_input_tokens": 53248,
     "cache_write_input_tokens": 0,
-    "output_tokens": 62,
+    "output_tokens": 153,
     "reasoning_output_tokens": 0,
-    "total_tokens": 82638
+    "total_tokens": 91895
    },
    "last_token_usage": {
-    "input_tokens": 34741,
-    "cached_input_tokens": 23808,
+    "input_tokens": 38365,
+    "cached_input_tokens": 27520,
     "cache_write_input_tokens": 0,
-    "output_tokens": 22,
+    "output_tokens": 38,
     "reasoning_output_tokens": 0,
-    "total_tokens": 34763
+    "total_tokens": 38403
    },
+   "last_usage_includes_reasoning": true,
    "model_context_window": 475000
   },
   {
-   "line": 35,
-   "timestamp": "2026-10-23T14:56:27.676Z",
+   "line": 43,
+   "timestamp": "2026-11-21T01:01:50.970Z",
    "total_token_usage": {
-    "input_tokens": 117370,
-    "cached_input_tokens": 82048,
+    "input_tokens": 130176,
+    "cached_input_tokens": 91520,
     "cache_write_input_tokens": 0,
-    "output_tokens": 82,
+    "output_tokens": 177,
     "reasoning_output_tokens": 0,
-    "total_tokens": 117452
+    "total_tokens": 130353
    },
    "last_token_usage": {
-    "input_tokens": 34794,
-    "cached_input_tokens": 34560,
+    "input_tokens": 38434,
+    "cached_input_tokens": 38272,
     "cache_write_input_tokens": 0,
-    "output_tokens": 20,
+    "output_tokens": 24,
     "reasoning_output_tokens": 0,
-    "total_tokens": 34814
+    "total_tokens": 38458
    },
+   "last_usage_includes_reasoning": true,
    "model_context_window": 475000
   }
  ],
  "usage_notifications": [
   {
-   "threadId": "01a16943-4361-72f0-aaad-eb3e5f6ac32b",
-   "turnId": "01a16943-43fa-7fb3-95b0-6da9ee333f3d",
+   "threadId": "01a1fb9f-8a5a-76b1-93ec-dbf88b9c81ef",
+   "turnId": "01a1fb9f-8ae1-7541-b66c-1a1ea86bbaec",
    "tokenUsage": {
     "total": {
-     "totalTokens": 23906,
-     "inputTokens": 23884,
+     "totalTokens": 25928,
+     "inputTokens": 25830,
      "cachedInputTokens": 0,
      "cacheWriteInputTokens": 0,
-     "outputTokens": 22,
+     "outputTokens": 98,
      "reasoningOutputTokens": 0
     },
     "last": {
-     "totalTokens": 23906,
-     "inputTokens": 23884,
+     "totalTokens": 25928,
+     "inputTokens": 25830,
      "cachedInputTokens": 0,
      "cacheWriteInputTokens": 0,
-     "outputTokens": 22,
+     "outputTokens": 98,
      "reasoningOutputTokens": 0
     },
     "modelContextWindow": 475000
    }
   },
   {
-   "threadId": "01a16943-4361-72f0-aaad-eb3e5f6ac32b",
-   "turnId": "01a16943-43fa-7fb3-95b0-6da9ee333f3d",
+   "threadId": "01a1fb9f-8a5a-76b1-93ec-dbf88b9c81ef",
+   "turnId": "01a1fb9f-8ae1-7541-b66c-1a1ea86bbaec",
    "tokenUsage": {
     "total": {
-     "totalTokens": 47875,
-     "inputTokens": 47835,
-     "cachedInputTokens": 23680,
+     "totalTokens": 53492,
+     "inputTokens": 53377,
+     "cachedInputTokens": 25728,
      "cacheWriteInputTokens": 0,
-     "outputTokens": 40,
+     "outputTokens": 115,
      "reasoningOutputTokens": 0
     },
     "last": {
-     "totalTokens": 23969,
-     "inputTokens": 23951,
-     "cachedInputTokens": 23680,
+     "totalTokens": 27564,
+     "inputTokens": 27547,
+     "cachedInputTokens": 25728,
      "cacheWriteInputTokens": 0,
-     "outputTokens": 18,
+     "outputTokens": 17,
      "reasoningOutputTokens": 0
     },
     "modelContextWindow": 475000
    }
   },
   {
-   "threadId": "01a16943-4361-72f0-aaad-eb3e5f6ac32b",
-   "turnId": "01a16943-5958-7dc2-b246-bf656de65d10",
+   "threadId": "01a1fb9f-8a5a-76b1-93ec-dbf88b9c81ef",
+   "turnId": "01a1fb9f-a65e-7fe2-9a45-fe655bdf6d2e",
    "tokenUsage": {
     "total": {
-     "totalTokens": 82638,
-     "inputTokens": 82576,
-     "cachedInputTokens": 47488,
+     "totalTokens": 91895,
+     "inputTokens": 91742,
+     "cachedInputTokens": 53248,
      "cacheWriteInputTokens": 0,
-     "outputTokens": 62,
+     "outputTokens": 153,
      "reasoningOutputTokens": 0
     },
     "last": {
-     "totalTokens": 34763,
-     "inputTokens": 34741,
-     "cachedInputTokens": 23808,
+     "totalTokens": 38403,
+     "inputTokens": 38365,
+     "cachedInputTokens": 27520,
      "cacheWriteInputTokens": 0,
-     "outputTokens": 22,
+     "outputTokens": 38,
      "reasoningOutputTokens": 0
     },
     "modelContextWindow": 475000
    }
   },
   {
-   "threadId": "01a16943-4361-72f0-aaad-eb3e5f6ac32b",
-   "turnId": "01a16943-5958-7dc2-b246-bf656de65d10",
+   "threadId": "01a1fb9f-8a5a-76b1-93ec-dbf88b9c81ef",
+   "turnId": "01a1fb9f-a65e-7fe2-9a45-fe655bdf6d2e",
    "tokenUsage": {
     "total": {
-     "totalTokens": 117452,
-     "inputTokens": 117370,
-     "cachedInputTokens": 82048,
+     "totalTokens": 130353,
+     "inputTokens": 130176,
+     "cachedInputTokens": 91520,
      "cacheWriteInputTokens": 0,
-     "outputTokens": 82,
+     "outputTokens": 177,
      "reasoningOutputTokens": 0
     },
     "last": {
-     "totalTokens": 34814,
-     "inputTokens": 34794,
-     "cachedInputTokens": 34560,
+     "totalTokens": 38458,
+     "inputTokens": 38434,
+     "cachedInputTokens": 38272,
      "cacheWriteInputTokens": 0,
-     "outputTokens": 20,
+     "outputTokens": 24,
      "reasoningOutputTokens": 0
     },
     "modelContextWindow": 475000
@@ -193,42 +197,42 @@
  ],
  "performance": {
   "v": "0.1",
-  "test": "20261023-075617-60e1",
+  "test": "20261121-063138-f4c7",
   "unknown": null,
   "outside_turns": 0,
   "turns": [
    {
     "turn": 1,
-    "seconds": 5.736,
+    "seconds": 7.476,
     "model_calls": 2,
-    "input_tokens": 47835,
-    "output_tokens": 40,
+    "input_tokens": 53377,
+    "output_tokens": 115,
     "no_usage": 0,
     "sources": [
      {
       "harness": "codex",
-      "session": "01a16943-4361-72f0-aaad-eb3e5f6ac32b",
+      "session": "01a1fb9f-8a5a-76b1-93ec-dbf88b9c81ef",
       "model_calls": 2,
-      "input_tokens": 47835,
-      "output_tokens": 40,
+      "input_tokens": 53377,
+      "output_tokens": 115,
       "no_usage": 0
      }
     ]
    },
    {
     "turn": 2,
-    "seconds": 3.784,
+    "seconds": 4.522,
     "model_calls": 2,
-    "input_tokens": 69535,
-    "output_tokens": 42,
+    "input_tokens": 76799,
+    "output_tokens": 62,
     "no_usage": 0,
     "sources": [
      {
       "harness": "codex",
-      "session": "01a16943-4361-72f0-aaad-eb3e5f6ac32b",
+      "session": "01a1fb9f-8a5a-76b1-93ec-dbf88b9c81ef",
       "model_calls": 2,
-      "input_tokens": 69535,
-      "output_tokens": 42,
+      "input_tokens": 76799,
+      "output_tokens": 62,
       "no_usage": 0
      }
     ]

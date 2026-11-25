@@ -1,0 +1,358 @@
+{
+ "date": "2026-11-24",
+ "relay": "plugin-codex",
+ "discovery_registered": true,
+ "discovery_attempts": 1,
+ "discovery_answer": "```text\nnookku: the egress answer is registered. The next start uses these parts:\n- model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or the default (proxy)\n- MCP server catalog: http CATALOG_MCP_URL -> http://127.0.0.1:9310/mcp (proxy)\n- MCP server notes: stdio NOTES_MCP_COMMAND -> python3 notes_mcp.py (proxy)\n- database shop: postgres, DATABASE_URL (proxy)\n- database returns: sqlite, returns.db (driver trace)\nShow these parts to the tester. If they are correct, the tester types the prompt nookku start in the next 30 minutes. If a part is wrong, run nookku register again with the correct answer.\n```\n\nThe app already exports SQLite statement spans over OTLP HTTP. The driver trace contains no result rows and may omit bound parameter values.\n\nCheck the registered parts, then type `nookku start` within 30 minutes if they’re correct.",
+ "method": "scripts/proof_egress.py",
+ "E2_app_files_changed": [],
+ "E2_guard_rows_added": 0,
+ "E2_relay_rows_refused": [],
+ "E2_tool_calls": 0,
+ "E2_files_before": {
+  "proof-egress-spans.jsonl": "5b9cf8d677bb594c09fdeecca7fa29c088e5558f1bfe1027a62a2f64ef60abf1",
+  "notes_mcp.py": "7ae0a1a48cdc2cd3905bf7003e0f3605647913d652739bf41514997d7236c4bd",
+  "catalog_mcp.py": "d3edd198e29852ea75d398443cea6119f9f5027186973f38aa2a88739b43654c",
+  "toy_mcp.py": "8b5dccbae63b88c0b8f8dab863d12c9e2a3f288514af6f894f593074165633a1",
+  "entry.py": "5bff925f2bf5c88fd5207f19407ed6741a1951f21109dff5f018f4c8fee89cb3",
+  "app.py": "b88b7dd394e04c6ec27649df942e60828045b4683c88211aae08574b58fdf386",
+  "__pycache__/toy_mcp.cpython-313.pyc": "629416e63b68ec9aee1d2f4a939b3fcdbc53aa2540cb2887748cc427faeb023c",
+  "__pycache__/app.cpython-313.pyc": "f56f228cc1535836ab54ef9ffb50ab7897b2d1374fdae3f34c62596bb14166e5",
+  "__pycache__/app.cpython-312.pyc": "57dcf4bc32843cd208590ed669bf671f7d926e05ed2b8e5918eb96a82c167e42",
+  "__pycache__/toy_mcp.cpython-312.pyc": "ea30fbd102e22e4277a22a65afbc612333fe23cc89c13ddf2f1ed7bd1ce39f33",
+  "__pycache__/services.cpython-313.pyc": "24cfcdeb7b9130c21ae559db97b46dc05269bc975d363db6dfb3d3905fe6d8e0",
+  "__pycache__/services.cpython-312.pyc": "59110115be5bc9a63acb5a7b0d4b6ea421b90687b5552b2305213d489fd68bc7",
+  ".nookku/nookku-state": "7865f36f072b094306fd3bfc1a6e26563a2265d1a427ff21bad350fb04ad61d0",
+  ".nookku/mode": "b470b84cf0cd3189e10615bffea7d5cbd9f61134ba1c2cfd513ddd45b776a5f6",
+  ".nookku/config.json": "448d44361981a88c8aa94df638b8effcfaf98e947e23ca541e3f21e077c449d7",
+  ".nookku/send.lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  ".nookku/runs/20261124-163408-4d49.json": "e453f786ad16ef809dfd55b3d8e8182a28f196a201ca880c2d479e7065b7be6a",
+  ".nookku/runs/20261124-162109-3581.json": "220c0099d60320c06d6888431c79baf3e0ad7bd786891d45663b20cf966136fb",
+  ".nookku/runs/20261121-063718-33e9.json": "6e189db9a0ff1ff5bf365b6e272b847fcbe8dcf8dd277d691b0e754982c10cbb",
+  ".nookku/runs/20261024-044400-39e4.json": "6d34dfbd03c532ccc05d439fc960dd08322f2633be34475ca244a13246e70f92",
+  ".nookku/runs/20261124-161441-09d5.json": "291653195f017abd239ce7eaabe6ae5cb997bca6b663b2ab4a0422f18e028979",
+  ".nookku/runs/20261121-063900-9c04.json": "d7cff240f7d4604ec862bb3185ec371b3b6602b7c106146ff0dbdffdab84ab08",
+  ".nookku/runs/20261112-063524-eaed.json": "5a719de21c043c8b4cbf144cd957c59a447a0372495424e03ecc4873c61e8064",
+  ".nookku/runs/20261112-062633-083e.json": "61f539c1b77c1ca14c45f6a82cfdf88fc5fba588feb6a6e083240245b3d0653e",
+  ".nookku/runs/20261121-070149-1376.json": "4229f14925bab121af83850d01d5f3bc99267ae7effc5c0af78978d06c91395d",
+  ".nookku/runs/20261117-214746-29de.json": "92f41a5516b0554d4dad8029788dd1ccaf14e6a9515e3f000e4922d83f6bd2b9",
+  ".nookku/runs/20261117-215546-8267.json": "29241e3e3257b5d4f1adf5e372c5e54a0500c4f3b986fc478002ce19fb3d94f5",
+  ".nookku/runs/20261117-215920-1af4.json": "d13707c9cee0bba915ff4a9a4064c5834b376831db87812f32be53207b078f3b",
+  ".nookku/runs/20261112-063637-0d30.json": "a36f8e7bfb0200ecf401f35f05133c0b87811f085812ea2d16087944f7df669a",
+  ".nookku/runs/20261105-174157-5665.json": "f87b3fc27f038ec09e610e23ee463d65a096a3299f11c6dba090baabb8926f3f",
+  ".nookku/runs/20261112-062518-56d9.json": "feae8e9cf10965a3987051c054595228295958bcd43995b042b697a9db04640e",
+  ".nookku/runs/20261105-173926-b18c.json": "d1f3a05d7ca80f7ffba0d4db87eb26af3180afd09a2055e47cc4de2e95a101ee",
+  ".nookku/runs/20261121-071033-d859.json": "0a25044cf94bd055a63ef7a2e50351c547c4f346c9d91d7c11c40610d5b9eb56",
+  ".nookku/runs/20261117-215654-9ee1.json": "66e57cf29d9d534db589e2fa69ba0493c5e9fe2f183a39bc0e607b00e2c33048",
+  ".nookku/runs/20261117-215402-fdb5.json": "b53cda2ab3bbe8773e2237ac45b349b374963e576aeba4fd9c84dc1f9996b87c",
+  ".nookku/runs/20261112-062405-0b91.json": "017e9fab5ccd03d0b511abf0dfab317806b5e4833a99e6bc6fa0484843206de7",
+  ".nookku/runs/20261124-162625-2d5c.json": "005e7d25321059a0abcb3a00bd042aaa8b91c4310d918cc4956e9e0f2c57ddd9",
+  ".nookku/runs/20261024-045043-3467.json": "77da98ccb0069d4a625e87218759fe9b132435cae714570668ea2b3496a904f1",
+  ".nookku/runs/20261105-173637-0172.json": "509f1e1b53ce34cdb43426c305b5302afbb1f8d9cb25e8ba025baf4b688c9e06",
+  ".nookku/runs/20261105-174737-003f.json": "8c87ce6bc690103ce79fd9abc8992d666840d52e8a83c1d96952c36684496355",
+  ".nookku/runs/20261121-065427-fb6b.json": "14aade9b25b75cba37c682f28d48778461c4cc4cea629fa5787a892950da3c39",
+  ".nookku/runs/20261112-063827-4587.json": "3dc32f25bbf77835ab29206a673af2b980eb1b50a09b4f87ab3a9200293c479e",
+  ".nookku/runs/20261024-043805-22f7.json": "8951dacc1ff79965d15f5c218f1e8f38e1edd0a3592b042ab8f848d668572ec3",
+  ".nookku/runs/20261121-045911-0dd7.json": "27dc1244d7a03ec88b841c71bd557e6b5cd226dddbbdec4321d2f456d8ec1cc5",
+  ".nookku/runs/20261124-163743-7bf7.json": "8009c2b71e758bf1bde11aecf1ec8dc452301ee27bfdbb9043ae2ce014aef4b8",
+  ".nookku/runs/20261112-062958-27a4.json": "68d9d7ac6728d203534bde84bd81593a779028b23df315229c56bc16ab6be40f",
+  ".nookku/runs/20261024-044156-77b4.json": "85cfd1591e37811a3b6cb0165e5198f3e65404067006f11db3b1fa35216c1cbc",
+  ".nookku/runs/20261024-044801-228b.json": "9498a4f77953876b7ab7fcc07dd537f7b4463b1824901b8b5102c133c6f418e0",
+  ".nookku/runs/20261024-045324-daf4.json": "a7b4bd91653586ef4e03df1b158172a6e21096e5b046ea610378054859dd76ea",
+  ".nookku/runs/20261121-070613-514e.json": "67bedd057a12b9e512055b068adcbe8759014d79a873884814e09fce46c19669",
+  ".nookku/runs/20261112-063208-9b70.json": "4583329a5e812c17b65e202e7b9faf35cab9ca3e15bbd46d743990e9f05bbb5a",
+  ".nookku/runs/20261121-064524-7571.json": "26c36b43a666afc0371a1abee9e0bd94c0b9e1a1bcc5da41da2d15ac4a86db25",
+  ".nookku/runs/20261112-063330-050f.json": "09fb98f5290d94777da0683b4cd94ab76ca6d7061aefd8cd8507a97018d4cd20",
+  ".nookku/runs/20261117-215241-b90e.json": "c1d7059aad2dfffb911cc09139e3e8e6fd01fbdff2eb701d32f7bce5478d4fd8",
+  ".nookku/runs/20261105-173802-8ca1.json": "8d17f406a38e61930af2ffe9a8abac431fccf34b381160a403eee873211eb17c",
+  ".nookku/runs/20261121-064127-bd06.json": "89476cedecd71b59f6d98d76f6e7a14a13a2c818ff165ded44262b27e63cb6ea",
+  ".nookku/runs/20261105-174338-9cca.json": "8f91bc2aec19803fd99e88c94c024e5346263842136823a53632df99ca52fa65",
+  ".nookku/runs/20261117-215030-cdd1.json": "de6ab4ed751f3a1dcbac89285a11b447696ee4986c11f8407901432d6151feee",
+  ".nookku/runs/20261124-163015-822e.json": "ab08928fc34f58d3891c827585f7e95c8b736ad7b7cb742f6276d73402709f4f",
+  ".nookku/runs/20261117-214851-7bc3.json": "6304f6c38715ffd26b347634a2ec4bb2624312f0d4f0446b286e0cb561c3bcd5",
+  ".nookku/runs/20261121-065716-1b2b.json": "93966ca6597e8f96ad4fc40297724a13563db3b7d359c8a7b5a8dd294539c92a",
+  ".nookku/runs/20261105-174610-886d.json": "0d5c8aba4cd4c9c527a77522b2479f172e7d5f9932319bd7495d47ae77c0ed54",
+  ".nookku/runs/20261124-161745-0166.json": "e9ea624cda18de1d46f5ce435e2451b040843a8b5079c90511868c2eab00d220"
+ },
+ "E2_files_after": {
+  "proof-egress-spans.jsonl": "5b9cf8d677bb594c09fdeecca7fa29c088e5558f1bfe1027a62a2f64ef60abf1",
+  "notes_mcp.py": "7ae0a1a48cdc2cd3905bf7003e0f3605647913d652739bf41514997d7236c4bd",
+  "catalog_mcp.py": "d3edd198e29852ea75d398443cea6119f9f5027186973f38aa2a88739b43654c",
+  "toy_mcp.py": "8b5dccbae63b88c0b8f8dab863d12c9e2a3f288514af6f894f593074165633a1",
+  "entry.py": "5bff925f2bf5c88fd5207f19407ed6741a1951f21109dff5f018f4c8fee89cb3",
+  "app.py": "b88b7dd394e04c6ec27649df942e60828045b4683c88211aae08574b58fdf386",
+  "__pycache__/toy_mcp.cpython-313.pyc": "629416e63b68ec9aee1d2f4a939b3fcdbc53aa2540cb2887748cc427faeb023c",
+  "__pycache__/app.cpython-313.pyc": "f56f228cc1535836ab54ef9ffb50ab7897b2d1374fdae3f34c62596bb14166e5",
+  "__pycache__/app.cpython-312.pyc": "57dcf4bc32843cd208590ed669bf671f7d926e05ed2b8e5918eb96a82c167e42",
+  "__pycache__/toy_mcp.cpython-312.pyc": "ea30fbd102e22e4277a22a65afbc612333fe23cc89c13ddf2f1ed7bd1ce39f33",
+  "__pycache__/services.cpython-313.pyc": "24cfcdeb7b9130c21ae559db97b46dc05269bc975d363db6dfb3d3905fe6d8e0",
+  "__pycache__/services.cpython-312.pyc": "59110115be5bc9a63acb5a7b0d4b6ea421b90687b5552b2305213d489fd68bc7",
+  ".nookku/nookku-state": "7865f36f072b094306fd3bfc1a6e26563a2265d1a427ff21bad350fb04ad61d0",
+  ".nookku/mode": "b470b84cf0cd3189e10615bffea7d5cbd9f61134ba1c2cfd513ddd45b776a5f6",
+  ".nookku/config.json": "448d44361981a88c8aa94df638b8effcfaf98e947e23ca541e3f21e077c449d7",
+  ".nookku/send.lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  ".nookku/runs/20261124-163408-4d49.json": "e453f786ad16ef809dfd55b3d8e8182a28f196a201ca880c2d479e7065b7be6a",
+  ".nookku/runs/20261124-162109-3581.json": "220c0099d60320c06d6888431c79baf3e0ad7bd786891d45663b20cf966136fb",
+  ".nookku/runs/20261121-063718-33e9.json": "6e189db9a0ff1ff5bf365b6e272b847fcbe8dcf8dd277d691b0e754982c10cbb",
+  ".nookku/runs/20261024-044400-39e4.json": "6d34dfbd03c532ccc05d439fc960dd08322f2633be34475ca244a13246e70f92",
+  ".nookku/runs/20261124-161441-09d5.json": "291653195f017abd239ce7eaabe6ae5cb997bca6b663b2ab4a0422f18e028979",
+  ".nookku/runs/20261121-063900-9c04.json": "d7cff240f7d4604ec862bb3185ec371b3b6602b7c106146ff0dbdffdab84ab08",
+  ".nookku/runs/20261112-063524-eaed.json": "5a719de21c043c8b4cbf144cd957c59a447a0372495424e03ecc4873c61e8064",
+  ".nookku/runs/20261112-062633-083e.json": "61f539c1b77c1ca14c45f6a82cfdf88fc5fba588feb6a6e083240245b3d0653e",
+  ".nookku/runs/20261121-070149-1376.json": "4229f14925bab121af83850d01d5f3bc99267ae7effc5c0af78978d06c91395d",
+  ".nookku/runs/20261117-214746-29de.json": "92f41a5516b0554d4dad8029788dd1ccaf14e6a9515e3f000e4922d83f6bd2b9",
+  ".nookku/runs/20261117-215546-8267.json": "29241e3e3257b5d4f1adf5e372c5e54a0500c4f3b986fc478002ce19fb3d94f5",
+  ".nookku/runs/20261117-215920-1af4.json": "d13707c9cee0bba915ff4a9a4064c5834b376831db87812f32be53207b078f3b",
+  ".nookku/runs/20261112-063637-0d30.json": "a36f8e7bfb0200ecf401f35f05133c0b87811f085812ea2d16087944f7df669a",
+  ".nookku/runs/20261105-174157-5665.json": "f87b3fc27f038ec09e610e23ee463d65a096a3299f11c6dba090baabb8926f3f",
+  ".nookku/runs/20261112-062518-56d9.json": "feae8e9cf10965a3987051c054595228295958bcd43995b042b697a9db04640e",
+  ".nookku/runs/20261105-173926-b18c.json": "d1f3a05d7ca80f7ffba0d4db87eb26af3180afd09a2055e47cc4de2e95a101ee",
+  ".nookku/runs/20261121-071033-d859.json": "0a25044cf94bd055a63ef7a2e50351c547c4f346c9d91d7c11c40610d5b9eb56",
+  ".nookku/runs/20261117-215654-9ee1.json": "66e57cf29d9d534db589e2fa69ba0493c5e9fe2f183a39bc0e607b00e2c33048",
+  ".nookku/runs/20261117-215402-fdb5.json": "b53cda2ab3bbe8773e2237ac45b349b374963e576aeba4fd9c84dc1f9996b87c",
+  ".nookku/runs/20261112-062405-0b91.json": "017e9fab5ccd03d0b511abf0dfab317806b5e4833a99e6bc6fa0484843206de7",
+  ".nookku/runs/20261124-162625-2d5c.json": "005e7d25321059a0abcb3a00bd042aaa8b91c4310d918cc4956e9e0f2c57ddd9",
+  ".nookku/runs/20261024-045043-3467.json": "77da98ccb0069d4a625e87218759fe9b132435cae714570668ea2b3496a904f1",
+  ".nookku/runs/20261105-173637-0172.json": "509f1e1b53ce34cdb43426c305b5302afbb1f8d9cb25e8ba025baf4b688c9e06",
+  ".nookku/runs/20261105-174737-003f.json": "8c87ce6bc690103ce79fd9abc8992d666840d52e8a83c1d96952c36684496355",
+  ".nookku/runs/20261121-065427-fb6b.json": "14aade9b25b75cba37c682f28d48778461c4cc4cea629fa5787a892950da3c39",
+  ".nookku/runs/20261112-063827-4587.json": "3dc32f25bbf77835ab29206a673af2b980eb1b50a09b4f87ab3a9200293c479e",
+  ".nookku/runs/20261024-043805-22f7.json": "8951dacc1ff79965d15f5c218f1e8f38e1edd0a3592b042ab8f848d668572ec3",
+  ".nookku/runs/20261121-045911-0dd7.json": "27dc1244d7a03ec88b841c71bd557e6b5cd226dddbbdec4321d2f456d8ec1cc5",
+  ".nookku/runs/20261124-163743-7bf7.json": "8009c2b71e758bf1bde11aecf1ec8dc452301ee27bfdbb9043ae2ce014aef4b8",
+  ".nookku/runs/20261112-062958-27a4.json": "68d9d7ac6728d203534bde84bd81593a779028b23df315229c56bc16ab6be40f",
+  ".nookku/runs/20261024-044156-77b4.json": "85cfd1591e37811a3b6cb0165e5198f3e65404067006f11db3b1fa35216c1cbc",
+  ".nookku/runs/20261024-044801-228b.json": "9498a4f77953876b7ab7fcc07dd537f7b4463b1824901b8b5102c133c6f418e0",
+  ".nookku/runs/20261024-045324-daf4.json": "a7b4bd91653586ef4e03df1b158172a6e21096e5b046ea610378054859dd76ea",
+  ".nookku/runs/20261121-070613-514e.json": "67bedd057a12b9e512055b068adcbe8759014d79a873884814e09fce46c19669",
+  ".nookku/runs/20261112-063208-9b70.json": "4583329a5e812c17b65e202e7b9faf35cab9ca3e15bbd46d743990e9f05bbb5a",
+  ".nookku/runs/20261121-064524-7571.json": "26c36b43a666afc0371a1abee9e0bd94c0b9e1a1bcc5da41da2d15ac4a86db25",
+  ".nookku/runs/20261112-063330-050f.json": "09fb98f5290d94777da0683b4cd94ab76ca6d7061aefd8cd8507a97018d4cd20",
+  ".nookku/runs/20261117-215241-b90e.json": "c1d7059aad2dfffb911cc09139e3e8e6fd01fbdff2eb701d32f7bce5478d4fd8",
+  ".nookku/runs/20261105-173802-8ca1.json": "8d17f406a38e61930af2ffe9a8abac431fccf34b381160a403eee873211eb17c",
+  ".nookku/runs/20261121-064127-bd06.json": "89476cedecd71b59f6d98d76f6e7a14a13a2c818ff165ded44262b27e63cb6ea",
+  ".nookku/runs/20261105-174338-9cca.json": "8f91bc2aec19803fd99e88c94c024e5346263842136823a53632df99ca52fa65",
+  ".nookku/runs/20261117-215030-cdd1.json": "de6ab4ed751f3a1dcbac89285a11b447696ee4986c11f8407901432d6151feee",
+  ".nookku/runs/20261124-163015-822e.json": "ab08928fc34f58d3891c827585f7e95c8b736ad7b7cb742f6276d73402709f4f",
+  ".nookku/runs/20261117-214851-7bc3.json": "6304f6c38715ffd26b347634a2ec4bb2624312f0d4f0446b286e0cb561c3bcd5",
+  ".nookku/runs/20261121-065716-1b2b.json": "93966ca6597e8f96ad4fc40297724a13563db3b7d359c8a7b5a8dd294539c92a",
+  ".nookku/runs/20261105-174610-886d.json": "0d5c8aba4cd4c9c527a77522b2479f172e7d5f9932319bd7495d47ae77c0ed54",
+  ".nookku/runs/20261124-161745-0166.json": "e9ea624cda18de1d46f5ce435e2451b040843a8b5079c90511868c2eab00d220"
+ },
+ "versions": {
+  "nookku": "0.6.0",
+  "claude-code": "2.1.319 (Claude Code)",
+  "codex": "codex-cli 0.169.0",
+  "agent sdk": "claude-agent-sdk==0.2.168",
+  "app packages": [
+   "psycopg[binary]==3.3.6",
+   "opentelemetry-sdk==1.44.0",
+   "opentelemetry-exporter-otlp-proto-http==1.44.0",
+   "opentelemetry-instrumentation-psycopg==0.65b0",
+   "opentelemetry-instrumentation-sqlite3==0.65b0"
+  ],
+  "postgres": "postgres:16-alpine",
+  "session files": {
+   "claude-code": "2.1.301"
+  }
+ },
+ "plugins": null,
+ "turns": 3,
+ "audit_exit": 0,
+ "answer": {
+  "model_apis": [
+   {
+    "api": "anthropic",
+    "env": "ANTHROPIC_BASE_URL",
+    "url": null
+   }
+  ],
+  "backends": [],
+  "mcp_servers": [
+   {
+    "name": "catalog",
+    "transport": "http",
+    "env": "CATALOG_MCP_URL",
+    "command": null,
+    "url": "http://127.0.0.1:9310/mcp"
+   },
+   {
+    "name": "notes",
+    "transport": "stdio",
+    "env": "NOTES_MCP_COMMAND",
+    "command": [
+     "python3",
+     "notes_mcp.py"
+    ],
+    "url": null
+   }
+  ],
+  "databases": [
+   {
+    "name": "shop",
+    "kind": "postgres",
+    "env": "DATABASE_URL",
+    "address": "127.0.0.1:55432/shop",
+    "record": "proxy"
+   },
+   {
+    "name": "returns",
+    "kind": "sqlite",
+    "env": null,
+    "address": "returns.db",
+    "record": "driver"
+   }
+  ],
+  "other": []
+ },
+ "unseen": [],
+ "driver": [
+  "returns"
+ ],
+ "proxies": [
+  "anthropic",
+  "catalog",
+  "notes",
+  "shop"
+ ],
+ "sslmode": {
+  "shop": "prefer"
+ },
+ "E1_manifest_has_the_answer": true,
+ "session_calls": {
+  "find_product": [
+   2
+  ],
+  "add_note": [
+   3
+  ],
+  "lookup_order": [
+   1
+  ],
+  "start_return": [
+   3
+  ]
+ },
+ "mcp_calls": [
+  {
+   "turn": 2,
+   "server": "catalog",
+   "name": "find_product"
+  },
+  {
+   "turn": 3,
+   "server": "notes",
+   "name": "add_note"
+  }
+ ],
+ "database_queries": [
+  {
+   "turn": 1,
+   "name": "BEGIN",
+   "input": {
+    "query": "BEGIN",
+    "parameters": null
+   }
+  },
+  {
+   "turn": 1,
+   "name": "SELECT",
+   "input": {
+    "query": "SELECT id, status, items FROM orders WHERE id = $1",
+    "parameters": [
+     "7310"
+    ]
+   }
+  },
+  {
+   "turn": 1,
+   "name": "COMMIT",
+   "input": {
+    "query": "COMMIT",
+    "parameters": null
+   }
+  }
+ ],
+ "driver_queries": [
+  {
+   "turn": 3,
+   "name": "CREATE",
+   "input": {
+    "query": "CREATE TABLE IF NOT EXISTS returns (id TEXT, order_id TEXT, sku TEXT, reason TEXT)",
+    "parameters": null
+   }
+  },
+  {
+   "turn": 3,
+   "name": "INSERT",
+   "input": {
+    "query": "INSERT INTO returns VALUES (?, ?, ?, ?)",
+    "parameters": null
+   }
+  }
+ ],
+ "calls_with_no_record": {
+  "find_product": [],
+  "add_note": [],
+  "lookup_order": [],
+  "start_return": []
+ },
+ "postgres_driver_queries": 0,
+ "E3_each_call_has_a_record": true,
+ "postgres_spans": 1,
+ "postgres_span_addresses": [
+  "127.0.0.1:60989"
+ ],
+ "postgres_proxy": "postgresql://127.0.0.1:60989",
+ "unseen_call": 0,
+ "counts": {
+  "egress_not_in_discovery": 1,
+  "egress_denied": 1
+ },
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "E4_no_unseen_call": true,
+ "pass": true,
+ "E5_evaluation": {
+  "input": "planted Koodam-format spans, not observed Koodam calls",
+  "spans": [
+   {
+    "v": 1,
+    "time": "2026-11-25T00:43:00.380037+00:00",
+    "kind": "connect",
+    "port": "443",
+    "host": "stock.extra.toy.test",
+    "result": "ok"
+   },
+   {
+    "v": 1,
+    "time": "2026-11-25T00:43:00.380037+00:00",
+    "kind": "connect",
+    "port": "8443",
+    "host": "api.anthropic.com",
+    "result": "denied",
+    "reason": "port"
+   }
+  ],
+  "counts": {
+   "egress_not_in_discovery": 1,
+   "egress_denied": 1
+  },
+  "data": "proofs/egress/evaluation/20261124-164247-320d",
+  "checks": {
+   "unknown_host_in_coverage": true,
+   "denied_in_notes": true,
+   "no_full_coverage_claim": true
+  },
+  "seal_intact": true,
+  "report_withheld": false,
+  "commands_outside_project": [],
+  "pass": true
+ }
+}

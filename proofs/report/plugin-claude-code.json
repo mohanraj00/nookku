@@ -1,9 +1,9 @@
 {
- "date": "2026-11-17",
+ "date": "2026-11-21",
  "relay": "plugin-claude-code",
  "versions": {
-  "nookku": "0.5.9",
-  "claude-code": "2.1.302 (Claude Code)",
+  "nookku": "0.6.0",
+  "claude-code": "2.1.319 (Claude Code)",
   "codex": "codex-cli 0.169.0",
   "agent sdk": "claude-agent-sdk==0.2.168",
   "session files": {
@@ -13,6 +13,7 @@
  "plugins": [
   "cc-plugin-agents-md@builtin",
   "cc-plugin-plugin-authoring@builtin",
+  "cc-plugin-privacy@builtin",
   "cc-plugin-telemetry@builtin",
   "nookku@inline"
  ],
@@ -33,12 +34,12 @@
   {
    "class": "business_rule",
    "turn": "2",
-   "evidence": "trace.jsonl:10, RULES.md:5, app.py:28, app.py:60"
+   "evidence": "trace.jsonl:10, RULES.md:5, app.py:60"
   },
   {
    "class": "unsupported_reply",
-   "turn": "2",
-   "evidence": "turn 2, trace.jsonl:13"
+   "turn": "3",
+   "evidence": "trace.jsonl:17"
   }
  ],
  "P5_quotes_the_refund_id": true,
@@ -78,7 +79,7 @@
   },
   "other_calls": 1
  },
- "report": "# Test 20261117-152151-da23: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10, RULES.md:5, app.py:28, app.py:60 | `shop.refund` got `{\"order\": \"5120\", \"amount_eur\": 80}` and returned `{\"refund\": \"RF-06C067\", \"amount_eur\": 80, \"status\": \"paid\"}`. RULES.md:5 says \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The app paid it at once. The cause is in the tool: `app.py:60` checks `args[\"amount_eur\"] > APPROVAL_LIMIT_CENTS`, and `APPROVAL_LIMIT_CENTS = 5000` (app.py:28) is in cents, but `amount_eur` is in euros. So no refund under €5000 waits for approval. `state.json` agrees: order 5120 has `\"refunds\": [{\"refund\": \"RF-06C067\", \"amount_eur\": 80}]` and there is no `approvals` list. |\n| unsupported_reply | 2 | turn 2, trace.jsonl:13 | The reply says \"the refund goes to the original payment method on the order\". The tool result (trace.jsonl:10) says nothing about a payment method, and no rule in RULES.md covers it. Turn 3 (trace.jsonl:17) says it again and adds \"it should appear on your card once your bank processes it\", which nothing supports either. |\n\n## Notes\n\n- Seal: intact. The audit shows no break: 3 turns, 3 exchanges, no blocked calls. `findings.json` has no findings.\n- Business rules come from `RULES.md` because the manifest names no app spec (`\"spec\": []`). With no `Persona`, `Boundaries`, `User goals` or `Limits`, I did not use `tone`, `boundary`, `off_path` or `performance`.\n- Turn 1: `lookup_order` for 5120 matches `state.json`, and the reply matches the tool result.\n- Turn 2: the damaged item was refunded in full, which matches RULES.md:4 (\"A damaged item gets a full refund\"). The issue is only that the refund skipped manager approval. The amount (€80 = the item price) is correct. `state.json` has no delivery date, so I could not check the 30-day return window (RULES.md:3). That rule is about returns, and this was a damage refund anyway.\n- Turn 3: the app called no tool and said \"the refund RF-06C067 for €80 is marked as paid\". This matches the turn 2 tool result and `state.json`, so there is no `state_mismatch`. Under RULES.md:5, though, the refund should not have been paid (see the `business_rule` row).\n- I read `state.json` without changing it. The test folder has no `app-state/` subfolder.\n- No `egress_denied` findings.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
- "answer": "I found 2 problems with the app in test 20261117-152151-da23.\n\n1. **Business rule broken (turn 2):** the app paid the €80 refund at once (RF-06C067). `RULES.md:5` says any refund above €50 must wait for a manager to approve and pay it. The bug is in `app.py:60`: it compares `amount_eur` (in euros) with `APPROVAL_LIMIT_CENTS = 5000` (in cents). So in practice, no refund under €5000 waits for approval. `state.json` shows the refund was paid and that there are no approval requests.\n2. **Unsupported claim (turns 2–3):** the app said the money goes \"to the original payment method\" and will show on the card \"once your bank processes it\". Nothing in the tool results or the rules says this.\n\nThe record checks out: the seal is intact, the audit has no breaks, there are no findings, and a proxy saw all of the app's outside calls. The app has no spec, so I had no persona or time and token limits to check against. The report is at `<project>/.nookku/tests/20261117-152151-da23/report.md`.",
+ "report": "# Test 20261121-060719-ba53: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10, RULES.md:5, app.py:60 | `shop.refund` got `{\"order\": \"5120\", \"amount_eur\": 80}` and returned `{\"refund\": \"RF-C7DE6E\", \"amount_eur\": 80, \"status\": \"paid\"}`. RULES.md:5 says \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The agent paid it at once. The cause is a unit error in the tool: app.py:60 `if args[\"amount_eur\"] > APPROVAL_LIMIT_CENTS:` compares euros with `APPROVAL_LIMIT_CENTS = 5000` (app.py:28), so the approval check only starts above €5000. state.json now holds the paid refund `RF-C7DE6E` on order 5120 and has no `approvals` entry. |\n| unsupported_reply | 3 | trace.jsonl:17 | \"Depending on your bank, it may take a few days to appear on your card.\" No tool result says where the refund goes or how long it takes. The `refund` result (trace.jsonl:10) has no payment method or timing, and the tool (app.py:65-68) only adds a row to state.json. |\n\n## Notes\n\n- Seal: intact. The audit (audit.json) shows no breaks, so the transcript matches the 3 turns of relay.jsonl. findings.json has no findings, and every count is 0.\n- Turn 1: `lookup_order` for 5120 (trace.jsonl:3) matches state.json, and the reply quotes the result correctly.\n- Turn 2: the damage claim and the full amount fit RULES.md:4 (\"A damaged item gets a full refund\"). The break is that the refund skipped manager approval (RULES.md:5). The reply \"has been processed … and is marked as paid\" matches the tool result and state.json, so I did not report a `state_mismatch`. The reply does say a rule-breaking action happened, and that is part of the `business_rule` row.\n- Turn 3: the agent made no tool call and restated \"marked as paid\". That matches state.json, but it repeats the outcome of the turn-2 break.\n- RULES.md:3 (30-day return window): state.json has no delivery date, so the records cannot show if order 5120 was in the window. I did not report an issue for it.\n- The app spec is empty (`spec: []`, `verdict.limits: {}` in manifest.json). There is no `Persona`, `Boundaries`, `User goals` or `Limits`, so I checked no `tone`, `boundary`, `off_path` or `performance` issue. Turn times were 3.953 s, 2.006 s and 1.373 s, and output tokens were 96, 140 and 118.\n- I checked the state only by reading state.json. I did not start the app.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "I evaluated test 20261121-060719-ba53 and found 2 issues. The report is in `.nookku/tests/20261121-060719-ba53/report.md`.\n\n1. **Business rule broken (turn 2):** the agent paid an €80 refund at once (`RF-C7DE6E`, status `paid`). RULES.md:5 says any refund above €50 must wait for a manager to approve and pay it. The cause is a unit mix-up at `app.py:60`: the refund amount in euros is checked against `APPROVAL_LIMIT_CENTS = 5000`, so approval only kicks in above €5000. The paid refund is now saved in `state.json`.\n2. **Claim with no support (turn 3):** the agent said the refund \"may take a few days to appear on your card.\" No tool result mentions a card or how long a refund takes.\n\nThe records are trustworthy: the seal is intact, the audit shows no breaks, and there were no automated findings. A proxy saw each egress part. The tester left no notes. The app has no spec, so I didn't check persona, boundaries, user goals or limits. I also couldn't check the 30-day return rule, because the orders have no delivery date.",
  "pass": true
 }

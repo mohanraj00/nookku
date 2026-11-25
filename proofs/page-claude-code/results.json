@@ -1,9 +1,9 @@
 {
- "date": "2026-11-17",
+ "date": "2026-11-24",
  "setup": "page-claude-code",
  "harness": "claude-code",
- "version": "2.1.302 (Claude Code)",
- "nookku": "0.5.9",
+ "version": "2.1.319 (Claude Code)",
+ "nookku": "0.6.0",
  "transport": "stdio",
  "relay": "pane",
  "turns": [
@@ -116,20 +116,20 @@
  "P3c": {
   "agent_inputs_added": 0,
   "blocked_rows_added": 1,
-  "model_text": "I did not run the command. A Nookku PreToolUse hook stopped it with this message:\n\n```\nPreToolUse:Bash hook error: nookku: only the tester talks to the agent.\n```\n\nThe hook does not let the agent post to the page's `/api/send` endpoint. Only the tester can send messages there. I did not try to go ar"
+  "model_text": "A Nookku hook stopped the command before it ran, so I have no output from the endpoint to show you.\n\nThe hook gave this error:\n\n```\nPreToolUse:Bash hook error: nookku: only the tester talks to the agent.\n```\n\nThe PreToolUse hook blocks any call to the page `send` API from the agent. That endpoint se"
  },
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows_added": 1,
-  "model_text": "I did not get an output. A PreToolUse hook from Nookku blocked the command before it ran. The hook gave this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThis hook stops the model from sending messages to the agent endpoint. In this proof, only the Nookku tester can send text to th"
+  "model_text": "I did not get any output, because the command did not run. A PreToolUse hook on the Bash tool stopped it with this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThe Nookku hook in this proof folder (`.proof/page-claude-code`) blocks the model from sending messages to the agent endpo"
  },
- "end_model_output_tokens": 6022,
+ "end_model_output_tokens": 4971,
  "test": {
   "ended": true,
   "model_sessions": [],
   "versions": {
-   "nookku": "0.5.9",
-   "claude-code": "2.1.302 (Claude Code)",
+   "nookku": "0.6.0",
+   "claude-code": "2.1.319 (Claude Code)",
    "codex": "codex-cli 0.169.0"
   }
  },

@@ -1,9 +1,9 @@
 {
- "date": "2026-11-12",
+ "date": "2026-11-25",
  "versions": {
   "koodam_tag": "v0.4.0-alpha.1",
   "koodam_commit": "74920bed1d5c4575dbe3dc60c33ba6e07b73d44c",
-  "nookku": "nookku 0.5.8",
+  "nookku": "nookku 0.6.0",
   "kind": "v0.33.0",
   "kubectl": "v1.36.2",
   "helm": "v4.2.3+g43e8b7f",
@@ -11,11 +11,11 @@
  },
  "tests": [
   {
-   "test": "20261112-185915-ee47",
-   "alias": "tk-shop-test-1-fca9ef1f",
+   "test": "20261125-000052-3348",
+   "alias": "tk-shop-test-1-d21f374e",
    "test_id": "shop-test-1",
    "manifest_test_key": {
-    "alias": "tk-shop-test-1-fca9ef1f",
+    "alias": "tk-shop-test-1-d21f374e",
     "base_url": "http://koodam-litellm.koodam-system.svc:4000",
     "model": "mock-1"
    },
@@ -35,11 +35,11 @@
    }
   },
   {
-   "test": "20261112-190209-1b29",
-   "alias": "tk-shop-test-2-594fcc42",
+   "test": "20261125-000336-aed7",
+   "alias": "tk-shop-test-2-148e4af0",
    "test_id": "shop-test-2",
    "manifest_test_key": {
-    "alias": "tk-shop-test-2-594fcc42",
+    "alias": "tk-shop-test-2-148e4af0",
     "base_url": "http://koodam-litellm.koodam-system.svc:4000",
     "model": "mock-1"
    },
