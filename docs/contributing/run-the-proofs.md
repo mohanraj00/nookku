@@ -72,6 +72,7 @@ If a hook changes, trust it again. A new plugin script also needs a new run of `
 | P5, the model judges the record | `uv run python scripts/proof_evaluation.py <setup>` | `proofs/evaluation/<setup>.json` |
 | The plugin loads in both harnesses | `uv run python scripts/proof_plugin_load.py` | `proofs/plugin/load.json` |
 | The Codex hook gate | `uv run python scripts/proof_codex_gate.py`, then `--trusted` after the trust step | `proofs/codex-gate/gate.json` |
+| The keys of a hook in `hooks/list` of Codex, no model | `uv run python scripts/proof_codex_hook_keys.py` | `proofs/codex-gate/hook-keys.json` |
 | Codex and the `OTEL_*` variables | `uv run python scripts/proof_codex_otel.py` | `proofs/otel/codex.json` |
 | Benchmark under pressure | `uv run python bench/run.py mechanism claude-code` or `codex`, then `uv run python bench/score.py` | `bench/runs/`, `bench/results.json` |
 | Worked evaluation | `uv run python scripts/example_evaluation.py` | `examples/toy-shop/evaluation.json` |

@@ -563,6 +563,7 @@ uv run python scripts/proof_queue_trace.py
 uv run python scripts/proof_inapp_trace.py
 uv run python scripts/proof_api_hello.py
 uv run python scripts/proof_hook_timeout.py
+uv run python scripts/proof_codex_hook_keys.py
 uv run python scripts/proof_setup.py
 uv run python scripts/proof_codex_otel.py
 uv run python scripts/proof_report.py plugin-claude-code
