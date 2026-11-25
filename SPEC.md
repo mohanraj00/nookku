@@ -2058,3 +2058,126 @@ The seal covers `evaluation.json`, so a change that the command did not make bre
 **After a write.** A write changes `verdict.json` only if a limit names an issue class. A gate result pins the SHA-256 of `verdict.json` (section 7.15). Thus after such a write, `nookku gate verify` fails for a gate result that pinned the test.
 
 The cases in [`conformance/verdict/`](conformance/verdict/) with a name that starts with `issues_` give a model row with no limit of its class, which passes, a model row and a human row with a limit, a test with no `evaluation.json`, and a row that is not valid. [`conformance/seal/changed_evaluation/`](conformance/seal/changed_evaluation/) and [`conformance/seal/evaluation_intact/`](conformance/seal/evaluation_intact/) give a changed file and an intact file. [`conformance/guard/shell_writes_an_issue_row.json`](conformance/guard/shell_writes_an_issue_row.json) and [`conformance/guard/shell_imports_the_model_rows.json`](conformance/guard/shell_imports_the_model_rows.json) give the deny.
+
+## 10. Finding record
+
+A finding record is one confirmed defect of the agent, as one JSON object. Another tool reads the record and makes a regression case from it. The record is self-contained: a reader needs no other file of Nookku, and no code of Nookku. The record format is a contract with a version (section 10.4).
+
+A confirmed defect has one of 2 sources:
+
+- **An answer key mismatch.** A mismatch with the current outcome `agent_wrong` (section 7.17). An open mismatch, and a mismatch with the outcome `key_wrong` or `both_acceptable`, give no record.
+- **An issue row.** A row of `evaluation.json` with the author type `human` (section 9.4). A model row is a model judgment that no person confirmed. It gives a record only with `--model-rows`, and the record has the author type `model`.
+
+### 10.1 Fields
+
+Each record has each of these fields. A value can be `null` only where the table says so.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `record` | string | `nookku.finding`. |
+| `version` | string | The version of the format, `<major>.<minor>`. This section defines `1.0`. |
+| `id` | string | `<test id>/<kind>/<n>`. For a mismatch, `<n>` is the turn. For an issue row, `<n>` is the number of the row in `evaluation.json`, from 1. An import of the model rows can change the number of a row (section 9.4). |
+| `kind` | string | `answer_key_mismatch` or `issue_row`. This set is closed. |
+| `test` | string | The test id. |
+| `script` | object | `messages`: the `input` of each `exchange` row of `tap.jsonl`, in order (section 2.1). Message `n` is the message of turn `n` (section 8.3), byte for byte as the agent received it. The list has 1 message or more. `sha256`: the SHA-256 of the script copy of a scripted test (section 7.10), or `null` for a test with no script. |
+| `turn` | object or null | `number`: the turn, from 1 to 999999999. `input`: message `number` of `script`. `reply`: the `reply` of the `exchange` row of the turn, or `null` if the turn has no reply. The field is `null` only for an issue row with no turn. |
+| `expected` | object or null | The expected value of a mismatch, with its rule (section 7.17). `value`: the answer of the key, as a string. For the match `number`, it is the decimal number with no exponent, for example `"112"`, so that no digit is lost. `match`: `exact` or `number`. `tolerance`: the tolerance as a string, or `null` for `exact`. `field`: the dot path of the value in the JSON of the reply, or an empty string for the full reply text. The field is `null` for an issue row. |
+| `observed` | string or null | For a mismatch, the `value` of its `answers` row (section 7.17): the value of the reply as JSON text, with 200 characters at most and then `...`, or `null` for no value. It is text for a person. `turn.reply` has each byte. The field is `null` for an issue row. |
+| `issue` | object or null | For an issue row: `class`, `evidence` and `text` of the row (section 9.4). The classes of section 9.3 are not a closed set of this format, so a reader accepts a class that it does not know. The field is `null` for a mismatch. |
+| `adjudication` | object | Who confirmed the defect. `outcome`: `agent_wrong`. `reason`: the reason of the adjudication row, or the text of the issue row. `author`: the name that the person gave, or `null` for a model row. `author_type`: `human` or `model`. A mismatch always has `human`. `ts`: the Unix time of the adjudication row, or `null` for an issue row. |
+| `subject` | string | The subject digest: 1 to 512 characters with no control character (section 7.15). The caller gives it, and Nookku does not interpret it. |
+| `gate` | object or null | For a record of a gate run: `id` (the gate id), `name` (the name of the test in the gate file) and `result_sha256` (the SHA-256 of `result.json` in the copy of the seal of the gate folder). Else `null`. |
+| `seal` | object | The seal of the test folder at the time of the export (section 10.2). |
+| `nookku` | string | The version of Nookku that wrote the record. |
+
+The sets of `kind`, `outcome`, `author_type` and `match` are closed. A string of a record holds only Unicode scalar values, and `NaN` and `Infinity` are not numbers (section 2).
+
+A record for the example of the toy shop, with a short seal text:
+
+```json
+{
+ "record": "nookku.finding",
+ "version": "1.0",
+ "id": "20261120-101500-a1b2/answer_key_mismatch/2",
+ "kind": "answer_key_mismatch",
+ "test": "20261120-101500-a1b2",
+ "script": {"messages": ["What is the price of the blue mug?", "Is the teapot in stock?"], "sha256": null},
+ "turn": {"number": 2, "input": "Is the teapot in stock?", "reply": "{\"count\": 120}"},
+ "expected": {"value": "112", "match": "number", "tolerance": "0.5", "field": "count"},
+ "observed": "120",
+ "issue": null,
+ "adjudication": {"outcome": "agent_wrong", "reason": "The stock list gives 112 teapots.", "author": "Asha", "author_type": "human", "ts": 1795170000.25},
+ "subject": "sha256:ab12cd34",
+ "gate": null,
+ "seal": {"sha256": "...", "text": "...", "files": {"manifest.json": "...", "tap.jsonl": "...", "findings.json": "...", "answer_key.json": "...", "adjudications.jsonl": "..."}},
+ "nookku": "0.6.1"
+}
+```
+
+### 10.2 Seal digest
+
+The field `seal` ties a record to the sealed records of its test (section 7.4):
+
+| Key | Type | Meaning |
+|---|---|---|
+| `text` | string | The text of the seal that the export started from: the copy of the seal, or `seal.json` if no copy exists. |
+| `sha256` | string | The seal digest: the SHA-256 of the UTF-8 bytes of `text`, in lowercase hex. |
+| `files` | object | The SHA-256 of each file that gave a value of the record, by its name in the test folder. |
+
+A reader does these checks, and refuses the record if one fails:
+
+1. `sha256` is the SHA-256 of the UTF-8 bytes of `text`.
+2. `text` is a JSON object with the `test` of the record and an object `files`.
+3. Each name of `seal.files` has the same SHA-256 in the `files` of `text`.
+4. `seal.files` has `manifest.json` and `tap.jsonl`. For a mismatch, it also has `findings.json`, `answer_key.json` and `adjudications.jsonl`. For an issue row, it also has `evaluation.json`.
+5. If `script.sha256` is not `null`, `seal.files` has `script.json` or `script.jsonl` with that SHA-256.
+
+These checks show that the record agrees with itself. They do not show that the test folder is unchanged: a reader with the test folder runs `nookku verify` for that (section 7.4). A reader with the copy of the seal compares its SHA-256 with the seal digest. A later `nookku adjudicate`, `nookku evaluation` or `nookku trace` writes a new seal, so the seal digest of an older record is then not the digest of the current seal.
+
+A reader also checks these rules of 2 fields: `turn.number` is the number of a message of `script`, and `turn.input` is that message.
+
+### 10.3 Export and check
+
+`nookku finding export [TEST] --subject <digest> [--model-rows] [--root DIR] [--tests-dir PATH]` prints the records of one test. `nookku finding export --gate <gate> [--model-rows] [--root DIR] [--tests-dir PATH]` prints the records of each test of a gate run (section 7.15), in the order of the gate file, with the subject of the gate run. `--gate` takes no `TEST` and no `--subject`. The output is UTF-8 JSONL on the standard output: one record on each line. In one test, the mismatches come first, in turn order, and then the issue rows, in the order of `evaluation.json`. A test with no confirmed defect gives no line.
+
+The export fails closed. It prints no record and exits with 2 if one of these is true:
+
+- The seal of the test folder is not intact (section 7.4). For a test of a gate run, the copy of the seal must also be `same`.
+- A record of the test folder is not valid: `tap.jsonl`, `adjudications.jsonl` with the rules of the reader of section 7.17, `evaluation.json` (section 9.4), or the answer key copy (section 7.17).
+- A turn of an adjudication or of an issue row is not a turn of `tap.jsonl`.
+- The subject breaks the rule of section 7.15, or a test has no `--subject`.
+- For a gate run: the seal of the gate folder is not intact with a `same` copy, `run.json` and `result.json` do not agree on the subject, a test folder does not exist, or a pinned file of a test other than `verdict.json` does not have its pinned SHA-256 in the seal of the test.
+
+The export reads each sealed file one time, and uses only bytes with the SHA-256 of the seal. It reads `run.json` and `result.json` of a gate folder with the same rule. It exits with 0 after it prints each record, also for 0 records.
+
+An adjudication and a write of an issue row write `verdict.json` again, so `nookku gate verify` then fails for the gate result (sections 7.17 and 9.4). The export of a gate run does not use the verdict of the gate result. It uses the subject, the gate id and the pins of `run.json`, which the seal of the gate folder covers. Thus an adjudicated mismatch of a gate run still gives a record.
+
+`nookku finding check <file>` reads a JSONL file of records, or the standard input for `-`, and checks each line with the rules of sections 10.1, 10.2 and 10.4. The reader never skips a line, and a last empty line is permitted. It exits with 0 if each line is a valid record, with 1 if a line is not, and with 2 if it cannot read the file as UTF-8. `--json` prints `{"records", "valid", "lines"}`, with `line`, `id` and `problem` for each line.
+
+`nookku finding schema` prints the JSON Schema of a record of major version 1 (draft 2020-12). The file is [`src/nookku/finding_record.schema.json`](src/nookku/finding_record.schema.json), and each release has it in the package. The schema checks the form of a record. It does not check the rules of 2 fields or the seal digest (section 10.2), so a reader that uses the schema also does these checks. The Python reader is `nookku.finding_record.problem(record)`: it gives the reason that a value is not a record, or `None`.
+
+The 3 commands read, and they write no file. Thus the relay lets the model run them. Each value of a record is in a file of the test folder that the harness model can read after the test.
+
+### 10.4 Version rules
+
+The `version` of a record is `<major>.<minor>`: 2 whole numbers with no leading zero.
+
+**A new minor version** is an additive change. It adds an optional field to the record, or to an object of the record. It changes no rule of an existing field.
+
+**A new major version** is each other change:
+
+- A field is removed, gets another name or another type, or gets another meaning.
+- A field of this section becomes necessary where it was optional, or can be `null` where it could not.
+- A value is added to a closed set, or removed from it.
+- The rule of the seal digest or of the `id` changes.
+
+**The reader.**
+
+- A reader ignores a field that it does not know, in the record and in each object of the record. Thus a reader of `1.0` reads a record of `1.7`.
+- A reader refuses a record with a major version that it does not know. It does not guess the meaning of the fields.
+- A reader refuses a record with no `version`, or with a `version` of another form.
+- A reader refuses a record with a value of a closed set that it does not know.
+
+A writer of major version 1 always writes each field of section 10.1. Nookku writes the lowest minor version that has each field of the record.
+
+The cases in [`conformance/finding/`](conformance/finding/) give a record and the problem that the reader gives, or `null`: a valid record of each kind, a model row, a record of a gate run, an unknown field, a later minor version, a missing field, another major version, a seal digest that does not match, a file that the seal text does not cover, a turn that is not in the script and a mismatch with a model author. [docs/how-to/import-a-finding-record.md](docs/how-to/import-a-finding-record.md) shows how another tool imports a record.

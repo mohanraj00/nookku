@@ -1,0 +1,371 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/mohanraj00/nookku/blob/main/src/nookku/finding_record.schema.json",
+ "title": "Nookku finding record, major version 1",
+ "description": "The form of a finding record (SPEC.md section 10). A reader ignores a field that this schema does not name. The schema does not check the rules of SPEC.md section 10 that compare 2 fields, or the seal digest. A reader must check these rules also.",
+ "type": "object",
+ "required": [
+  "record",
+  "version",
+  "id",
+  "kind",
+  "test",
+  "script",
+  "turn",
+  "expected",
+  "observed",
+  "issue",
+  "adjudication",
+  "subject",
+  "gate",
+  "seal",
+  "nookku"
+ ],
+ "properties": {
+  "record": {
+   "const": "nookku.finding"
+  },
+  "version": {
+   "type": "string",
+   "pattern": "^1\\.(0|[1-9][0-9]{0,8})$"
+  },
+  "id": {
+   "type": "string",
+   "pattern": "\\S"
+  },
+  "kind": {
+   "enum": [
+    "answer_key_mismatch",
+    "issue_row"
+   ]
+  },
+  "test": {
+   "type": "string",
+   "pattern": "\\S"
+  },
+  "script": {
+   "type": "object",
+   "required": [
+    "messages",
+    "sha256"
+   ],
+   "properties": {
+    "messages": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "type": "string"
+     }
+    },
+    "sha256": {
+     "anyOf": [
+      {
+       "type": "null"
+      },
+      {
+       "type": "string",
+       "pattern": "^[0-9a-f]{64}$"
+      }
+     ]
+    }
+   }
+  },
+  "turn": {
+   "anyOf": [
+    {
+     "type": "null"
+    },
+    {
+     "type": "object",
+     "required": [
+      "number",
+      "input",
+      "reply"
+     ],
+     "properties": {
+      "number": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 999999999
+      },
+      "input": {
+       "type": "string"
+      },
+      "reply": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "expected": {
+   "anyOf": [
+    {
+     "type": "null"
+    },
+    {
+     "type": "object",
+     "required": [
+      "value",
+      "match",
+      "tolerance",
+      "field"
+     ],
+     "properties": {
+      "value": {
+       "type": "string"
+      },
+      "field": {
+       "type": "string"
+      }
+     },
+     "oneOf": [
+      {
+       "properties": {
+        "match": {
+         "const": "exact"
+        },
+        "tolerance": {
+         "type": "null"
+        }
+       }
+      },
+      {
+       "properties": {
+        "match": {
+         "const": "number"
+        },
+        "value": {
+         "type": "string",
+         "pattern": "^-?[0-9]+(\\.[0-9]+)?$"
+        },
+        "tolerance": {
+         "type": "string",
+         "pattern": "^[0-9]{1,9}(\\.[0-9]{1,9})?$"
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "observed": {
+   "type": [
+    "string",
+    "null"
+   ]
+  },
+  "issue": {
+   "anyOf": [
+    {
+     "type": "null"
+    },
+    {
+     "type": "object",
+     "required": [
+      "class",
+      "evidence",
+      "text"
+     ],
+     "properties": {
+      "class": {
+       "type": "string",
+       "pattern": "\\S"
+      },
+      "evidence": {
+       "type": "string",
+       "pattern": "\\S"
+      },
+      "text": {
+       "type": "string",
+       "pattern": "\\S"
+      }
+     }
+    }
+   ]
+  },
+  "adjudication": {
+   "type": "object",
+   "required": [
+    "outcome",
+    "reason",
+    "author",
+    "author_type",
+    "ts"
+   ],
+   "properties": {
+    "outcome": {
+     "const": "agent_wrong"
+    },
+    "reason": {
+     "type": "string",
+     "pattern": "\\S"
+    },
+    "ts": {
+     "type": [
+      "number",
+      "null"
+     ],
+     "minimum": 0
+    }
+   },
+   "oneOf": [
+    {
+     "properties": {
+      "author_type": {
+       "const": "human"
+      },
+      "author": {
+       "type": "string",
+       "pattern": "\\S"
+      }
+     }
+    },
+    {
+     "properties": {
+      "author_type": {
+       "const": "model"
+      },
+      "author": {
+       "type": "null"
+      }
+     }
+    }
+   ]
+  },
+  "subject": {
+   "type": "string",
+   "minLength": 1,
+   "maxLength": 512,
+   "pattern": "^[^\\u0000-\\u001f\\u007f]*$"
+  },
+  "gate": {
+   "anyOf": [
+    {
+     "type": "null"
+    },
+    {
+     "type": "object",
+     "required": [
+      "id",
+      "name",
+      "result_sha256"
+     ],
+     "properties": {
+      "id": {
+       "type": "string",
+       "pattern": "\\S"
+      },
+      "name": {
+       "type": "string",
+       "pattern": "\\S"
+      },
+      "result_sha256": {
+       "type": "string",
+       "pattern": "^[0-9a-f]{64}$"
+      }
+     }
+    }
+   ]
+  },
+  "seal": {
+   "type": "object",
+   "required": [
+    "sha256",
+    "text",
+    "files"
+   ],
+   "properties": {
+    "sha256": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{64}$"
+    },
+    "text": {
+     "type": "string"
+    },
+    "files": {
+     "type": "object",
+     "required": [
+      "manifest.json",
+      "tap.jsonl"
+     ],
+     "additionalProperties": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+     }
+    }
+   }
+  },
+  "nookku": {
+   "type": "string",
+   "pattern": "\\S"
+  }
+ },
+ "oneOf": [
+  {
+   "properties": {
+    "kind": {
+     "const": "answer_key_mismatch"
+    },
+    "turn": {
+     "type": "object"
+    },
+    "expected": {
+     "type": "object"
+    },
+    "issue": {
+     "type": "null"
+    },
+    "adjudication": {
+     "properties": {
+      "author_type": {
+       "const": "human"
+      },
+      "ts": {
+       "type": "number"
+      }
+     }
+    },
+    "seal": {
+     "properties": {
+      "files": {
+       "required": [
+        "findings.json",
+        "answer_key.json",
+        "adjudications.jsonl"
+       ]
+      }
+     }
+    }
+   }
+  },
+  {
+   "properties": {
+    "kind": {
+     "const": "issue_row"
+    },
+    "expected": {
+     "type": "null"
+    },
+    "observed": {
+     "type": "null"
+    },
+    "issue": {
+     "type": "object"
+    },
+    "seal": {
+     "properties": {
+      "files": {
+       "required": [
+        "evaluation.json"
+       ]
+      }
+     }
+    }
+   }
+  }
+ ]
+}

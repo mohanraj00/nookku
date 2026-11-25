@@ -19,6 +19,7 @@ from nookku import (
     egress_spans,
     evaluation,
     faults,
+    finding_record,
     gateway,
     ingress_spans,
     issues,
@@ -477,6 +478,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     _dashboard_parser(sub)
     _adjudicate_parser(sub)
     _evaluation_parser(sub)
+    finding_record.add_parser(sub, TESTS_DIR_HELP)
 
     ver = sub.add_parser("verify", help="check that no record of a test changed after its end")
     ver.add_argument(
@@ -665,6 +667,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _adjudicate_command(args)
     if args.command == "evaluation":
         return _evaluation_command(args)
+    if args.command == "finding":
+        return finding_record.command(args, _test_folder)
     if args.command == "verify":
         folder = _test_folder(args.root.resolve(), args.test)
         if folder is None:

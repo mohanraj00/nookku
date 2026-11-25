@@ -41,6 +41,7 @@ How-to guides. Each guide does one task. The guides are in the order of the task
 ### Read the results
 
 - [Read the results of a test](how-to/read-the-results.md): read the [seal](reference/glossary.md#seal), the audit, the findings, the report and the transcript, and decide the next step.
+- [Import a finding record into another test suite](how-to/import-a-finding-record.md): export each confirmed defect as a record with a version, and make a regression case from it in another tool.
 
 ### Evaluate against your spec
 

@@ -2,6 +2,12 @@
 
 Each date is the day of the upload to PyPI, in UTC ([nookku](https://pypi.org/project/nookku/#history), [verbatim-relay](https://pypi.org/project/verbatim-relay/#history)). 0.2.0 has no upload, so its date is the day of [its tag](https://github.com/mohanraj00/nookku/commit/v0.2.0).
 
+## 0.6.1
+
+Not released yet.
+
+- **Finding record.** `nookku finding export` writes each confirmed defect of a test, or of a gate run, as a finding record: one JSON object with the messages of the test, the turn, the expected value, the adjudication, the subject digest and the seal digest. A record comes from a mismatch with the answer key that a person adjudicated as `agent_wrong`, or from an issue row of a person. The format has a version, `1.0`, with rules for a new minor and a new major version. `nookku finding check` checks a file of records, and `nookku finding schema` prints the JSON Schema. Another tool reads a record with no other file ([SPEC.md section 10](SPEC.md#10-finding-record), [import-a-finding-record.md](docs/how-to/import-a-finding-record.md), [#575](https://github.com/mohanraj00/nookku/issues/575)).
+
 ## 0.6.0
 
 Not released yet.

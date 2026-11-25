@@ -1,0 +1,60 @@
+{
+ "about": "A field that version 1 does not have, in the record and in an object of the record. The reader ignores each one.",
+ "record": {
+  "record": "nookku.finding",
+  "version": "1.0",
+  "id": "20261120-101500-a1b2/answer_key_mismatch/2",
+  "kind": "answer_key_mismatch",
+  "test": "20261120-101500-a1b2",
+  "script": {
+   "messages": [
+    "What is the price of the blue mug?",
+    "Is the teapot in stock?"
+   ],
+   "sha256": "415afe90992a0d95d391e4fdb4de064485d9e00e3071b7ca908c1c36ac367202"
+  },
+  "turn": {
+   "number": 2,
+   "input": "Is the teapot in stock?",
+   "reply": "{\"reply\": \"Yes, the teapot is in stock.\", \"count\": 120}"
+  },
+  "expected": {
+   "value": "112",
+   "match": "number",
+   "tolerance": "0.5",
+   "field": "count",
+   "unit": "pieces"
+  },
+  "observed": "120",
+  "issue": null,
+  "adjudication": {
+   "outcome": "agent_wrong",
+   "reason": "The stock list of 2026-11-01 gives 112 teapots.",
+   "author": "Asha",
+   "author_type": "human",
+   "ts": 1795170000.25
+  },
+  "subject": "sha256:ab12cd34",
+  "gate": null,
+  "seal": {
+   "sha256": "78f1a990d0f5362079767363783fe81b2c9e1964e5455d2e78cfc01ebe0a785c",
+   "text": "{\n \"copy\": true,\n \"files\": {\n  \"adjudications.jsonl\": \"65b7b8efece54685e5696fd38506003c716cd83196cf48a2c0aa1f77067ca153\",\n  \"answer_key.json\": \"c918b9cb08c69b6c48aeda5272c5a8619b4c3f12efa450a65ce62664eebfe0da\",\n  \"audit.json\": \"6d69678f34125384d01454ee365f44e234f0a0d39eecd0a9b07efeadcbd7b5f0\",\n  \"evaluation.json\": \"67c6c9f50023680ecd5d9a10f23e07df1533eb33634ae3985a44aa68b085ea02\",\n  \"findings.json\": \"98ffd4c1f4b43726c9ab4a63fa162c2ee6f30a9143c437efba018e7f7d6d58fd\",\n  \"manifest.json\": \"3b1da6847a705e3332542b1c37aa7c06588102b8583fdd441f4eb888a51e75e3\",\n  \"relay.jsonl\": \"62d2c1a9704cdb2e49ea770b4450db4a5a3471ca4475aa92287998777eb934a3\",\n  \"script.jsonl\": \"415afe90992a0d95d391e4fdb4de064485d9e00e3071b7ca908c1c36ac367202\",\n  \"tap.jsonl\": \"bb9ebc3357b44c67613e0709eb660a4ea43402f798df60b63be4865333ceb672\",\n  \"trace.jsonl\": \"1a8c68091dbdfeb5b158dac8d960eea80c1cd6faa24d777e91d0ce2e49151199\",\n  \"verdict.json\": \"425dac9ed31f0ffa8c17eb91bd5fce9fbb5908accc256b2ab23c183dbb1116f7\"\n },\n \"sealed\": 1795169700.5,\n \"test\": \"20261120-101500-a1b2\",\n \"v\": 1\n}\n",
+   "files": {
+    "manifest.json": "3b1da6847a705e3332542b1c37aa7c06588102b8583fdd441f4eb888a51e75e3",
+    "tap.jsonl": "bb9ebc3357b44c67613e0709eb660a4ea43402f798df60b63be4865333ceb672",
+    "findings.json": "98ffd4c1f4b43726c9ab4a63fa162c2ee6f30a9143c437efba018e7f7d6d58fd",
+    "answer_key.json": "c918b9cb08c69b6c48aeda5272c5a8619b4c3f12efa450a65ce62664eebfe0da",
+    "adjudications.jsonl": "65b7b8efece54685e5696fd38506003c716cd83196cf48a2c0aa1f77067ca153",
+    "script.jsonl": "415afe90992a0d95d391e4fdb4de064485d9e00e3071b7ca908c1c36ac367202"
+   }
+  },
+  "nookku": "0.6.1",
+  "labels": [
+   "stock"
+  ]
+ },
+ "expect": {
+  "problem": null,
+  "schema": true
+ }
+}
