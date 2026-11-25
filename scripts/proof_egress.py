@@ -48,6 +48,7 @@ import time
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import proof_report as pr
 
@@ -97,6 +98,24 @@ CLAUDE_DISCOVERY = [
 def free(port: int) -> bool:
     with socket.socket() as s:
         return s.connect_ex(("127.0.0.1", port)) != 0
+
+
+def check_postgres_host(database_url: str, *, timeout: float = 3.0) -> None:
+    url = urlsplit(database_url)
+    host, port = url.hostname, url.port
+    if host is None or port is None:
+        sys.exit("Set the host and port in DATABASE_URL.")
+    deadline = time.monotonic() + timeout
+    while (remaining := deadline - time.monotonic()) > 0:
+        try:
+            with socket.create_connection((host, port), timeout=min(0.5, remaining)):
+                return
+        except OSError:
+            time.sleep(0.1)
+    sys.exit(
+        f"Cannot connect to the host port {port} of the Postgres container. "
+        "Check the Docker port mapping."
+    )
 
 
 def postgres() -> str:
@@ -265,6 +284,7 @@ def main() -> int:
     container = catalog = None
     try:
         container = postgres()
+        check_postgres_host(DATABASE_URL)
         catalog = catalog_mcp.CatalogServer()
         threading.Thread(target=catalog.serve_forever, daemon=True).start()
         extra = CLAUDE_DISCOVERY if relay.endswith("claude-code") else end_args
