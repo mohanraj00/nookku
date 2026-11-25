@@ -86,6 +86,43 @@ def test_a_refused_local_port_gives_inconclusive_with_local_service(tmp_path: Pa
     assert rows == [{"reason": "local_service", "calls": 1, "retried": 1, "turns": []}]
 
 
+def test_a_refused_mcp_call_with_no_item_is_a_refused_service(tmp_path: Path) -> None:
+    # The reader of mcp.jsonl gives an item for a tool call only. A refused `initialize` or
+    # `tools/list` call has no item, so the check reads the rows of the record.
+    def call(server: str, started: Any, status: int | None, error: str | None = None) -> str:
+        row = {"type": "call", "server": server, "started": started, "ts": None}
+        return json.dumps({**row, "status": status, "error": error}) + "\n"
+
+    rows = [
+        call("tickets", 12.0, None, REFUSED),
+        # The next call of the same server in the same turn gets an answer.
+        call("tickets", 13.0, 200),
+        call("tickets", 32.0, None, REFUSED),
+        # None of these rows is a good call of the server tickets after the refused call.
+        call("orders", 33.0, 200),
+        call("tickets", 34.0, 500),
+        call("tickets", 35.0, None, "the backend did not answer: timed out"),
+        json.dumps({"type": "message", "server": "tickets", "ts": 36.0}) + "\n",
+        "not JSON\n",
+    ]
+    (tmp_path / "mcp.jsonl").write_text("".join(rows))
+
+    def turn_of(ts: Any) -> int | None:
+        return None if ts is None else 2 if ts > 20 else 1
+
+    want = [{"reason": "local_service", "calls": 2, "retried": 1, "turns": [2]}]
+    assert outside_failures.of_trace(tmp_path, [], [], turn_of) == want
+    # A refused tool call has an item of the trace, so its row does not count 2 times.
+    source = {"file": "mcp.jsonl", "line": 3}
+    item = _item("mcp", "tickets", 2, error=REFUSED, source=source)
+    assert outside_failures.of_trace(tmp_path, [item], [], turn_of) == want
+    # A call in no turn is never retried.
+    (tmp_path / "mcp.jsonl").write_text(call("tickets", None, None, REFUSED) + rows[1])
+    assert outside_failures.of_trace(tmp_path, [], [], turn_of) == [
+        {"reason": "local_service", "calls": 1, "retried": 0, "turns": [None]}
+    ]
+
+
 def test_only_a_good_call_of_the_same_api_in_the_same_turn_is_a_retry() -> None:
     user = _item("model_api", "openai", 1, role="user")
     other_api = _item("model_api", "claude", 1, exit_code=200)
