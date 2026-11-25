@@ -6,7 +6,7 @@ I ran the Codex proofs of the 0.5.8 release candidate on 2026-11-12, on macOS, i
 
 | Proof | Setup | Result | Data |
 |---|---|---|---|
-| Hook gate, parts A and B | | pass, run 1 | [results](../codex-gate/gate.json) |
+| Hook gate, parts A and B | | pass, run 1 | [results](https://github.com/mohanraj00/nookku/blob/27dfc9eb/proofs/codex-gate/gate.json) |
 | P1 to P4 | plugin-codex | pass, run 1 | [results](../plugin-codex/results.json) |
 | P1 to P4 | hooks-codex | pass, run 3 | [results](../hooks-codex/results.json) |
 | P1 to P4, `--stream` | plugin-codex | pass, run 1 | [results](../plugin-codex-stream/results.json) |
@@ -29,6 +29,8 @@ I ran the Codex proofs of the 0.5.8 release candidate on 2026-11-12, on macOS, i
 | `proof_egress.py --evaluate` | hooks-codex | pass, run 3 | [results](../egress/hooks-codex-evaluation.json), [test folder](../egress/evaluation/20261112-080836-d58f/) |
 | P5, `proof_evaluation.py` | plugin-codex | pass, run 1 | [results](../evaluation/plugin-codex.json) |
 | P5, `proof_evaluation.py` | hooks-codex | pass, run 3 | [results](../evaluation/hooks-codex.json) |
+
+The hook gate link goes to `gate.json` at 27dfc9eb, the commit that recorded the gate result of this run. A later run writes `gate.json` again, so the link is pinned.
 
 ## The failed runs
 
