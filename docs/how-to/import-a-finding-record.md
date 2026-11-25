@@ -89,6 +89,7 @@ The format has a version, `<major>.<minor>`. A new minor version only adds field
 
 ## Limits
 
+- The short reader above does not check each field. `nookku finding check` and the JSON Schema check the form of a record.
 - The record shows that it agrees with its own seal text. It does not show that the test folder is unchanged. A reader with the test folder runs [`nookku verify`](../reference/cli.md#nookku-verify).
 - The subject is the text that the caller gave. Compare it with the digest that you expect.
 - `observed` has 200 characters at most. `turn.reply` has the full reply.

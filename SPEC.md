@@ -2070,7 +2070,7 @@ A confirmed defect has one of 2 sources:
 
 ### 10.1 Fields
 
-Each record has each of these fields. A value can be `null` only where the table says so.
+Each record has each of these fields, and each object of a record has each key that the table gives for it. A key with the value `null` is in the object. A value can be `null` only where the table says so.
 
 | Field | Type | Meaning |
 |---|---|---|
@@ -2081,7 +2081,7 @@ Each record has each of these fields. A value can be `null` only where the table
 | `test` | string | The test id. |
 | `script` | object | `messages`: the `input` of each `exchange` row of `tap.jsonl`, in order (section 2.1). Message `n` is the message of turn `n` (section 8.3), byte for byte as the agent received it. The list has 1 message or more. `sha256`: the SHA-256 of the script copy of a scripted test (section 7.10), or `null` for a test with no script. |
 | `turn` | object or null | `number`: the turn, from 1 to 999999999. `input`: message `number` of `script`. `reply`: the `reply` of the `exchange` row of the turn, or `null` if the turn has no reply. The field is `null` only for an issue row with no turn. |
-| `expected` | object or null | The expected value of a mismatch, with its rule (section 7.17). `value`: the answer of the key, as a string. For the match `number`, it is the decimal number with no exponent, for example `"112"`, so that no digit is lost. `match`: `exact` or `number`. `tolerance`: the tolerance as a string, or `null` for `exact`. `field`: the dot path of the value in the JSON of the reply, or an empty string for the full reply text. The field is `null` for an issue row. |
+| `expected` | object or null | The expected value of a mismatch, with its rule (section 7.17). `value`: the answer of the key, as a string. For the match `number`, it is the decimal number with no exponent, for example `"112"`, so that no digit is lost. `match`: `exact` or `number`. `tolerance`: the tolerance as a string, a decimal number with no exponent, or `null` for `exact`. `field`: the dot path of the value in the JSON of the reply, or an empty string for the full reply text. The field is `null` for an issue row. |
 | `observed` | string or null | For a mismatch, the `value` of its `answers` row (section 7.17): the value of the reply as JSON text, with 200 characters at most and then `...`, or `null` for no value. It is text for a person. `turn.reply` has each byte. The field is `null` for an issue row. |
 | `issue` | object or null | For an issue row: `class`, `evidence` and `text` of the row (section 9.4). The classes of section 9.3 are not a closed set of this format, so a reader accepts a class that it does not know. The field is `null` for a mismatch. |
 | `adjudication` | object | Who confirmed the defect. `outcome`: `agent_wrong`. `reason`: the reason of the adjudication row, or the text of the issue row. `author`: the name that the person gave, or `null` for a model row. `author_type`: `human` or `model`. A mismatch always has `human`. `ts`: the Unix time of the adjudication row, or `null` for an issue row. |
@@ -2180,4 +2180,4 @@ The `version` of a record is `<major>.<minor>`: 2 whole numbers with no leading 
 
 A writer of major version 1 always writes each field of section 10.1. Nookku writes the lowest minor version that has each field of the record.
 
-The cases in [`conformance/finding/`](conformance/finding/) give a record and the problem that the reader gives, or `null`: a valid record of each kind, a model row, a record of a gate run, an unknown field, a later minor version, a missing field, another major version, a seal digest that does not match, a file that the seal text does not cover, a turn that is not in the script and a mismatch with a model author. [docs/how-to/import-a-finding-record.md](docs/how-to/import-a-finding-record.md) shows how another tool imports a record.
+The cases in [`conformance/finding/`](conformance/finding/) give a record and the problem that the reader gives, or `null`: a valid record of each kind, a model row, a record of a gate run, an unknown field, a later minor version, a missing field, a missing key of an object, another major version, a seal digest that does not match, a file that the seal text does not cover, a turn that is not in the script and a mismatch with a model author. [docs/how-to/import-a-finding-record.md](docs/how-to/import-a-finding-record.md) shows how another tool imports a record.

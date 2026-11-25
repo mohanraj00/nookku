@@ -113,9 +113,32 @@ def _surrogate(value: Any) -> str | None:
     return None
 
 
-def _script_problem(value: Any) -> str | None:
+# The keys of each object of a record. A writer of major version 1 always writes each one.
+KEYS = {
+    "script": ("messages", "sha256"),
+    "turn": ("number", "input", "reply"),
+    "expected": ("value", "match", "tolerance", "field"),
+    "issue": ("class", "evidence", "text"),
+    "adjudication": ("outcome", "reason", "author", "author_type", "ts"),
+    "gate": ("id", "name", "result_sha256"),
+    "seal": ("sha256", "text", "files"),
+}
+
+
+def _object_problem(value: Any, field: str, null: bool = False) -> str | None:
+    """The problem of a field that is an object: it is not an object, or it does not have a
+    key of KEYS. A key with the value null is a key. Thus no later check reads a key that the
+    object does not have."""
     if not isinstance(value, dict):
-        return "its script is not an object"
+        return f"its {field} is not an object" + (" or null" if null else "")
+    missing = next((name for name in KEYS[field] if name not in value), None)
+    return None if missing is None else f"its {field} has no key {missing}"
+
+
+def _script_problem(value: Any) -> str | None:
+    found = _object_problem(value, "script")
+    if found is not None:
+        return found
     messages = value.get("messages")
     if not isinstance(messages, list) or not messages:
         return "its script has no messages list"
@@ -129,8 +152,9 @@ def _script_problem(value: Any) -> str | None:
 def _turn_problem(value: Any, kind: str, messages: list[str]) -> str | None:
     if value is None:
         return None if kind == ISSUE else "its turn is null"
-    if not isinstance(value, dict):
-        return "its turn is not an object or null"
+    found = _object_problem(value, "turn", null=True)
+    if found is not None:
+        return found
     number = value.get("number")
     if not isinstance(number, int) or isinstance(number, bool) or not 1 <= number <= MAX_TURN:
         return f"the number of its turn is not a whole number from 1 to {MAX_TURN}"
@@ -138,7 +162,7 @@ def _turn_problem(value: Any, kind: str, messages: list[str]) -> str | None:
         return f"its turn {number} is not a message of its script"
     if value.get("input") != messages[number - 1]:
         return f"the input of its turn is not message {number} of its script"
-    if "reply" not in value or not isinstance(value["reply"], (str, type(None))):
+    if not isinstance(value["reply"], (str, type(None))):
         return "the reply of its turn is not a string or null"
     return None
 
@@ -146,8 +170,9 @@ def _turn_problem(value: Any, kind: str, messages: list[str]) -> str | None:
 def _expected_problem(value: Any, kind: str) -> str | None:
     if kind == ISSUE:
         return None if value is None else "its expected is not null"
-    if not isinstance(value, dict):
-        return "its expected is not an object"
+    found = _object_problem(value, "expected")
+    if found is not None:
+        return found
     match, tolerance = value.get("match"), value.get("tolerance")
     if match not in MATCHES:
         return "the match of its expected is not " + " or ".join(MATCHES)
@@ -174,8 +199,9 @@ def _observed_problem(value: Any, kind: str) -> str | None:
 def _issue_problem(value: Any, kind: str) -> str | None:
     if kind == MISMATCH:
         return None if value is None else "its issue is not null"
-    if not isinstance(value, dict):
-        return "its issue is not an object"
+    found = _object_problem(value, "issue")
+    if found is not None:
+        return found
     for name in ("class", "evidence", "text"):
         if not _text(value.get(name)):
             return f"its issue has no {name} text"
@@ -183,8 +209,9 @@ def _issue_problem(value: Any, kind: str) -> str | None:
 
 
 def _adjudication_problem(value: Any, kind: str) -> str | None:
-    if not isinstance(value, dict):
-        return "its adjudication is not an object"
+    found = _object_problem(value, "adjudication")
+    if found is not None:
+        return found
     if value.get("outcome") != OUTCOME:
         return f"the outcome of its adjudication is not {OUTCOME}"
     if not _text(value.get("reason")):
@@ -217,8 +244,9 @@ def subject_problem(subject: Any) -> str | None:
 def _gate_problem(value: Any) -> str | None:
     if value is None:
         return None
-    if not isinstance(value, dict):
-        return "its gate is not an object or null"
+    found = _object_problem(value, "gate", null=True)
+    if found is not None:
+        return found
     for name in ("id", "name"):
         if not _text(value.get(name)):
             return f"its gate has no {name} text"
@@ -230,8 +258,9 @@ def _gate_problem(value: Any) -> str | None:
 def _seal_problem(value: Any, record: dict[str, Any]) -> str | None:
     """The problem of the seal of a record. The digest is the SHA-256 of the UTF-8 bytes of the
     seal text, and the seal text must cover each named file with its SHA-256."""
-    if not isinstance(value, dict):
-        return "its seal is not an object"
+    found = _object_problem(value, "seal")
+    if found is not None:
+        return found
     text, files = value.get("text"), value.get("files")
     if not isinstance(text, str) or not _sha(value.get("sha256")):
         return "its seal has no text string and SHA-256"
@@ -341,7 +370,8 @@ def _seal_of(folder: Path) -> tuple[str, dict[str, Any]]:
 
 
 def _decimal_text(value: Any) -> str:
-    """A number of an answer key as a decimal number with no exponent, so no digit is lost."""
+    """A number of an answer key as a decimal number with no exponent, so no digit is lost.
+    The text of a Decimal can have an exponent: a tolerance of 0.000000001 gives 1E-9."""
     return str(value) if isinstance(value, int) else format(value, "f")
 
 
@@ -464,7 +494,7 @@ def _mismatches(test: _Test) -> list[tuple[int, dict[str, Any]]]:
             "expected": {
                 "value": answer if rule["match"] == "exact" else _decimal_text(answer),
                 "match": rule["match"],
-                "tolerance": None if tolerance is None else str(tolerance),
+                "tolerance": None if tolerance is None else _decimal_text(tolerance),
                 "field": key["field"],
             },
             "observed": shown[number] if isinstance(shown[number], str) else None,
