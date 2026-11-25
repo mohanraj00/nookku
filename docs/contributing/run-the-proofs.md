@@ -59,6 +59,7 @@ If a hook changes, trust it again. A new plugin script also needs a new run of `
 | Client trace of a queue, no model, Docker | `uv run python scripts/proof_queue_trace.py` | `proofs/queue-trace/` |
 | A call that the in-app trace does not show, no model, Phoenix | `uv run python scripts/proof_inapp_trace.py` | `proofs/inapp-trace/` |
 | The `HEAD /api/hello` call of Claude Code, no model | `uv run python scripts/proof_api_hello.py` | `proofs/model-api/hello.json` |
+| The prompt after a timeout of a `UserPromptSubmit` hook of Claude Code, no model | `uv run python scripts/proof_hook_timeout.py` | `proofs/hook-timeout/claude-code.json` |
 | P5 to P8, evaluation at the end of a test | `uv run python scripts/proof_report.py <setup>` | `proofs/report/<setup>.json` |
 | Full telemetry | `uv run python scripts/proof_telemetry.py <setup>` | `proofs/telemetry/<setup>.json` |
 | Time and tokens of each turn | `uv run python scripts/proof_performance.py <setup>` | `proofs/performance/<setup>.json` |

@@ -341,6 +341,23 @@ def _async_hook(d: dict[str, Any]) -> None:
     d["hooks"]["UserPromptSubmit"][0]["hooks"][0]["async"] = True
 
 
+def _timeout(value: Any) -> Any:
+    """A change that gives the UserPromptSubmit hook of the plugin a timeout, or no timeout."""
+
+    def change(d: dict[str, Any]) -> None:
+        hook = d["hooks"]["UserPromptSubmit"][0]["hooks"][0]
+        if value is None:
+            del hook["timeout"]
+        else:
+            hook["timeout"] = value
+
+    return change
+
+
+def _short_tool_timeout(d: dict[str, Any]) -> None:
+    d["hooks"]["PreToolUse"][0]["hooks"][0]["timeout"] = 29
+
+
 def _event_on_new_line(d: dict[str, Any]) -> None:
     # The shell runs the script with no event, then runs the event name as a second command.
     d["hooks"]["PreToolUse"][0]["hooks"][0]["command"] = (
@@ -356,6 +373,14 @@ def _event_on_new_line(d: dict[str, Any]) -> None:
         (_no_quotes, "PreToolUse"),
         (_event_on_new_line, "PreToolUse"),
         (_async_hook, "UserPromptSubmit"),
+        # After a timeout, Claude Code sends the prompt to the model (#642).
+        (_timeout(1), "UserPromptSubmit"),
+        (_timeout(299), "UserPromptSubmit"),
+        (_timeout(None), "UserPromptSubmit"),
+        (_timeout("300"), "UserPromptSubmit"),
+        (_timeout(300.5), "UserPromptSubmit"),
+        (_timeout(True), "UserPromptSubmit"),
+        (_short_tool_timeout, "PreToolUse"),
         (_narrow_matcher, "PreToolUse"),
         (_other_command, "UserPromptSubmit"),
         (_script_not_run, "UserPromptSubmit"),
@@ -372,7 +397,8 @@ def test_a_plugin_install_with_a_required_hook_missing_is_refused(
     _edit(folder / "hooks" / "hooks.json", change)
     assert claude_gate.problems(tmp_path) == [
         f"the plugin hook {event} is missing in {folder / 'hooks' / 'hooks.json'}, or its "
-        "matcher or its command differs from the hook of nookku."
+        "matcher or its command differs from the hook of nookku, or its timeout is not "
+        f"{kit.HOOK_EVENTS[event][1]} seconds or more."
     ]
 
 
