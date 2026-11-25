@@ -9,8 +9,9 @@ Part A, with no person, in a new CODEX_HOME:
 2. The hook part of the trust hash of Codex: a change to the plugin script keeps it, and a
    change to a timeout changes it. Thus the gate also checks the SHA-256 of the script. Since
    codex-cli 0.169.0, the trust hash has 2 parts, `sha256:A/sha256:B`. The first part covers
-   the hook. The second part changes with the files of the plugin, also with the script. An
-   older Codex gives 1 part, the hook part.
+   the hook. Part A checks that each hash starts with `sha256:`. For a hash with 2 parts,
+   Part A also checks that a script change changes the full hash. An older Codex gives 1
+   part, the hook part.
 3. With a changed script, the gate gives the reason.
 
 Part B, after the maintainer trusts the hooks:
@@ -199,13 +200,16 @@ def gate() -> dict[str, Any]:
             os.environ["CODEX_HOME"] = old
 
 
-def hashes(result: dict[str, Any]) -> dict[str, str]:
-    return {h["event"]: h["hash"] for h in result["hooks"]}
+def hashes(result: dict[str, Any]) -> dict[str, str | None]:
+    return {h["event"]: h.get("hash") for h in result["hooks"]}
 
 
-def hook_parts(result: dict[str, Any]) -> dict[str, str]:
+def hook_parts(result: dict[str, Any]) -> dict[str, str | None]:
     """The hook part of each trust hash: the part before the first "/"."""
-    return {event: str(value).split("/")[0] for event, value in hashes(result).items()}
+    return {
+        event: value.partition("/")[0] if isinstance(value, str) else None
+        for event, value in hashes(result).items()
+    }
 
 
 def installed_record(installed: Path) -> dict[str, Any]:
@@ -237,29 +241,58 @@ def part_a(installed: Path) -> dict[str, Any]:
     finally:
         script.write_bytes(original)
         hooks_file.write_bytes(original_hooks)
+    before_hashes = hashes(before)
+    script_hashes = hashes(after_script)
+    timeout_hashes = hashes(after_timeout)
+    before_parts = hook_parts(before)
+    pre_tool_before = before_parts.get("preToolUse")
+    pre_tool_after_timeout = hook_parts(after_timeout).get("preToolUse")
+    checks = {
+        "the installed plugin is this version": installed.name == __version__,
+        "start refuses untrusted hooks": "is untrusted, not trusted" in start.stdout,
+        "relay mode stays off": mode == "off",
+        "each trust hash starts with sha256:": all(
+            result["hooks"]
+            and all(
+                isinstance(value := hook.get("hash"), str) and value.startswith("sha256:")
+                for hook in result["hooks"]
+            )
+            for result in (before, after_script, after_timeout)
+        ),
+        "a script change keeps the hook part of the trust hash": (
+            hook_parts(after_script) == before_parts
+        ),
+        "a timeout change changes the hook part of the trust hash of that hook": (
+            pre_tool_before is not None
+            and pre_tool_after_timeout is not None
+            and pre_tool_after_timeout != pre_tool_before
+        ),
+        "the gate finds the changed script": any(
+            "its script" in p for p in after_script["problems"]
+        ),
+    }
+    two_part_hashes = {
+        event: value
+        for event, value in before_hashes.items()
+        if isinstance(value, str) and "/" in value
+    }
+    if two_part_hashes:
+        checks["a script change changes each two-part trust hash"] = all(
+            isinstance(changed := script_hashes.get(event), str)
+            and "/" in changed
+            and changed != value
+            for event, value in two_part_hashes.items()
+        )
     return {
         **installed_record(installed),
         "start_output": start.stdout.strip(),
         "start_exit": start.returncode,
         "mode_after_start": mode,
         "gate": before,
-        "hash_after_script_change": hashes(after_script),
-        "hash_after_timeout_change": hashes(after_timeout),
+        "hash_after_script_change": script_hashes,
+        "hash_after_timeout_change": timeout_hashes,
         "problems_after_script_change": after_script["problems"],
-        "checks": {
-            "the installed plugin is this version": installed.name == __version__,
-            "start refuses untrusted hooks": "is untrusted, not trusted" in start.stdout,
-            "relay mode stays off": mode == "off",
-            "a script change keeps the hook part of the trust hash": (
-                hook_parts(after_script) == hook_parts(before)
-            ),
-            "a timeout change changes the hook part of the trust hash of that hook": (
-                hook_parts(after_timeout)["preToolUse"] != hook_parts(before)["preToolUse"]
-            ),
-            "the gate finds the changed script": any(
-                "its script" in p for p in after_script["problems"]
-            ),
-        },
+        "checks": checks,
     }
 
 
@@ -283,7 +316,8 @@ def part_b(installed: Path) -> dict[str, Any]:
         "manifest_codex_gate": recorded,
         "checks": {
             "the installed plugin is this version": installed.name == __version__,
-            "the gate passes with trusted hooks": result["problems"] == [] and result["hooks"],
+            "the gate passes with trusted hooks": result["problems"] == []
+            and bool(result["hooks"]),
             "start starts the test": started.returncode == 0,
             "the manifest has the gate result of the start and of the end": bool(
                 recorded.get("start", {}).get("hooks") and recorded.get("end", {}).get("hooks")
