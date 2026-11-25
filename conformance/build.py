@@ -6319,6 +6319,50 @@ MCP_CASE = {
 }
 
 
+# Refused MCP calls with no item (SPEC.md section 8.13): the HTTP server tickets refuses an
+# `initialize` call in turn 1, and the next `initialize` call gets an answer. In turn 2 it
+# refuses a `tools/list` call, and no call follows. The reader gives no item for these calls.
+def mcp_call(t: float, n: int, method: str, status: int | None, error: str | None = None) -> dict:
+    message = {"jsonrpc": "2.0", "id": n, "method": method}
+    row = call(t, "tickets", "POST", "/mcp", status, request=body(json.dumps(message)), error=error)
+    if status is not None:
+        answer = {"jsonrpc": "2.0", "id": n, "result": {}}
+        row["response_body"] = body(json.dumps(answer))
+    row["server"] = row.pop("backend")
+    row["transport"] = "http"
+    return row
+
+
+MCP_REFUSED_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": {"test": "20261125-080000-mr01", "model_sessions": []},
+    "sessions": {},
+    "mcp": [
+        mcp_call(12, 1, "initialize", None, REFUSED),
+        mcp_call(13, 1, "initialize", 200),
+        mcp_call(32, 2, "tools/list", None, REFUSED),
+    ],
+    "trace": [],
+    "findings": {
+        "v": "0.2",
+        "test": "20261125-080000-mr01",
+        "turns": 2,
+        "items": 0,
+        "sessions": [],
+        "otel": None,
+        "backend": None,
+        "model_api": None,
+        "mcp": {"file": "mcp.jsonl", "rows": 3, "items": 0, "ignored": {}},
+        "database": None,
+        "counts": counts(),
+        "findings": [],
+        "outside_failures": [
+            {"reason": "local_service", "calls": 2, "retried": 1, "turns": [2]},
+        ],
+    },
+}
+
+
 # A task with no terminal state (SPEC.md sections 8.4 and 8.6, `mcp_task_unfinished`): the stdio
 # server stock sends task states in turn 1. The task reservation ends with completed, and a later
 # state does not change it. The task waitlist ends with input_required, so it gives the finding
@@ -8163,6 +8207,7 @@ TRACE_CASES = {
     "other_trace": OTHER_TRACE_CASE,
     "mcp_toy_shop": MCP_CASE,
     "mcp_task_unfinished": MCP_TASK_CASE,
+    "mcp_refused": MCP_REFUSED_CASE,
     "replay_recorded": REPLAY_CASE,
     "database_toy_shop": DATABASE_CASE,
     "database_formats": DATABASE_FORMATS_CASE,
