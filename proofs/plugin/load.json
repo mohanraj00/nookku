@@ -1,5 +1,5 @@
 {
- "date": "2026-11-24",
+ "date": "2026-11-25",
  "nookku": "0.6.0",
  "method": "scripts/proof_plugin_load.py",
  "claude_code": {
@@ -57,7 +57,7 @@
    "the MCP server starts with run_script, status and transcript": true,
    "the Codex tool name is mcp__nookku__status": true,
    "the setup skill loads": true,
-   "the MCP server starts in the project": false,
+   "the MCP server starts in the project": true,
    "the MCP server gets no CLAUDE_PROJECT_DIR of another project": true
   }
  }
