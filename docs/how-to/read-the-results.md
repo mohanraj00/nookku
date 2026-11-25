@@ -166,15 +166,15 @@ For each error of exit 2, [troubleshooting.md](../troubleshooting.md#audit-verif
 `findings.json` holds the checks of the trace ([SPEC.md section 8.6](../../SPEC.md#86-findings)):
 
 ```bash
-cat .nookku/tests/20261117-155448-c94c/findings.json
+cat .nookku/tests/20261121-060551-13cf/findings.json
 ```
 
-This output is from the test of the tutorial proof of nookku 0.5.9 ([data](../../proofs/tutorial/output.txt), [method](../../scripts/proof_tutorial.py)):
+This output is from the test of the tutorial proof of nookku 0.6.0 ([data](../../proofs/tutorial/output.txt), [method](../../scripts/proof_tutorial.py)):
 
 ```json
 {
  "v": "0.2",
- "test": "20261117-155448-c94c",
+ "test": "20261121-060551-13cf",
  "turns": 3,
  "items": 0,
  "sessions": [],
@@ -224,7 +224,7 @@ This output is from the test of the tutorial proof of nookku 0.5.9 ([data](../..
 }
 ```
 
-`items` is the number of model items in `trace.jsonl`. `counts` has one number for each check. This version of Nookku has 31 checks ([trace.py](../../src/nookku/trace.py)). The toy shop has no model, so the trace has no item and no finding.
+`items` is the number of model items in `trace.jsonl`. `counts` has one number for each check. This version of Nookku has 33 checks ([trace.py](../../src/nookku/trace.py)). The toy shop has no model, so the trace has no item and no finding.
 
 A finding is a fact, not yet an issue. For example, a tool error can be the correct result of a request for an order that does not exist. The findings do not change the exit code of the audit.
 
@@ -291,12 +291,12 @@ The trace has 33 trace checks ([trace.py](../../src/nookku/trace.py)). `findings
 
 ## 5. Read the report
 
-If the harness model evaluated the test, it wrote `report.md` in the test folder ([SPEC.md section 9.3](../../SPEC.md#93-report)). The report has one table with the columns Class, Turn, Evidence and Issue, and one row for each issue. This row comes from the report of the tutorial test ([getting-started.md](../getting-started.md#9-read-the-report)). That test ran on 2026-11-03 with nookku 0.5.7 ([data](../../proofs/tutorial/output.txt), [method](../../scripts/proof_tutorial.py)):
+If the harness model evaluated the test, it wrote `report.md` in the test folder ([SPEC.md section 9.3](../../SPEC.md#93-report)). The report has one table with the columns Class, Turn, Evidence and Issue, and one row for each issue. This row comes from the report of the tutorial test ([getting-started.md](../getting-started.md#9-read-the-report)). That test ran on 2026-11-21 with nookku 0.6.0 ([data](../../proofs/tutorial/output.txt), [method](../../scripts/proof_tutorial.py)):
 
 ```markdown
 | Class | Turn | Evidence | Issue |
 |---|---|---|---|
-| missing_action | 1 | turn 1, agent.py:23, agent.py:31 | The tester reported a damaged item: "the mug i ordered came with a crack in the handle". The business rule at agent.py:23 says "Damaged items: full refund." The app did not offer or start a refund. It replied "Which item is this about: the mug or the teapot?", which asks again for the item that the tester had already named ("the mug"). ... |
+| missing_action | 1 | turn 1, agent.py:23, agent.py:27, agent.py:31 | The tester reported a damaged item: "hi, the mug i ordered came with a crack in the handle". The app's own rule says "Damaged items: full refund." (agent.py:23), but the app did not offer or start a refund. ... The tester had already named the mug, so the reply asks again for a fact the tester already gave and does not act on the damage report. ... |
 ```
 
 The issue classes:

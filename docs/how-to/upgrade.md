@@ -113,6 +113,25 @@ PASS
 
 ## Releases with a special step
 
+### 0.6.0
+
+No record changes its version. A 0.5.9 [audit](../reference/glossary.md#audit) reads a [tap record](../reference/glossary.md#tap-record) of 0.6.0. These changes need a step or change what you see:
+
+- **Check of the Claude Code hooks.** `nookku start` and `nookku mode on` refuse a test if a project hook of `nookku init claude-code` is missing or changed, if a required plugin hook is missing or runs another command, or if `disableAllHooks` is true. If you changed a nookku hook of your project, run `nookku init claude-code` again. Update the plugin to the version of `nookku --version` ([step 3](#3-update-the-plugin)). A plugin of another version gives a warning. The refusal and its fix are in [troubleshooting.md](../troubleshooting.md#nookku-the-claude-code-hooks-of-nookku-are-not-ready-so-nookku-refuses-the-test-and-does-not-change-relay-mode) ([#554](https://github.com/mohanraj00/nookku/issues/554)).
+- **New [findings](../reference/glossary.md#findings) in the verdict.** The [trace](../reference/glossary.md#trace) has 4 new finding classes: `replay_changed`, `replay_miss`, `action_without_approval` and `call_cut`. A class with no `Verdict` row has no limit, so a test that passes in 0.5.9 still passes. The trace now has 33 checks.
+- **The field `replied`.** An exchange row of `tap.jsonl` can have the optional field `replied`, only for a second message in a [scripted test](../reference/glossary.md#scripted-test) ([SPEC.md section 2.1](../../SPEC.md#21-tap-record)).
+
+Do the step above. These new commands and options are optional, and with no value a test works as in 0.5.9:
+
+- To replay a test with the responses of its base test and no outside call, give `--recorded` to `nookku replay` ([cli.md](../reference/cli.md#nookku-replay)).
+- To record the decision of a person for a mismatch with an answer key, run `nookku adjudicate` ([cli.md](../reference/cli.md#nookku-adjudicate)).
+- To keep the answer keys out of reach of the model, run `nookku policy set answer_keys PATH` ([cli.md](../reference/cli.md#nookku-policy)).
+- To find an action with no approval, add an `Approvals` section to the app spec ([app-spec.md](../reference/app-spec.md#approvals)).
+- To send a second message during a turn, give a script row the key `during` ([cli.md](../reference/cli.md#nookku-run)).
+- To record the issue rows of an [evaluation](../reference/glossary.md#evaluation), run `nookku evaluation import` or `nookku evaluation add` ([cli.md](../reference/cli.md#nookku-evaluation)).
+- To serve a read-only API of the runs, run `nookku dashboard` ([api.md](../reference/api.md)).
+- To read the spans of an ingress proxy, give `--ingress FILE` to `nookku trace` ([cli.md](../reference/cli.md#nookku-trace)).
+
 ### 0.5.9
 
 No record changes its format. These changes need a step or change what you see:

@@ -12,8 +12,11 @@ version. The committed [run](../../proofs/tutorial/run.json) and
 in [test_proof_gaps.py](../../tests/test_proof_gaps.py) cover both modes.
 
 The [plugin](../reference/glossary.md#plugin) load
-[method](../../scripts/proof_plugin_load.py) passed each check in Claude Code and
-Codex. Its [result](../../proofs/plugin/load.json) records the checkout version and the version
+[method](../../scripts/proof_plugin_load.py) passed each check in Claude Code. In Codex, it
+passed each check but one: "the MCP server starts in the project". The proof lists the MCP servers
+before it starts a thread, and codex-cli 0.169.0 then starts them in `CODEX_HOME`
+([#661](https://github.com/mohanraj00/nookku/issues/661)). So the cause is the proof method, not
+the plugin. The [result](../../proofs/plugin/load.json) records the checkout version and the version
 of each harness. The probe command now quotes its output path, so a scratch folder can have
 spaces. The probe MCP server returns an error for an unknown request, so the resource list
 request of Codex gets a reply. It still sends no reply to a notification.
