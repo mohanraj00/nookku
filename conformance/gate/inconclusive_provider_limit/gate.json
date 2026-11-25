@@ -1,0 +1,12 @@
+{
+ "v": 1,
+ "tests": [
+  {
+   "name": "stock",
+   "script": "scripts/stock.jsonl",
+   "limits": {
+    "model_api_error": 0
+   }
+  }
+ ]
+}

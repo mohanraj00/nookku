@@ -1197,7 +1197,7 @@ The result of each proof file names each failure with one of these reasons:
 5. It writes `run.json`, then `result.json`, and seals the gate folder (section 7.4). The copy of the seal is `~/.nookku/seals/<gate id>.json`.
 6. It verifies the result with the rule of "Verify" below, and prints the lines of each test, one line for each test, and the aggregate verdict.
 
-The exit code is 0 if the verified aggregate verdict is `pass`, and 1 if it is `fail` or the result cannot be verified.
+The exit code is 0 if the verified aggregate verdict is `pass`, 3 if it is `inconclusive`, and 1 if it is `fail` or the result cannot be verified.
 
 **`run.json`.** The ledger of the run:
 
@@ -1220,13 +1220,13 @@ Each row has `name`, `test` (the test id, or `null` if the test did not run), `e
 | `gate` | string | The gate id. |
 | `subject` | string | The subject digest of `run.json`. |
 | `gate_sha256` | string | The SHA-256 of `gate.json`. |
-| `verdict` | string | `pass` if `problems` and `reasons` are empty. Else `fail`. |
+| `verdict` | string | `fail` if `problems` or `reasons` is not empty. Else `inconclusive` if a test is inconclusive (below). Else `pass`. Thus a gate run with an inconclusive test never has the verdict `pass`. |
 | `problems` | list of strings | Each problem of `run.json` (below). |
-| `reasons` | list | One object `{"test", "check"}` for each check that fails, in the order of `tests`. Then one object `{"proof", "check"}` for each failure of a proof file, in the order of `proofs`: `proof` is the path, and `check` is the reason. |
+| `reasons` | list | One object `{"test", "check"}` for each check that fails in a test with the verdict `fail`, in the order of `tests`. Then one object `{"proof", "check"}` for each failure of a proof file, in the order of `proofs`: `proof` is the path, and `check` is the reason. |
 | `tests` | list | One object for each declared test, in the order of the gate file: `name`, `test`, `verdict` and `checks`. A test with `replay` also has `replay`: `base` (the base test id), `test` (the new test id), `most` (the declared limit), `changed` (the count of changed turns) and `turns` (the number of each changed turn, from 1). `changed` and `turns` are `null` if the check `changed_turns` did not compute them. A test with `persona` also has `persona`: an object with `persona` and `goal` from the copy in `inputs/`, and `sha256`, the SHA-256 of the copy. It is `null` if the copy is missing or breaks the rule of section 7.10. |
 | `proofs` | list | One object for each declared proof file, in the order of the gate file: `path`, `sha256` (the SHA-256 of the copy, or `null`), `age` (in seconds, or `null` if the file is missing), `value` (the number of the field of `bound`, or `null`), `verdict` (`pass` if `failures` is empty, else `fail`) and `failures`: one object `{"reason", "text"}` for each failure, in the order of the table of reasons. The key is in the result only if the gate file has the key `proofs`. Thus a gate file with no key `proofs` gives the result of Nookku 0.5.7, and a gate folder of 0.5.7 still verifies. |
 
-A test has the verdict `pass` if each of its checks passes. Each check is an object `{"check", "verdict", "text"}`. `text` is `null` for a pass, else the reason. The checks of a test, in this order:
+A test has the verdict `pass` if each of its checks passes, and `fail` if a check fails. A test with an outside failure that no good call followed has the verdict `inconclusive` in place of these (below). Each check is an object `{"check", "verdict", "text"}`. `text` is `null` for a pass, else the reason. The checks of a test, in this order:
 
 | Check | It passes if |
 |---|---|
@@ -1243,6 +1243,16 @@ A test has the verdict `pass` if each of its checks passes. Each check is an obj
 | `answer_key` | Only for a test with `answer_key`. It always fails in version 1. |
 | `missing_base` | Only for a test with `replay`. The row pins the declared base, the base folder exists, its seal is intact with a `same` copy, and `relay.jsonl` and `tap.jsonl` of the base have the pinned SHA-256 in the copy of its seal and in the bytes that the check reads. If this check fails, the test has no check `changed_turns`. |
 | `changed_turns` | Only for a test with `replay`. The count of changed turns of the base test and the new test is `changed` or less. The text gives the count, the limit and the number of each changed turn. If a record is not valid, the check fails. |
+| `outside_failures` | Only for a test whose `findings.json` has a key `outside_failures` that breaks the rule of section 8.13. The check always fails, and it is the last check of the test. Thus the result never uses counts that are not valid. |
+
+**Inconclusive tests.** A provider that is at its rate limit, or a service of the test that refuses each connection, makes a test fail when the app did not change. The trace counts these calls in the key `outside_failures` of `findings.json` (section 8.13). The check uses no model, and `findings.json` is a pinned file. The result uses the key only if the check `evidence` of the test passes:
+
+- A test whose `findings.json` has a valid key gets the same rows as `outside_failures` in its object of `tests`.
+- If a row has more `calls` than `retried`, a call failed and no good call followed it. The test then has the verdict `inconclusive`, with any result of its checks. The object keeps each check, and a check that fails is not in `reasons`.
+- If each call of each row is retried, the test keeps the verdict of its checks. The result still records the rows.
+- `result.json` has the key `inconclusive` only if a test is inconclusive: one object `{"test", "reason", "calls", "retried"}` for each row with more `calls` than `retried` of each inconclusive test, in the order of `tests`. The count of inconclusive tests is the count of the different `test` values.
+- An inconclusive result is not a pass and not a fail. The app did not show a defect, and the test did not show that the app is correct. Run the gate again when the limit is gone or the service runs.
+- A result with no such test has no key `inconclusive` and no key `outside_failures`. Thus it is the result of an earlier version of Nookku, and a gate folder of that version still verifies.
 
 The problems of `run.json`:
 
@@ -1264,15 +1274,15 @@ A declared test with no row fails `missing_test` with the text `The ledger has n
 3. For each test of `run.json`, the process reads each pinned file one time, for the check `evidence`. For a test with `replay`, it also reads each pinned file of the base test one time, for the check `missing_base`.
 4. The result that the process computes again from these bytes is the same as `result.json`. A result of Nookku 0.5.9 or older has no key `persona` in a test. If `result.json` is the computed result with no key `persona` in each test, the process uses `result.json`. The persona is a record only, so this changes no verdict.
 
-`gate verify` exits with 0 if the result can be used and its verdict is `pass`, with 1 if it can be used and its verdict is `fail`, and with 2 if no gate folder is found or the result cannot be used. If the result cannot be used, the output gives the reason, and the failed checks of the new computation, 3 at most.
+`gate verify` exits with 0 if the result can be used and its verdict is `pass`, with 1 if it can be used and its verdict is `fail`, with 3 if it can be used and its verdict is `inconclusive`, and with 2 if no gate folder is found or the result cannot be used. For each test with outside failures, the output has the line `Outside failure in <name>: <reason>, <calls> calls, <retried> retried.` If a test is inconclusive, the output has the line `Inconclusive tests: <count>. Run the gate again.` If the result cannot be used, the output gives the reason, and the failed checks of the new computation, 3 at most.
 
-**Read a result with no Nookku.** `result.json` is plain JSON. A reader takes `verdict` and `subject`, and compares `subject` with the digest that it expects, because the subject is only what the caller gave. A compare of the SHA-256 of `result.json` with the copy of the seal shows that `result.json` did not change. It does not check the test folders: only `nookku gate verify` does. [docs/how-to/gate-a-release.md](docs/how-to/gate-a-release.md) gives the commands.
+**Read a result with no Nookku.** `result.json` is plain JSON. A reader takes `verdict` and `subject`, and compares `subject` with the digest that it expects, because the subject is only what the caller gave. Only the verdict `pass` is a pass: a reader stops for `fail` and for `inconclusive`. A compare of the SHA-256 of `result.json` with the copy of the seal shows that `result.json` did not change. It does not check the test folders: only `nookku gate verify` does. [docs/how-to/gate-a-release.md](docs/how-to/gate-a-release.md) gives the commands.
 
 **Known limit: the gate trusts the tested code.** The run pins the argv of each entry, the policy, the spec and the config files of `.nookku/`. It does not pin the bytes of the program that an entry starts, or of its imports. A tested entry runs with the permissions of the account. Thus an earlier test of a gate run can change the code of a later test, and the later test can then pass. The deny of the relay does not stop the tested entry. Run a gate only on code that you trust, for example in a new CI checkout of the subject, and put the digest of that code in `--subject`.
 
 **The relay.** A gate run runs scripted tests, so the relay denies a model command that runs `nookku gate`, with each policy (section 5, "Drive commands"). `nookku gate verify` passes, because it only reads. The relay also denies a model write to `gates/` (section 5).
 
-The cases in [`conformance/gate/`](conformance/gate/) give the gate file, the records of each test and the expected `result.json`: a `pass`, a `fail`, a missing test, a replay check that passes, that has a changed turn, and that has no base, a proof file that passes, that is missing, that is stale, and that has a value above its limit, and a persona set of 3 personas.
+The cases in [`conformance/gate/`](conformance/gate/) give the gate file, the records of each test and the expected `result.json`: a `pass`, a `fail`, a missing test, a replay check that passes, that has a changed turn, and that has no base, a proof file that passes, that is missing, that is stale, and that has a value above its limit, a persona set of 3 personas, a test that is inconclusive for a provider limit and for a refused service, a test whose limited call was retried, and an inconclusive test with a failed test.
 
 ### 7.16 Gateway key of a test
 
@@ -1467,7 +1477,7 @@ Each other action of a row gives one `action_without_approval` finding (section 
 **Fail closed.**
 
 - The test does not start if a part of an `Approvals` section is not valid: a section with no table, a table with no `Action`, `Source`, `Approval` or `By` column, a row with an empty `Action` or `Approval`, an unknown `Source` or `By`, a `By` `message` with no valid `Interrupt`, another `By` with an `Interrupt`, a second row for one `Action` and `Source`, or more than 200 rows. The error names the file and the line.
-- If the manifest has a key `approvals` that is not in this form, the trace gives 1 `action_without_approval` finding with no turn and the `detail` `the approvals cannot be used: the key approvals of manifest.json is not valid`. `approvals` of `findings.json` is then `null`. A manifest with no key, from a test before the key, has no rows and no finding.
+- If the manifest has a key `approvals` that is not in this form, the trace gives 1 `action_without_approval` finding with no turn and the `detail` `the approvals cannot be used: the key approvals of manifest.json is not valid`. `approvals` of `findings.json` is then `null`. The value `null` is not in this form: a manifest with `"approvals": null` has the key, so it gets this finding. A manifest with no key, from a test before the key, has no rows and no finding.
 
 **Limits.** The check reads what the records show:
 
@@ -1477,7 +1487,7 @@ Each other action of a row gives one `action_without_approval` finding (section 
 - An `accept` of the mode `url` says only that the user agreed to open a page, so it is not an approval. Only the mode `form` gives an approval. Name an item of the trace as the approval of an app with another mode.
 - An MCP proxy does not see when a server does its work. For the second part of the rule, the check accepts an approval that the app gave before the result of the tool call.
 
-The cases [`conformance/trace/approvals_elicitation/`](conformance/trace/approvals_elicitation/) (an accept before the action and after it, a decline, an approval during a tool call of an HTTP server, the mode `url`, a request with no answer and an action in no turn), [`conformance/trace/approvals_interrupt/`](conformance/trace/approvals_interrupt/) (an interrupt and its resume, a message that is not the approval, a message with no interrupt before it, an item of the trace as the approval, and a failed item) and [`conformance/trace/approvals_not_valid/`](conformance/trace/approvals_not_valid/) give the forms. The case [`conformance/verdict/approval_limit/`](conformance/verdict/approval_limit/) gives a limit of the class.
+The cases [`conformance/trace/approvals_elicitation/`](conformance/trace/approvals_elicitation/) (an accept before the action and after it, a decline, an approval during a tool call of an HTTP server, the mode `url`, a request with no answer and an action in no turn), [`conformance/trace/approvals_interrupt/`](conformance/trace/approvals_interrupt/) (an interrupt and its resume, a message that is not the approval, a message with no interrupt before it, an item of the trace as the approval, and a failed item) and [`conformance/trace/approvals_not_valid/`](conformance/trace/approvals_not_valid/) give the forms. The case [`conformance/trace/approvals_null/`](conformance/trace/approvals_null/) gives a manifest with `"approvals": null`. The case [`conformance/verdict/approval_limit/`](conformance/verdict/approval_limit/) gives a limit of the class.
 
 ## 8. Trace
 
@@ -1611,7 +1621,7 @@ These tools come from the harness, not from the app: `ToolSearch` in Claude Code
 
 ### 8.6 Findings
 
-`findings.json` holds the test id, the number of turns and items, one entry for each model session (its version, its item count and its counts of lines not kept), `otel`, `backend`, `model_api`, `mcp` and `database` (the file, its row count, its item count and its counts of rows not kept, or `null` if the test has no such file; `model_api` also has `harness_calls`, the count of harness calls by harness, and `other_calls`), `egress` (section 8.8, or `null` if the test folder has no `egress.jsonl`), `openinference` (the file and its span count, only if the test folder has `openinference.jsonl`, section 8.10), `trace_points` (each valid trace point of the manifest with `checked` and `needed`, or `null` if the manifest has no valid trace point), `answers` (each checked turn of the answer key, only if the manifest has an answer key, section 7.17), `approvals` (each row of the approvals with its counts, only if the manifest has at least 1 row, section 7.18), `second_messages` (only if the test has a second message, section 8.3), a count for each check, and the findings. The findings do not change the exit code of the audit. The audit measures the words only.
+`findings.json` holds the test id, the number of turns and items, one entry for each model session (its version, its item count and its counts of lines not kept), `otel`, `backend`, `model_api`, `mcp` and `database` (the file, its row count, its item count and its counts of rows not kept, or `null` if the test has no such file; `model_api` also has `harness_calls`, the count of harness calls by harness, and `other_calls`), `egress` (section 8.8, or `null` if the test folder has no `egress.jsonl`), `openinference` (the file and its span count, only if the test folder has `openinference.jsonl`, section 8.10), `trace_points` (each valid trace point of the manifest with `checked` and `needed`, or `null` if the manifest has no valid trace point), `answers` (each checked turn of the answer key, only if the manifest has an answer key, section 7.17), `approvals` (each row of the approvals with its counts, only if the manifest has at least 1 row, section 7.18), `second_messages` (only if the test has a second message, section 8.3), `outside_failures` (only if a call failed for a provider limit or a refused service, section 8.13), a count for each check, and the findings. The findings do not change the exit code of the audit. The audit measures the words only.
 
 | Check | Finding |
 |---|---|
@@ -1909,6 +1919,40 @@ The trace writes no item to `trace.jsonl` from a span. A span adds no finding, a
 
 **The limits.** The ingress proxy and the tap use the clocks of 2 computers. If the clocks differ, a span can be in the wrong turn or in no turn. A span does not name the test, so a request of another caller in the window of a turn is in the count of that turn. Thus a count that is larger than 1 for a turn is not a finding.
 
+### 8.13 Outside failures
+
+A call can fail for a cause that is not the app: the model provider is at a rate limit or a quota, or a service of the test refuses each connection. A test that fails for such a cause looks like a regression of the app. The trace counts these calls, with no model, so that a gate run can give the test the verdict `inconclusive` (section 7.15).
+
+`findings.json` of a test with at least 1 such call has the key `outside_failures`: a list with one object for each reason that has a call, first `provider_limit` and then `local_service`. A test with no such call does not have the key.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `reason` | string | `provider_limit` or `local_service`. |
+| `calls` | integer | The count of the calls of the reason, 1 or more. |
+| `retried` | integer | The count of these calls that a good call followed (below). |
+| `turns` | list | The turn of each call that no good call followed: each turn one time, in order, and then `null` if such a call is in no turn. The list is empty if, and only if, `retried` is `calls`. |
+
+**A provider limit** is one of these:
+
+- A `model_api` or `gateway` assistant message with the status 429 (section 8.2). A provider gives this HTTP status for a rate limit and for a quota.
+- A model error of a Codex session file (the finding `model_error`, section 8.6) whose `codex_error_info` is an object with 1 key, with the integer `http_status_code` 429 in the value of the key.
+
+**A refused service** is one of these:
+
+- An item of `backend.jsonl`, `model_api.jsonl` or `mcp.jsonl` whose `error` starts with `the backend did not answer: ` and has the text `Connection refused` (section 7.6).
+- A `connect` row of `database.jsonl` whose `error` starts with `no connection: ` and has the text `Connection refused` (section 7.13). The reader of the queries keeps no `connect` row (section 8.4), so the trace has no item for this call. Its turn is the turn of its `ts` (section 8.3).
+- A `call` row of `mcp.jsonl` with such an `error` that gives no item of the first rule. The reader gives an item for a tool call, and no item for another call, for example `initialize` or `tools/list` (section 8.4). The turn of the row is the turn of its `started`, or of its `ts` if `started` is not a number.
+
+`Connection refused` is the text of the OS error on Linux and on macOS. A call that stopped for another reason, for example a timeout or a status 500, is not an outside failure: the app or its service can be the cause.
+
+**A retried call.** A call is retried if a good call comes after it in the same turn. A good call is an item later in `trace.jsonl` with the same `harness`, the same `session` and the same turn, with no `error` and with a status below 400. The item is an `http` item, a `tool_call`, a `query`, or an assistant message. For a `connect` row, a good call is a `query` item of the same database in the same turn, with no `error` and with a `ts` that is not before the row. For a `call` row of `mcp.jsonl` with no item, a good call is a later `call` row of the same server in the same turn, with no `error` and with a status below 400. A call in no turn is never retried. A Codex model error ends the turn of the harness, so it is never retried.
+
+The findings do not change: a call of this section still gives its `model_api_error`, `backend_error`, `tool_error` or `model_error` finding, and the counts and the verdict of the test stay the same (section 7.14). Only a gate run reads the key.
+
+The cases [`conformance/trace/model_api_toy_shop/`](conformance/trace/model_api_toy_shop/) and [`gateway_toy_shop/`](conformance/trace/gateway_toy_shop/) give a call with the status 429 that a good call followed, and [`backend_toy_shop/`](conformance/trace/backend_toy_shop/) gives a backend that refused the connection. [`mcp_refused/`](conformance/trace/mcp_refused/) gives 2 refused MCP calls with no item: a good call followed the first one.
+
+**Known limit.** A Claude Code session file does not give the HTTP status of a failed model call in a form that the reader keeps. Thus the trace finds a provider limit of an app that is a Claude Code session only if a model API proxy or a gateway recorded the call ([limits.md](docs/limits.md)).
+
 ## 9. Evaluation
 
 At the end of a test, the harness model evaluates the app. It writes `report.md` in the test folder.
@@ -2058,3 +2102,126 @@ The seal covers `evaluation.json`, so a change that the command did not make bre
 **After a write.** A write changes `verdict.json` only if a limit names an issue class. A gate result pins the SHA-256 of `verdict.json` (section 7.15). Thus after such a write, `nookku gate verify` fails for a gate result that pinned the test.
 
 The cases in [`conformance/verdict/`](conformance/verdict/) with a name that starts with `issues_` give a model row with no limit of its class, which passes, a model row and a human row with a limit, a test with no `evaluation.json`, and a row that is not valid. [`conformance/seal/changed_evaluation/`](conformance/seal/changed_evaluation/) and [`conformance/seal/evaluation_intact/`](conformance/seal/evaluation_intact/) give a changed file and an intact file. [`conformance/guard/shell_writes_an_issue_row.json`](conformance/guard/shell_writes_an_issue_row.json) and [`conformance/guard/shell_imports_the_model_rows.json`](conformance/guard/shell_imports_the_model_rows.json) give the deny.
+
+## 10. Finding record
+
+A finding record is one confirmed defect of the agent, as one JSON object. Another tool reads the record and makes a regression case from it. The record is self-contained: a reader needs no other file of Nookku, and no code of Nookku. The record format is a contract with a version (section 10.4).
+
+A confirmed defect has one of 2 sources:
+
+- **An answer key mismatch.** A mismatch with the current outcome `agent_wrong` (section 7.17). An open mismatch, and a mismatch with the outcome `key_wrong` or `both_acceptable`, give no record.
+- **An issue row.** A row of `evaluation.json` with the author type `human` (section 9.4). A model row is a model judgment that no person confirmed. It gives a record only with `--model-rows`, and the record has the author type `model`.
+
+### 10.1 Fields
+
+Each record has each of these fields, and each object of a record has each key that the table gives for it. A key with the value `null` is in the object. A value can be `null` only where the table says so.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `record` | string | `nookku.finding`. |
+| `version` | string | The version of the format, `<major>.<minor>`. This section defines `1.0`. |
+| `id` | string | `<test id>/<kind>/<n>`. For a mismatch, `<n>` is the turn. For an issue row, `<n>` is the number of the row in `evaluation.json`, from 1. An import of the model rows can change the number of a row (section 9.4). |
+| `kind` | string | `answer_key_mismatch` or `issue_row`. This set is closed. |
+| `test` | string | The test id. |
+| `script` | object | `messages`: the `input` of each `exchange` row of `tap.jsonl`, in order (section 2.1). Message `n` is the message of turn `n` (section 8.3), byte for byte as the agent received it. The list has 1 message or more. `sha256`: the SHA-256 of the script copy of a scripted test (section 7.10), or `null` for a test with no script. |
+| `turn` | object or null | `number`: the turn, from 1 to 999999999. `input`: message `number` of `script`. `reply`: the `reply` of the `exchange` row of the turn, or `null` if the turn has no reply. The field is `null` only for an issue row with no turn. |
+| `expected` | object or null | The expected value of a mismatch, with its rule (section 7.17). `value`: the answer of the key, as a string. For the match `number`, it is the decimal number with no exponent, for example `"112"`, so that no digit is lost. `match`: `exact` or `number`. `tolerance`: the tolerance as a string, a decimal number with no exponent, or `null` for `exact`. `field`: the dot path of the value in the JSON of the reply, or an empty string for the full reply text. The field is `null` for an issue row. |
+| `observed` | string or null | For a mismatch, the `value` of its `answers` row (section 7.17): the value of the reply as JSON text, with 200 characters at most and then `...`, or `null` for no value. It is text for a person. `turn.reply` has each byte. The field is `null` for an issue row. |
+| `issue` | object or null | For an issue row: `class`, `evidence` and `text` of the row (section 9.4). The classes of section 9.3 are not a closed set of this format, so a reader accepts a class that it does not know. The field is `null` for a mismatch. |
+| `adjudication` | object | Who confirmed the defect. `outcome`: `agent_wrong`. `reason`: the reason of the adjudication row, or the text of the issue row. `author`: the name that the person gave, or `null` for a model row. `author_type`: `human` or `model`. A mismatch always has `human`. `ts`: the Unix time of the adjudication row, or `null` for an issue row. |
+| `subject` | string | The subject digest: 1 to 512 characters with no control character (section 7.15). The caller gives it, and Nookku does not interpret it. |
+| `gate` | object or null | For a record of a gate run: `id` (the gate id), `name` (the name of the test in the gate file) and `result_sha256` (the SHA-256 of `result.json` in the copy of the seal of the gate folder). Else `null`. |
+| `seal` | object | The seal of the test folder at the time of the export (section 10.2). |
+| `nookku` | string | The version of Nookku that wrote the record. |
+
+The sets of `kind`, `outcome`, `author_type` and `match` are closed. A string of a record holds only Unicode scalar values, and `NaN` and `Infinity` are not numbers (section 2).
+
+A record for the example of the toy shop, with a short seal text:
+
+```json
+{
+ "record": "nookku.finding",
+ "version": "1.0",
+ "id": "20261120-101500-a1b2/answer_key_mismatch/2",
+ "kind": "answer_key_mismatch",
+ "test": "20261120-101500-a1b2",
+ "script": {"messages": ["What is the price of the blue mug?", "Is the teapot in stock?"], "sha256": null},
+ "turn": {"number": 2, "input": "Is the teapot in stock?", "reply": "{\"count\": 120}"},
+ "expected": {"value": "112", "match": "number", "tolerance": "0.5", "field": "count"},
+ "observed": "120",
+ "issue": null,
+ "adjudication": {"outcome": "agent_wrong", "reason": "The stock list gives 112 teapots.", "author": "Asha", "author_type": "human", "ts": 1795170000.25},
+ "subject": "sha256:ab12cd34",
+ "gate": null,
+ "seal": {"sha256": "...", "text": "...", "files": {"manifest.json": "...", "tap.jsonl": "...", "findings.json": "...", "answer_key.json": "...", "adjudications.jsonl": "..."}},
+ "nookku": "0.6.1"
+}
+```
+
+### 10.2 Seal digest
+
+The field `seal` ties a record to the sealed records of its test (section 7.4):
+
+| Key | Type | Meaning |
+|---|---|---|
+| `text` | string | The text of the seal that the export started from: the copy of the seal, or `seal.json` if no copy exists. |
+| `sha256` | string | The seal digest: the SHA-256 of the UTF-8 bytes of `text`, in lowercase hex. |
+| `files` | object | The SHA-256 of each file that gave a value of the record, by its name in the test folder. |
+
+A reader does these checks, and refuses the record if one fails:
+
+1. `sha256` is the SHA-256 of the UTF-8 bytes of `text`.
+2. `text` is a JSON object with the `test` of the record and an object `files`.
+3. Each name of `seal.files` has the same SHA-256 in the `files` of `text`.
+4. `seal.files` has `manifest.json` and `tap.jsonl`. For a mismatch, it also has `findings.json`, `answer_key.json` and `adjudications.jsonl`. For an issue row, it also has `evaluation.json`.
+5. If `script.sha256` is not `null`, `seal.files` has `script.json` or `script.jsonl` with that SHA-256.
+
+These checks show that the record agrees with itself. They do not show that the test folder is unchanged: a reader with the test folder runs `nookku verify` for that (section 7.4). A reader with the copy of the seal compares its SHA-256 with the seal digest. A later `nookku adjudicate`, `nookku evaluation` or `nookku trace` writes a new seal, so the seal digest of an older record is then not the digest of the current seal.
+
+A reader also checks these rules of 2 fields: `turn.number` is the number of a message of `script`, and `turn.input` is that message.
+
+### 10.3 Export and check
+
+`nookku finding export [TEST] --subject <digest> [--model-rows] [--root DIR] [--tests-dir PATH]` prints the records of one test. `nookku finding export --gate <gate> [--model-rows] [--root DIR] [--tests-dir PATH]` prints the records of each test of a gate run (section 7.15), in the order of the gate file, with the subject of the gate run. `--gate` takes no `TEST` and no `--subject`. The output is UTF-8 JSONL on the standard output: one record on each line. In one test, the mismatches come first, in turn order, and then the issue rows, in the order of `evaluation.json`. A test with no confirmed defect gives no line.
+
+The export fails closed. It prints no record and exits with 2 if one of these is true:
+
+- The seal of the test folder is not intact (section 7.4). For a test of a gate run, the copy of the seal must also be `same`.
+- A record of the test folder is not valid: `tap.jsonl`, `adjudications.jsonl` with the rules of the reader of section 7.17, `evaluation.json` (section 9.4), or the answer key copy (section 7.17).
+- A turn of an adjudication or of an issue row is not a turn of `tap.jsonl`.
+- The subject breaks the rule of section 7.15, or a test has no `--subject`.
+- For a gate run: the seal of the gate folder is not intact with a `same` copy, `run.json` and `result.json` do not agree on the subject, a test folder does not exist, or a pinned file of a test other than `verdict.json` does not have its pinned SHA-256 in the seal of the test.
+
+The export reads each sealed file one time, and uses only bytes with the SHA-256 of the seal. It reads `run.json` and `result.json` of a gate folder with the same rule. It exits with 0 after it prints each record, also for 0 records.
+
+An adjudication and a write of an issue row write `verdict.json` again, so `nookku gate verify` then fails for the gate result (sections 7.17 and 9.4). The export of a gate run does not use the verdict of the gate result. It uses the subject, the gate id and the pins of `run.json`, which the seal of the gate folder covers. Thus an adjudicated mismatch of a gate run still gives a record.
+
+`nookku finding check <file>` reads a JSONL file of records, or the standard input for `-`, and checks each line with the rules of sections 10.1, 10.2 and 10.4. The reader never skips a line, and a last empty line is permitted. It exits with 0 if each line is a valid record, with 1 if a line is not, and with 2 if it cannot read the file as UTF-8. `--json` prints `{"records", "valid", "lines"}`, with `line`, `id` and `problem` for each line.
+
+`nookku finding schema` prints the JSON Schema of a record of major version 1 (draft 2020-12). The file is [`src/nookku/finding_record.schema.json`](src/nookku/finding_record.schema.json), and each release has it in the package. The schema checks the form of a record. It does not check the rules of 2 fields or the seal digest (section 10.2), so a reader that uses the schema also does these checks. The Python reader is `nookku.finding_record.problem(record)`: it gives the reason that a value is not a record, or `None`.
+
+The 3 commands read, and they write no file. Thus the relay lets the model run them. Each value of a record is in a file of the test folder that the harness model can read after the test.
+
+### 10.4 Version rules
+
+The `version` of a record is `<major>.<minor>`: 2 whole numbers with no leading zero.
+
+**A new minor version** is an additive change. It adds an optional field to the record, or to an object of the record. It changes no rule of an existing field.
+
+**A new major version** is each other change:
+
+- A field is removed, gets another name or another type, or gets another meaning.
+- A field of this section becomes necessary where it was optional, or can be `null` where it could not.
+- A value is added to a closed set, or removed from it.
+- The rule of the seal digest or of the `id` changes.
+
+**The reader.**
+
+- A reader ignores a field that it does not know, in the record and in each object of the record. Thus a reader of `1.0` reads a record of `1.7`.
+- A reader refuses a record with a major version that it does not know. It does not guess the meaning of the fields.
+- A reader refuses a record with no `version`, or with a `version` of another form.
+- A reader refuses a record with a value of a closed set that it does not know.
+
+A writer of major version 1 always writes each field of section 10.1. Nookku writes the lowest minor version that has each field of the record.
+
+The cases in [`conformance/finding/`](conformance/finding/) give a record and the problem that the reader gives, or `null`: a valid record of each kind, a model row, a record of a gate run, an unknown field, a later minor version, a missing field, a missing key of an object, another major version, a seal digest that does not match, a file that the seal text does not cover, a turn that is not in the script and a mismatch with a model author. [docs/how-to/import-a-finding-record.md](docs/how-to/import-a-finding-record.md) shows how another tool imports a record.

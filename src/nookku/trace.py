@@ -372,6 +372,13 @@ def _codex_error_class(info: Any) -> str | None:
     return str(kind)
 
 
+def _codex_error_status(info: Any) -> int | None:
+    """The http_status_code of a codex_error_info with 1 key, or None (SPEC.md section 8.13)."""
+    value = next(iter(info.values())) if isinstance(info, dict) and len(info) == 1 else None
+    code = value.get("http_status_code") if isinstance(value, dict) else None
+    return code if isinstance(code, int) and not isinstance(code, bool) else None
+
+
 def read_codex_errors(path: Path) -> list[dict[str, Any]]:
     """The model errors of a Codex rollout file: each task_complete event with an error, with
     its line, its time and its detail. The event ends a turn of the harness."""
@@ -385,14 +392,17 @@ def read_codex_errors(path: Path) -> list[dict[str, Any]]:
         error = payload.get("error")
         if error is None:
             continue
+        status = None
         if isinstance(error, str):
             detail = error
         elif isinstance(error, dict) and isinstance(error.get("message"), str):
             kind = _codex_error_class(error.get("codex_error_info"))
             detail = f"{kind}: {error['message']}" if kind else error["message"]
+            status = _codex_error_status(error.get("codex_error_info"))
         else:
             detail = json_text(error)
-        found.append({"line": n, "ts": _time(row.get("timestamp")), "detail": detail})
+        ts = _time(row.get("timestamp"))
+        found.append({"line": n, "ts": ts, "detail": detail, "status": status})
     return found
 
 
@@ -2280,7 +2290,7 @@ def build(folder: Path) -> dict[str, Any]:
             items.append(it)
     items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     assign(items, spans)
-    approved = approvals.valid(manifest.get("approvals"))
+    approved = approvals.of_manifest(manifest)
     if approved:
         # The interrupts and the resumes of the tap record (SPEC.md section 7.18). Each one has
         # the turn of its exchange.
@@ -2354,6 +2364,12 @@ def build(folder: Path) -> dict[str, Any]:
         # Only a test with a second message has the key (SPEC.md section 8.3).
         cut = Counter(f["turn"] for f in findings if f["check"] == "call_cut")
         report["second_messages"] = [{**s, "calls_cut": cut[s["during"]]} for s in seconds]
+    from nookku import outside_failures
+
+    outside = outside_failures.of_trace(folder, items, errors, lambda ts: _turn(ts, spans))
+    if outside:
+        # Only a test with such a call has the key (SPEC.md section 8.13).
+        report[outside_failures.KEY] = outside
     if exported is not None:
         report["openinference"] = {"file": openinference.FILE, "spans": len(exported)}
     if gateway_calls is not None:

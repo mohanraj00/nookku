@@ -446,8 +446,9 @@ def _case_test(folder: Path, given: dict) -> bytes:
     }
     (folder / "manifest.json").write_text(json.dumps(manifest))
     findings = {"counts": given["counts"]}
-    if "second_messages" in given:
-        findings["second_messages"] = given["second_messages"]
+    for key in ("second_messages", "outside_failures"):
+        if key in given:
+            findings[key] = given[key]
     (folder / "findings.json").write_text(json.dumps(findings))
     verdict.build(folder)
     (folder / "audit.json").write_text(json.dumps(given["audit"]))
@@ -477,8 +478,9 @@ def _case_base(folder: Path, given: dict) -> None:
     seal.write(folder)
 
 
-@pytest.mark.parametrize("case", CASES, ids=[c.name for c in CASES])
-def test_each_case_gives_its_result(case: Path, tmp_path: Path) -> None:
+def _case_run(case: Path, tmp_path: Path) -> tuple[bytes, dict, dict, dict]:
+    """The gate file, the inputs, the ledger and the proof copies of a case, with a sealed test
+    folder for each test that ran."""
     given = json.loads((case / "case.json").read_text(encoding="utf-8"))
     data = (case / "gate.json").read_bytes()
     tests_dir = tmp_path / "tests"
@@ -516,10 +518,63 @@ def test_each_case_gives_its_result(case: Path, tmp_path: Path) -> None:
         "tests": rows,
         "proofs": proof_rows,
     }
+    return data, inputs, ledger, copies
+
+
+@pytest.mark.parametrize("case", CASES, ids=[c.name for c in CASES])
+def test_each_case_gives_its_result(case: Path, tmp_path: Path) -> None:
+    data, inputs, ledger, copies = _case_run(case, tmp_path)
     expect = json.loads((case / "expect_result.json").read_text(encoding="utf-8"))
     expect["gate_sha256"] = seal.sha256_of(data)
     evidence = gate.read_evidence(ledger)
     assert gate.compute("gate-case", data, inputs, ledger, evidence, copies) == expect
+
+
+@pytest.mark.parametrize(
+    "name, code, lines",
+    [
+        # A result with no inconclusive test has the form of an earlier version, and it verifies.
+        ("pass", 0, ["Gate verdict: pass."]),
+        ("fail", 1, ["Gate verdict: fail."]),
+        (
+            "inconclusive_provider_limit",
+            3,
+            [
+                "Outside failure in stock: provider_limit, 2 calls, 0 retried.",
+                "Inconclusive tests: 1. Run the gate again.",
+                "Gate verdict: inconclusive.",
+            ],
+        ),
+        # A call that a good call followed keeps the verdict, and the result records it.
+        (
+            "outside_failure_retried",
+            0,
+            [
+                "Outside failure in stock: provider_limit, 1 calls, 1 retried.",
+                "Gate verdict: pass.",
+            ],
+        ),
+        ("inconclusive_and_fail", 1, ["Inconclusive tests: 1.", "Gate verdict: fail."]),
+    ],
+)
+def test_verify_gives_an_inconclusive_result_its_own_exit_code(
+    name: str, code: int, lines: list[str], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    data, inputs, ledger, copies = _case_run(ROOT / "conformance" / "gate" / name, tmp_path)
+    folder = tmp_path / "gates" / "gate-case"
+    for test, files in inputs.items():
+        (folder / "inputs" / test).mkdir(parents=True)
+        for file, body in files.items():
+            (folder / "inputs" / test / file).write_bytes(body)
+    (folder / "gate.json").write_bytes(data)
+    (folder / "run.json").write_text(json.dumps(ledger))
+    result = gate.compute("gate-case", data, inputs, ledger, gate.read_evidence(ledger), copies)
+    assert ("inconclusive" in result) == (name.startswith("inconclusive"))
+    (folder / "result.json").write_text(json.dumps(result))
+    seal.write(folder)
+    assert main(["gate", "verify", str(folder), "--root", str(tmp_path)]) == code
+    shown = capsys.readouterr().out
+    assert [line for line in lines if line not in shown] == []
 
 
 def test_the_cases_cover_a_pass_a_fail_and_a_missing_test() -> None:

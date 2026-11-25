@@ -107,6 +107,7 @@ def test_the_bridge_records_the_rows_and_refuses_a_bad_section(tmp_path: Path) -
     [
         {},
         "rows",
+        None,
         [{"action": "a", "source": "backend"}],
         [{**REFUND_ROW, "more": ""}],
         [{**REFUND_ROW, "by": 1}],
@@ -120,8 +121,12 @@ def test_a_manifest_key_that_is_not_valid_has_no_rows(rows: Any) -> None:
 
 
 def test_a_manifest_with_no_key_has_no_rows_and_no_finding() -> None:
-    assert approvals.valid(None) == []
+    assert approvals.of_manifest({"test": "t1"}) == []
+    assert approvals.of_manifest({"approvals": [REFUND_ROW]}) == [REFUND_ROW]
     assert approvals.valid([REFUND_ROW]) == [REFUND_ROW]
+    # A key with the value null is a key that is not valid, not a manifest with no key (#640).
+    assert approvals.of_manifest({"approvals": None}) is None
+    assert approvals.of_manifest({"approvals": {}}) is None
     assert trace.actions_without_approval([], []) == []
 
 

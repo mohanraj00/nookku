@@ -15,7 +15,7 @@ The controller reads these fields of `result.json`:
 
 | Field | Type | Use |
 |---|---|---|
-| `verdict` | string | `pass` or `fail`. Promote only for `pass`. |
+| `verdict` | string | `pass`, `fail` or `inconclusive`. Promote only for `pass`. An `inconclusive` result has a test with a call that failed for a cause outside the app, for example a provider limit. Run the gate again. |
 | `subject` | string | The digest that the caller gave to `nookku gate run --subject`. Compare it with the digest of the new version. |
 | `gate` | string | The gate id. It names the gate folder and the copy of the seal. |
 | `reasons` | list | For a `fail`: one object `{"test", "check"}` for each check of a test that fails, and one object `{"proof", "check"}` for each failure of a proof file. Show them to the person who owns the rollout. |

@@ -154,7 +154,7 @@ tester ──> harness ──> relay ──────> tap ──stdin/stdout�
 
 [docs/architecture.md](docs/architecture.md#data-flow) shows this flow with each part, and has diagrams of one turn, the test lifecycle and the trace.
 
-Two processes write two records, and the audit compares them byte for byte. It reports 8 break classes ([SPEC.md section 3.3](SPEC.md#33-break-classes)). It fails closed: it never reports clean on a record that it cannot read. 99 audit cases, 21 contract cases, 57 trace cases, 3 gateway cases, 15 seal cases, 16 notes cases, 7 receiver cases, 35 discovery cases and 19 database cases in [conformance/](conformance/) test the spec ([cases](conformance/build.py), [tests](tests/)).
+Two processes write two records, and the audit compares them byte for byte. It reports 8 break classes ([SPEC.md section 3.3](SPEC.md#33-break-classes)). It fails closed: it never reports clean on a record that it cannot read. 99 audit cases, 21 contract cases, 59 trace cases, 3 gateway cases, 15 seal cases, 16 notes cases, 7 receiver cases, 35 discovery cases and 19 database cases in [conformance/](conformance/) test the spec ([cases](conformance/build.py), [tests](tests/)).
 
 A test also records what your app did. It copies the session files of the app's own Agent SDK or Codex sessions. It records the backend calls, the direct model calls and the OpenTelemetry spans of the app. [docs/architecture.md](docs/architecture.md) shows each part.
 
@@ -195,7 +195,7 @@ The how-to rows are in the order of the tasks of a test: choose, connect, run, r
 | How-to: connect your app | [Test your own app](docs/how-to/test-your-app.md), [Connect your agent](docs/how-to/connect-your-agent.md), [HTTP tap](docs/how-to/http-tap.md), [Test a streaming agent](docs/how-to/test-a-streaming-agent.md), [Isolate an Agent SDK session](docs/how-to/isolate-agent-sdk.md), [Add a backend](docs/how-to/add-a-backend.md), [Model calls and OpenTelemetry](docs/how-to/record-model-calls.md) |
 | How-to: run a test | [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code project hooks](docs/how-to/claude-code-project-hooks.md), [Codex](docs/how-to/codex.md) |
 | How-to: gate a release | [Gate a CI job on a verdict](docs/how-to/gate-a-ci-job.md), [Gate a release with a set of tests](docs/how-to/gate-a-release.md), [Gate a rollout on a gate result](docs/how-to/gate-a-rollout.md) |
-| How-to: read the results | [Read the results of a test](docs/how-to/read-the-results.md) |
+| How-to: read the results | [Read the results of a test](docs/how-to/read-the-results.md), [Import a finding record into another test suite](docs/how-to/import-a-finding-record.md) |
 | How-to: evaluate against a spec | [Evaluate your app against its spec](docs/how-to/evaluate-against-your-spec.md) |
 | How-to: fix | [Troubleshooting](docs/troubleshooting.md), [Recover a stuck test](docs/how-to/recover-a-stuck-test.md) |
 | How-to: maintain | [Upgrade](docs/how-to/upgrade.md), [Remove](docs/how-to/remove.md) |

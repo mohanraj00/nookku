@@ -1,0 +1,41 @@
+{
+ "subject": "sha256:ab12cd34",
+ "errors": {},
+ "tests": {
+  "stock": {
+   "messages": [
+    "What is the price of the blue mug?",
+    "Is the teapot in stock?"
+   ],
+   "replies": [
+    true,
+    true
+   ],
+   "entry": [
+    "python",
+    "agent.py"
+   ],
+   "entry_name": null,
+   "limits": {},
+   "counts": {
+    "model_api_error": 2
+   },
+   "audit": {
+    "exit": 0,
+    "breaks": [],
+    "errors": []
+   },
+   "outside_failures": [
+    {
+     "reason": "provider_limit",
+     "calls": 2,
+     "retried": 0,
+     "turns": [
+      1,
+      2
+     ]
+    }
+   ]
+  }
+ }
+}

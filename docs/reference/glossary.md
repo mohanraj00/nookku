@@ -58,6 +58,12 @@ The results of the checks of the trace, in `findings.json` in the test folder. A
 
 SPEC.md: [section 8.6](../../SPEC.md#86-findings).
 
+## Finding record
+
+One confirmed defect of the agent, as one JSON object with a version. It holds the messages of the test, the turn, the expected value, the adjudication, the subject digest and the seal digest. Another tool reads it and makes a regression case from it. `nookku finding export` writes the records of a test or of a gate run.
+
+SPEC.md: [section 10](../../SPEC.md#10-finding-record).
+
 ## Harness
 
 A coding harness: Claude Code or Codex. The tester types in a harness, and the relay is an extension of it. Your app can also use a harness for its own model sessions, for example through the Claude Agent SDK. Then that harness writes the session files that the test copies.

@@ -2,6 +2,19 @@
 
 Each date is the day of the upload to PyPI, in UTC ([nookku](https://pypi.org/project/nookku/#history), [verbatim-relay](https://pypi.org/project/verbatim-relay/#history)). 0.2.0 has no upload, so its date is the day of [its tag](https://github.com/mohanraj00/nookku/commit/v0.2.0).
 
+## 0.7.0
+
+Not released yet.
+
+- **Inconclusive tests in a gate run.** A test of a gate run is `inconclusive`, not `fail`, if a call failed for a cause outside the app and no good call followed it: the model provider gave the HTTP status 429, or a service of the test refused the connection. The trace counts these calls in the new key `outside_failures` of `findings.json`, with no model. A gate run with an inconclusive test never has the verdict `pass`. `nookku gate run` and `nookku gate verify` then exit with 3, and the output gives the count of the inconclusive tests. A gate result with no such test does not change, so a gate folder of an earlier version still verifies ([SPEC.md section 8.13](SPEC.md#813-outside-failures), [#671](https://github.com/mohanraj00/nookku/issues/671)).
+
+## 0.6.1
+
+Not released yet.
+
+- **Finding record.** `nookku finding export` writes each confirmed defect of a test, or of a gate run, as a finding record: one JSON object with the messages of the test, the turn, the expected value, the adjudication, the subject digest and the seal digest. A record comes from a mismatch with the answer key that a person adjudicated as `agent_wrong`, or from an issue row of a person. The format has a version, `1.0`, with rules for a new minor and a new major version. `nookku finding check` checks a file of records, and `nookku finding schema` prints the JSON Schema. Another tool reads a record with no other file ([SPEC.md section 10](SPEC.md#10-finding-record), [import-a-finding-record.md](docs/how-to/import-a-finding-record.md), [#575](https://github.com/mohanraj00/nookku/issues/575)).
+- **Approvals with the value null.** A manifest with `"approvals": null` got the rule of a manifest with no key, so the trace did not check the approvals and gave no finding. The trace now gives 1 `action_without_approval` finding with the detail `the approvals cannot be used: the key approvals of manifest.json is not valid`. A manifest with no key still has no rows and no finding ([SPEC.md section 7.18](SPEC.md#718-approvals), [#640](https://github.com/mohanraj00/nookku/issues/640)).
+
 ## 0.6.0
 
 Not released yet.
