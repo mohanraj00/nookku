@@ -264,9 +264,11 @@ The flags of `run` and `verify`:
 |---|---|---|
 | `run` | 0 | The verified aggregate verdict is `pass`. |
 | | 1 | The aggregate verdict is `fail`, or the result cannot be verified. |
+| | 3 | The aggregate verdict is `inconclusive`: a call of a test failed for a provider limit or a refused service, and no good call followed it ([SPEC.md section 8.13](../../SPEC.md#813-outside-failures)). Run the gate again. |
 | | 2 | The gate file, the subject, the tests folder or the egress answer is not valid. No test ran. |
 | `verify` | 0 | The result can be used, and its verdict is `pass`. |
 | | 1 | The result can be used, and its verdict is `fail`. |
+| | 3 | The result can be used, and its verdict is `inconclusive`. The output gives the count of the inconclusive tests. |
 | | 2 | No gate folder is found, or the result cannot be used. The output gives the reason. |
 
 ### `nookku adjudicate`

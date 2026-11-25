@@ -16,6 +16,16 @@
  "model_api": null,
  "mcp": null,
  "database": null,
+ "outside_failures": [
+  {
+   "reason": "local_service",
+   "calls": 1,
+   "retried": 0,
+   "turns": [
+    2
+   ]
+  }
+ ],
  "egress": null,
  "trace_points": null,
  "counts": {

@@ -74,7 +74,9 @@ A gate run can also check a file that a test or an analysis made, for example a 
    nookku gate run gates/gate.json --subject "sha256:ab12cd34"
    ```
 
-The command prints the lines of each test, one line for each test and the aggregate verdict. It exits with 0 if the aggregate verdict is `pass`, with 1 if it is `fail`, and with 2 if no test ran.
+The command prints the lines of each test, one line for each test and the aggregate verdict. It exits with 0 if the aggregate verdict is `pass`, with 1 if it is `fail`, with 3 if it is `inconclusive`, and with 2 if no test ran.
+
+A test is inconclusive if a call failed for a cause outside the app, and no good call followed it: the model provider gave the HTTP status 429, or a service of the test refused the connection ([SPEC.md section 8.13](../../SPEC.md#813-outside-failures)). An inconclusive result is not a pass and not a fail. Stop the release job, and run the gate again when the limit is gone or the service runs.
 
 The result folder is `.nookku/gates/<gate id>/`. In CI, set `NOOKKU_HOME` to a folder that the job can write, because the copy of the seal goes there.
 
@@ -102,7 +104,7 @@ Step 3 shows only that `result.json` did not change. It does not check the test 
 nookku gate verify <gate id>
 ```
 
-It exits with 0 if the result can be used and its verdict is `pass`, with 1 for `fail`, and with 2 if the result cannot be used. A later `nookku trace` of a test of the gate changes the seal of the test, so the gate result then cannot be used.
+It exits with 0 if the result can be used and its verdict is `pass`, with 1 for `fail`, with 3 for `inconclusive`, and with 2 if the result cannot be used. For an inconclusive result, the output gives the count of the inconclusive tests. A later `nookku trace` of a test of the gate changes the seal of the test, so the gate result then cannot be used.
 
 ## Limits
 

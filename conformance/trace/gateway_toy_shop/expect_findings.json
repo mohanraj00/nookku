@@ -9,6 +9,14 @@
  "model_api": null,
  "mcp": null,
  "database": null,
+ "outside_failures": [
+  {
+   "reason": "provider_limit",
+   "calls": 1,
+   "retried": 1,
+   "turns": []
+  }
+ ],
  "gateway": {
   "file": "gateway.jsonl",
   "rows": 7,

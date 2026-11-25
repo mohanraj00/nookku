@@ -1509,6 +1509,8 @@ def _gate_command(args: argparse.Namespace) -> int:
         say("\n".join([*head, f"FAIL: {text}"]), {"gate": str(folder), "error": text})
         return 1 if args.gate_command == "run" else 2
     say("\n".join([*head, *gate.summary(report)]), {"gate": str(folder), "result": report})
+    if report["verdict"] == gate.INCONCLUSIVE:
+        return gate.INCONCLUSIVE_EXIT
     return 0 if report["verdict"] == gate.PASS else 1
 
 

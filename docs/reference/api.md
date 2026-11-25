@@ -129,7 +129,7 @@ Each gate run of the project, the newest first ([SPEC.md section 7.15](../../SPE
 | Key | Type | Meaning |
 |---|---|---|
 | `id` | string | The gate run id. |
-| `verdict` | string or null | The aggregate verdict, or null if a process cannot use the result. |
+| `verdict` | string or null | The aggregate verdict: `pass`, `fail` or `inconclusive`. It is null if a process cannot use the result. |
 | `subject` | string or null | The subject digest that the caller gave. |
 | `tests` | integer or null | The count of tests of the gate run. |
 | `seal` | string | `intact`, `broken`, `none` or `unknown`. |

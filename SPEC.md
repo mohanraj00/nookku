@@ -1197,7 +1197,7 @@ The result of each proof file names each failure with one of these reasons:
 5. It writes `run.json`, then `result.json`, and seals the gate folder (section 7.4). The copy of the seal is `~/.nookku/seals/<gate id>.json`.
 6. It verifies the result with the rule of "Verify" below, and prints the lines of each test, one line for each test, and the aggregate verdict.
 
-The exit code is 0 if the verified aggregate verdict is `pass`, and 1 if it is `fail` or the result cannot be verified.
+The exit code is 0 if the verified aggregate verdict is `pass`, 3 if it is `inconclusive`, and 1 if it is `fail` or the result cannot be verified.
 
 **`run.json`.** The ledger of the run:
 
@@ -1220,13 +1220,13 @@ Each row has `name`, `test` (the test id, or `null` if the test did not run), `e
 | `gate` | string | The gate id. |
 | `subject` | string | The subject digest of `run.json`. |
 | `gate_sha256` | string | The SHA-256 of `gate.json`. |
-| `verdict` | string | `pass` if `problems` and `reasons` are empty. Else `fail`. |
+| `verdict` | string | `fail` if `problems` or `reasons` is not empty. Else `inconclusive` if a test is inconclusive (below). Else `pass`. Thus a gate run with an inconclusive test never has the verdict `pass`. |
 | `problems` | list of strings | Each problem of `run.json` (below). |
-| `reasons` | list | One object `{"test", "check"}` for each check that fails, in the order of `tests`. Then one object `{"proof", "check"}` for each failure of a proof file, in the order of `proofs`: `proof` is the path, and `check` is the reason. |
+| `reasons` | list | One object `{"test", "check"}` for each check that fails in a test with the verdict `fail`, in the order of `tests`. Then one object `{"proof", "check"}` for each failure of a proof file, in the order of `proofs`: `proof` is the path, and `check` is the reason. |
 | `tests` | list | One object for each declared test, in the order of the gate file: `name`, `test`, `verdict` and `checks`. A test with `replay` also has `replay`: `base` (the base test id), `test` (the new test id), `most` (the declared limit), `changed` (the count of changed turns) and `turns` (the number of each changed turn, from 1). `changed` and `turns` are `null` if the check `changed_turns` did not compute them. A test with `persona` also has `persona`: an object with `persona` and `goal` from the copy in `inputs/`, and `sha256`, the SHA-256 of the copy. It is `null` if the copy is missing or breaks the rule of section 7.10. |
 | `proofs` | list | One object for each declared proof file, in the order of the gate file: `path`, `sha256` (the SHA-256 of the copy, or `null`), `age` (in seconds, or `null` if the file is missing), `value` (the number of the field of `bound`, or `null`), `verdict` (`pass` if `failures` is empty, else `fail`) and `failures`: one object `{"reason", "text"}` for each failure, in the order of the table of reasons. The key is in the result only if the gate file has the key `proofs`. Thus a gate file with no key `proofs` gives the result of Nookku 0.5.7, and a gate folder of 0.5.7 still verifies. |
 
-A test has the verdict `pass` if each of its checks passes. Each check is an object `{"check", "verdict", "text"}`. `text` is `null` for a pass, else the reason. The checks of a test, in this order:
+A test has the verdict `pass` if each of its checks passes, and `fail` if a check fails. A test with an outside failure that no good call followed has the verdict `inconclusive` in place of these (below). Each check is an object `{"check", "verdict", "text"}`. `text` is `null` for a pass, else the reason. The checks of a test, in this order:
 
 | Check | It passes if |
 |---|---|
@@ -1243,6 +1243,16 @@ A test has the verdict `pass` if each of its checks passes. Each check is an obj
 | `answer_key` | Only for a test with `answer_key`. It always fails in version 1. |
 | `missing_base` | Only for a test with `replay`. The row pins the declared base, the base folder exists, its seal is intact with a `same` copy, and `relay.jsonl` and `tap.jsonl` of the base have the pinned SHA-256 in the copy of its seal and in the bytes that the check reads. If this check fails, the test has no check `changed_turns`. |
 | `changed_turns` | Only for a test with `replay`. The count of changed turns of the base test and the new test is `changed` or less. The text gives the count, the limit and the number of each changed turn. If a record is not valid, the check fails. |
+| `outside_failures` | Only for a test whose `findings.json` has a key `outside_failures` that breaks the rule of section 8.13. The check always fails, and it is the last check of the test. Thus the result never uses counts that are not valid. |
+
+**Inconclusive tests.** A provider that is at its rate limit, or a service of the test that refuses each connection, makes a test fail when the app did not change. The trace counts these calls in the key `outside_failures` of `findings.json` (section 8.13). The check uses no model, and `findings.json` is a pinned file. The result uses the key only if the check `evidence` of the test passes:
+
+- A test whose `findings.json` has a valid key gets the same rows as `outside_failures` in its object of `tests`.
+- If a row has more `calls` than `retried`, a call failed and no good call followed it. The test then has the verdict `inconclusive`, with any result of its checks. The object keeps each check, and a check that fails is not in `reasons`.
+- If each call of each row is retried, the test keeps the verdict of its checks. The result still records the rows.
+- `result.json` has the key `inconclusive` only if a test is inconclusive: one object `{"test", "reason", "calls", "retried"}` for each row with more `calls` than `retried` of each inconclusive test, in the order of `tests`. The count of inconclusive tests is the count of the different `test` values.
+- An inconclusive result is not a pass and not a fail. The app did not show a defect, and the test did not show that the app is correct. Run the gate again when the limit is gone or the service runs.
+- A result with no such test has no key `inconclusive` and no key `outside_failures`. Thus it is the result of an earlier version of Nookku, and a gate folder of that version still verifies.
 
 The problems of `run.json`:
 
@@ -1264,15 +1274,15 @@ A declared test with no row fails `missing_test` with the text `The ledger has n
 3. For each test of `run.json`, the process reads each pinned file one time, for the check `evidence`. For a test with `replay`, it also reads each pinned file of the base test one time, for the check `missing_base`.
 4. The result that the process computes again from these bytes is the same as `result.json`. A result of Nookku 0.5.9 or older has no key `persona` in a test. If `result.json` is the computed result with no key `persona` in each test, the process uses `result.json`. The persona is a record only, so this changes no verdict.
 
-`gate verify` exits with 0 if the result can be used and its verdict is `pass`, with 1 if it can be used and its verdict is `fail`, and with 2 if no gate folder is found or the result cannot be used. If the result cannot be used, the output gives the reason, and the failed checks of the new computation, 3 at most.
+`gate verify` exits with 0 if the result can be used and its verdict is `pass`, with 1 if it can be used and its verdict is `fail`, with 3 if it can be used and its verdict is `inconclusive`, and with 2 if no gate folder is found or the result cannot be used. For each test with outside failures, the output has the line `Outside failure in <name>: <reason>, <calls> calls, <retried> retried.` If a test is inconclusive, the output has the line `Inconclusive tests: <count>. Run the gate again.` If the result cannot be used, the output gives the reason, and the failed checks of the new computation, 3 at most.
 
-**Read a result with no Nookku.** `result.json` is plain JSON. A reader takes `verdict` and `subject`, and compares `subject` with the digest that it expects, because the subject is only what the caller gave. A compare of the SHA-256 of `result.json` with the copy of the seal shows that `result.json` did not change. It does not check the test folders: only `nookku gate verify` does. [docs/how-to/gate-a-release.md](docs/how-to/gate-a-release.md) gives the commands.
+**Read a result with no Nookku.** `result.json` is plain JSON. A reader takes `verdict` and `subject`, and compares `subject` with the digest that it expects, because the subject is only what the caller gave. Only the verdict `pass` is a pass: a reader stops for `fail` and for `inconclusive`. A compare of the SHA-256 of `result.json` with the copy of the seal shows that `result.json` did not change. It does not check the test folders: only `nookku gate verify` does. [docs/how-to/gate-a-release.md](docs/how-to/gate-a-release.md) gives the commands.
 
 **Known limit: the gate trusts the tested code.** The run pins the argv of each entry, the policy, the spec and the config files of `.nookku/`. It does not pin the bytes of the program that an entry starts, or of its imports. A tested entry runs with the permissions of the account. Thus an earlier test of a gate run can change the code of a later test, and the later test can then pass. The deny of the relay does not stop the tested entry. Run a gate only on code that you trust, for example in a new CI checkout of the subject, and put the digest of that code in `--subject`.
 
 **The relay.** A gate run runs scripted tests, so the relay denies a model command that runs `nookku gate`, with each policy (section 5, "Drive commands"). `nookku gate verify` passes, because it only reads. The relay also denies a model write to `gates/` (section 5).
 
-The cases in [`conformance/gate/`](conformance/gate/) give the gate file, the records of each test and the expected `result.json`: a `pass`, a `fail`, a missing test, a replay check that passes, that has a changed turn, and that has no base, a proof file that passes, that is missing, that is stale, and that has a value above its limit, and a persona set of 3 personas.
+The cases in [`conformance/gate/`](conformance/gate/) give the gate file, the records of each test and the expected `result.json`: a `pass`, a `fail`, a missing test, a replay check that passes, that has a changed turn, and that has no base, a proof file that passes, that is missing, that is stale, and that has a value above its limit, a persona set of 3 personas, a test that is inconclusive for a provider limit and for a refused service, a test whose limited call was retried, and an inconclusive test with a failed test.
 
 ### 7.16 Gateway key of a test
 
@@ -1611,7 +1621,7 @@ These tools come from the harness, not from the app: `ToolSearch` in Claude Code
 
 ### 8.6 Findings
 
-`findings.json` holds the test id, the number of turns and items, one entry for each model session (its version, its item count and its counts of lines not kept), `otel`, `backend`, `model_api`, `mcp` and `database` (the file, its row count, its item count and its counts of rows not kept, or `null` if the test has no such file; `model_api` also has `harness_calls`, the count of harness calls by harness, and `other_calls`), `egress` (section 8.8, or `null` if the test folder has no `egress.jsonl`), `openinference` (the file and its span count, only if the test folder has `openinference.jsonl`, section 8.10), `trace_points` (each valid trace point of the manifest with `checked` and `needed`, or `null` if the manifest has no valid trace point), `answers` (each checked turn of the answer key, only if the manifest has an answer key, section 7.17), `approvals` (each row of the approvals with its counts, only if the manifest has at least 1 row, section 7.18), `second_messages` (only if the test has a second message, section 8.3), a count for each check, and the findings. The findings do not change the exit code of the audit. The audit measures the words only.
+`findings.json` holds the test id, the number of turns and items, one entry for each model session (its version, its item count and its counts of lines not kept), `otel`, `backend`, `model_api`, `mcp` and `database` (the file, its row count, its item count and its counts of rows not kept, or `null` if the test has no such file; `model_api` also has `harness_calls`, the count of harness calls by harness, and `other_calls`), `egress` (section 8.8, or `null` if the test folder has no `egress.jsonl`), `openinference` (the file and its span count, only if the test folder has `openinference.jsonl`, section 8.10), `trace_points` (each valid trace point of the manifest with `checked` and `needed`, or `null` if the manifest has no valid trace point), `answers` (each checked turn of the answer key, only if the manifest has an answer key, section 7.17), `approvals` (each row of the approvals with its counts, only if the manifest has at least 1 row, section 7.18), `second_messages` (only if the test has a second message, section 8.3), `outside_failures` (only if a call failed for a provider limit or a refused service, section 8.13), a count for each check, and the findings. The findings do not change the exit code of the audit. The audit measures the words only.
 
 | Check | Finding |
 |---|---|
@@ -1908,6 +1918,39 @@ nookku trace [TEST] --ingress spans.jsonl
 The trace writes no item to `trace.jsonl` from a span. A span adds no finding, and it does not change `counts`, `verdict.json` or `performance.json`. The cases [`conformance/trace/ingress_spans/`](conformance/trace/ingress_spans/) and [`ingress_spans_version_two/`](conformance/trace/ingress_spans_version_two/) show the rule.
 
 **The limits.** The ingress proxy and the tap use the clocks of 2 computers. If the clocks differ, a span can be in the wrong turn or in no turn. A span does not name the test, so a request of another caller in the window of a turn is in the count of that turn. Thus a count that is larger than 1 for a turn is not a finding.
+
+### 8.13 Outside failures
+
+A call can fail for a cause that is not the app: the model provider is at a rate limit or a quota, or a service of the test refuses each connection. A test that fails for such a cause looks like a regression of the app. The trace counts these calls, with no model, so that a gate run can give the test the verdict `inconclusive` (section 7.15).
+
+`findings.json` of a test with at least 1 such call has the key `outside_failures`: a list with one object for each reason that has a call, first `provider_limit` and then `local_service`. A test with no such call does not have the key.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `reason` | string | `provider_limit` or `local_service`. |
+| `calls` | integer | The count of the calls of the reason, 1 or more. |
+| `retried` | integer | The count of these calls that a good call followed (below). |
+| `turns` | list | The turn of each call that no good call followed: each turn one time, in order, and then `null` if such a call is in no turn. The list is empty if, and only if, `retried` is `calls`. |
+
+**A provider limit** is one of these:
+
+- A `model_api` or `gateway` assistant message with the status 429 (section 8.2). A provider gives this HTTP status for a rate limit and for a quota.
+- A model error of a Codex session file (the finding `model_error`, section 8.6) whose `codex_error_info` is an object with 1 key, with the integer `http_status_code` 429 in the value of the key.
+
+**A refused service** is one of these:
+
+- An item of `backend.jsonl`, `model_api.jsonl` or `mcp.jsonl` whose `error` starts with `the backend did not answer: ` and has the text `Connection refused` (section 7.6).
+- A `connect` row of `database.jsonl` whose `error` starts with `no connection: ` and has the text `Connection refused` (section 7.13). The reader of the queries keeps no `connect` row (section 8.4), so the trace has no item for this call. Its turn is the turn of its `ts` (section 8.3).
+
+`Connection refused` is the text of the OS error on Linux and on macOS. A call that stopped for another reason, for example a timeout or a status 500, is not an outside failure: the app or its service can be the cause.
+
+**A retried call.** A call is retried if a good call comes after it in the same turn. A good call is an item later in `trace.jsonl` with the same `harness`, the same `session` and the same turn, with no `error` and with a status below 400. The item is an `http` item, a `tool_call`, a `query`, or an assistant message. For a `connect` row, a good call is a `query` item of the same database in the same turn, with no `error` and with a `ts` that is not before the row. A call in no turn is never retried. A Codex model error ends the turn of the harness, so it is never retried.
+
+The findings do not change: a call of this section still gives its `model_api_error`, `backend_error`, `tool_error` or `model_error` finding, and the counts and the verdict of the test stay the same (section 7.14). Only a gate run reads the key.
+
+The cases [`conformance/trace/model_api_toy_shop/`](conformance/trace/model_api_toy_shop/) and [`gateway_toy_shop/`](conformance/trace/gateway_toy_shop/) give a call with the status 429 that a good call followed, and [`backend_toy_shop/`](conformance/trace/backend_toy_shop/) gives a backend that refused the connection.
+
+**Known limit.** A Claude Code session file does not give the HTTP status of a failed model call in a form that the reader keeps. Thus the trace finds a provider limit of an app that is a Claude Code session only if a model API proxy or a gateway recorded the call ([limits.md](docs/limits.md)).
 
 ## 9. Evaluation
 

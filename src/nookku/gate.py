@@ -20,6 +20,7 @@ import time
 from pathlib import Path
 from typing import Any, TypeGuard
 
+import nookku.outside_failures as outside_failures
 from nookku import bridge, discovery, replay, script, seal, simulated_user, state, verdict
 from nookku.record import RecordError, json_text, loads
 from nookku.trace import CHECKS
@@ -50,7 +51,9 @@ AUDIT, RELAY, TAP = "audit.json", "relay.jsonl", "tap.jsonl"
 REPLAY_FILES = (RELAY, TAP)
 # The files of a test folder that the checks read, with the script copy of the test.
 EVIDENCE = (verdict.MANIFEST, verdict.FINDINGS, verdict.FILE, AUDIT, RELAY)
-PASS, FAIL = verdict.PASS, verdict.FAIL
+PASS, FAIL, INCONCLUSIVE = verdict.PASS, verdict.FAIL, outside_failures.INCONCLUSIVE
+# The exit code of `nookku gate` for an inconclusive result (SPEC.md section 7.15).
+INCONCLUSIVE_EXIT = 3
 
 
 class GateError(ValueError):
@@ -789,6 +792,7 @@ def compute(
             "verdict": PASS if ok else FAIL,
             "checks": checks,
         }
+        outside_failures.judge(out, proof)
         if test["persona"] is not None:
             out["persona"] = persona_of(inputs.get(test["name"], {}).get("persona"))
         if test["replay"] is not None:
@@ -804,21 +808,26 @@ def compute(
         {"test": t["name"], "check": c["check"]}
         for t in tests
         for c in t["checks"]
-        if c["verdict"] == FAIL
+        # The checks of an inconclusive test are not reasons (outside_failures.judge).
+        if c["verdict"] == FAIL and t["verdict"] == FAIL
     ]
     checked = _proof_results(parse_proofs(data), ledger, proofs or {}, problems)
     reasons += [{"proof": p["path"], "check": f["reason"]} for p in checked for f in p["failures"]]
     passed = not problems and not reasons
+    waiting = outside_failures.waiting(tests)
     result = {
         "v": VERSION,
         "gate": gate,
         "subject": subject if isinstance(subject, str) else None,
         "gate_sha256": seal.sha256_of(data),
-        "verdict": PASS if passed else FAIL,
+        "verdict": FAIL if not passed else INCONCLUSIVE if waiting else PASS,
         "problems": problems,
         "reasons": reasons,
         "tests": tests,
     }
+    if waiting:
+        # Only a result with an inconclusive test has the key, so an older folder verifies.
+        result[INCONCLUSIVE] = waiting
     # Only a gate file with the key "proofs" gets the key in the result. Thus a result of a
     # gate file with no proof files is the same as before #572, and an older folder verifies.
     if "proofs" in _top(data):
@@ -999,5 +1008,6 @@ def summary(report: dict[str, Any]) -> list[str]:
         text = "; ".join(f"{f['reason']}: {f['text']}" for f in proof["failures"])
         lines.append(f"Proof file {proof['path']}: {proof['verdict']}. {text}")
     lines += [f"Problem: {p}" for p in report["problems"]]
+    lines += outside_failures.summary(report)
     lines.append(f"Gate verdict: {report['verdict']}. Subject: {report['subject']}")
     return [line.rstrip() for line in lines]

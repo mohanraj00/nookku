@@ -3385,6 +3385,10 @@ BACKEND_CASE = {
                 "source": {"file": "backend.jsonl", "line": 5},
             },
         ],
+        # The payments backend refused the connection in turn 2 (SPEC.md section 8.13).
+        "outside_failures": [
+            {"reason": "local_service", "calls": 1, "retried": 0, "turns": [2]},
+        ],
     },
 }
 
@@ -3743,6 +3747,10 @@ MODEL_API_CASE = {
                 "source": {"file": "model_api.jsonl", "line": 3},
             },
         ],
+        # The call with status 429 has a later good call in its turn (SPEC.md section 8.13).
+        "outside_failures": [
+            {"reason": "provider_limit", "calls": 1, "retried": 1, "turns": []},
+        ],
     },
 }
 
@@ -3983,6 +3991,10 @@ GATEWAY_CASE = {
                 "session": AGENT_ALIAS,
                 "source": {"file": "gateway.jsonl", "line": 4},
             },
+        ],
+        # The call with status 429 has a later good call in its turn (SPEC.md section 8.13).
+        "outside_failures": [
+            {"reason": "provider_limit", "calls": 1, "retried": 1, "turns": []},
         ],
         "gateway": {
             "file": "gateway.jsonl",

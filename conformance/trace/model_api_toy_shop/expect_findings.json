@@ -20,6 +20,14 @@
  },
  "mcp": null,
  "database": null,
+ "outside_failures": [
+  {
+   "reason": "provider_limit",
+   "calls": 1,
+   "retried": 1,
+   "turns": []
+  }
+ ],
  "egress": null,
  "trace_points": null,
  "counts": {

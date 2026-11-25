@@ -1,0 +1,139 @@
+{
+ "v": 1,
+ "gate": "gate-case",
+ "subject": "sha256:ab12cd34",
+ "gate_sha256": "<the SHA-256 of gate.json>",
+ "verdict": "fail",
+ "problems": [],
+ "reasons": [
+  {
+   "test": "refund",
+   "check": "turns"
+  }
+ ],
+ "tests": [
+  {
+   "name": "stock",
+   "test": "t-stock",
+   "verdict": "inconclusive",
+   "checks": [
+    {
+     "check": "missing_test",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "evidence",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "script",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "entry",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "verdict",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "limits",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "audit",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "turns",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "codex_hooks",
+     "verdict": "pass",
+     "text": null
+    }
+   ],
+   "outside_failures": [
+    {
+     "reason": "provider_limit",
+     "calls": 2,
+     "retried": 0,
+     "turns": [
+      1,
+      2
+     ]
+    }
+   ]
+  },
+  {
+   "name": "refund",
+   "test": "t-refund",
+   "verdict": "fail",
+   "checks": [
+    {
+     "check": "missing_test",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "evidence",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "script",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "entry",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "verdict",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "limits",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "audit",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "turns",
+     "verdict": "fail",
+     "text": "The relay record does not have one turn with a reply for each message of the script."
+    },
+    {
+     "check": "codex_hooks",
+     "verdict": "pass",
+     "text": null
+    }
+   ]
+  }
+ ],
+ "inconclusive": [
+  {
+   "test": "stock",
+   "reason": "provider_limit",
+   "calls": 2,
+   "retried": 0
+  }
+ ]
+}
