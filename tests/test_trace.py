@@ -227,7 +227,18 @@ def test_a_file_without_a_version_is_unknown(tmp_path: Path) -> None:
     (tmp_path / "rollout.jsonl").write_text('{"type": "world_state"}\n')
     report = trace.build(tmp_path)
     assert report["sessions"][0]["version"] == "unknown"
-    assert report["findings"][0]["detail"] == "version unknown, tested: 0.160.0, 0.162.1"
+    assert report["findings"][0]["detail"] == "version unknown, tested: 0.160.0, 0.162.1, 0.169.0"
+
+
+def test_a_codex_0_169_0_file_is_tested(tmp_path: Path) -> None:
+    # proofs/trace/results.json reads a session file of codex-cli 0.169.0.
+    session = {"harness": "codex", "session": "s", "inferred": False, "file": "rollout.jsonl"}
+    (tmp_path / "manifest.json").write_text(json.dumps({"test": "t", "model_sessions": [session]}))
+    meta = {"type": "session_meta", "payload": {"id": "s", "cli_version": "0.169.0"}}
+    (tmp_path / "rollout.jsonl").write_text(json.dumps(meta) + "\n")
+    report = trace.build(tmp_path)
+    assert report["sessions"][0]["version"] == "0.169.0"
+    assert report["counts"]["version_untested"] == 0
 
 
 def test_a_tool_result_matches_only_a_call_of_its_format(tmp_path: Path) -> None:

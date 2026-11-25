@@ -103,8 +103,10 @@ The Agent SDK runs its own bundled Claude Code. The `claude-code` version in the
 
 | Session file | Nookku | Items | Expected calls found | Data |
 |---|---|---|---|---|
-| Claude Code 2.1.301, bundled in Claude Agent SDK 0.2.168 | 0.5.5 | 10 | 2/2 | [results](../proofs/trace/results.json) |
-| codex-cli 0.162.1, app-server | 0.5.5 | 12 | 4/4 | [results](../proofs/trace/results.json) |
+| Claude Code 2.1.301, bundled in Claude Agent SDK 0.2.168 | 0.6.0 | 10 | 2/2 | [results](../proofs/trace/results.json) |
+| codex-cli 0.169.0, app-server | 0.6.0 | 17 | 4/4 | [results](../proofs/trace/results.json) |
+| Claude Code 2.1.301, bundled in Claude Agent SDK 0.2.168 | 0.5.5 | 10 | 2/2 | [results](../proofs/trace/results-0.162.1.json) |
+| codex-cli 0.162.1, app-server | 0.5.5 | 12 | 4/4 | [results](../proofs/trace/results-0.162.1.json) |
 | Claude Code 2.1.301, bundled in Claude Agent SDK 0.2.168 | 0.5.4 | 10 | 2/2 | [results at the tag v0.5.4](https://github.com/mohanraj00/nookku/blob/v0.5.4/proofs/trace/results.json) |
 | codex-cli 0.162.1, app-server | 0.5.4 | 16 | 4/4 | [results at the tag v0.5.4](https://github.com/mohanraj00/nookku/blob/v0.5.4/proofs/trace/results.json) |
 | Claude Code 2.1.301, bundled in Claude Agent SDK 0.2.168 | 0.5.3 | 10 | 2/2 | [results](../proofs/trace/results-0.5.3-codex-usage-limit.json) |

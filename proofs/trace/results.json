@@ -1,14 +1,14 @@
 {
- "date": "2026-10-23",
+ "date": "2026-11-24",
  "versions": {
   "session files": {
    "claude-code": "2.1.301",
-   "codex": "0.162.1"
+   "codex": "0.169.0"
   },
   "claude-agent-sdk": "0.2.168",
-  "nookku": "0.5.5",
-  "claude-code": "2.1.302 (Claude Code)",
-  "codex": "codex-cli 0.162.1"
+  "nookku": "0.6.0",
+  "claude-code": "2.1.319 (Claude Code)",
+  "codex": "codex-cli 0.169.0"
  },
  "turns": 4,
  "sessions": [
@@ -22,7 +22,7 @@
     "api-request": 6,
     "api-request-blob": 4,
     "api-request-shape": 1,
-    "assistant.thinking": 1,
+    "assistant.thinking": 2,
     "atis-latch": 3,
     "attachment": 11,
     "cost-state": 1,
@@ -33,19 +33,21 @@
   {
    "harness": "codex",
    "inferred": true,
-   "version": "0.162.1",
-   "items": 12,
+   "version": "0.169.0",
+   "items": 17,
    "ignored": {
     "event_msg.task_complete": 4,
     "event_msg.task_started": 4,
-    "event_msg.token_count": 9,
-    "response_item.custom_tool_call": 5,
-    "response_item.custom_tool_call_output": 5,
-    "response_item.message": 12,
+    "event_msg.thread_settings_applied": 1,
+    "event_msg.token_count": 10,
+    "response_item.additional_tools": 1,
+    "response_item.custom_tool_call": 6,
+    "response_item.custom_tool_call_output": 6,
+    "response_item.message": 19,
     "session_meta": 1,
-    "token_usage_record": 9,
+    "token_usage_record": 10,
     "turn_context": 4,
-    "world_state": 1
+    "world_state": 3
    }
   }
  ],
@@ -53,24 +55,36 @@
   "agent_error": 0,
   "repeated_reply": 0,
   "reply_not_from_model": 0,
+  "citation_not_read": 0,
+  "answer_key_mismatch": 0,
+  "answer_key_missing": 0,
   "tool_error": 2,
-  "command_failed": 1,
+  "command_failed": 2,
   "span_error": 0,
   "backend_error": 0,
   "model_api_error": 0,
   "questions_lost": 0,
   "database_error": 0,
+  "proxy_call_without_span": 0,
+  "mcp_task_unfinished": 0,
+  "replay_changed": 0,
+  "replay_miss": 0,
   "unseen_call": 0,
   "driver_without_span": 0,
+  "other_without_span": 0,
+  "egress_not_in_discovery": 0,
+  "egress_denied": 0,
   "model_error": 0,
   "turn_without_model": 0,
   "item_between_turns": 0,
   "otel_tool_not_in_session": 0,
   "server_not_from_app": 0,
   "session_inferred": 1,
-  "version_untested": 0,
+  "version_untested": 1,
   "missing_trace_point": 0,
-  "trace_points_unread": 0
+  "trace_points_unread": 0,
+  "action_without_approval": 0,
+  "call_cut": 0
  },
  "checks": [
   {
@@ -207,8 +221,8 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "e3248988054d7f4498ead3eb9072afde737197a1dec6980dca7031fdaf437e14",
-    "chars": 387
+    "sha256": "89e94b0d3494a332948a9a27c49c5b0e81a33aa6525ebe39a4680ee9c2e05fc6",
+    "chars": 397
    },
    "output": {
     "sha256": "7ad7037a58211c4f07ea12fb8f9a20eac0f55bfa7cd5ee029a2665c174be0c44",
@@ -241,8 +255,8 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "36099747a7263cc317c773e21391040b1f05443cf8f338a0f071cff95c82e89c",
-    "chars": 482
+    "sha256": "3ed2887b96677379a8f4a52835f0fd98eb37ccf82dcbee49f671a77002de4989",
+    "chars": 492
    },
    "output": {
     "sha256": "6478f68d3b620d941073e9245da7aa7821ef4c291780328c60af34d7341ad500",
@@ -292,8 +306,8 @@
     "tool_use_id"
    ],
    "input": {
-    "sha256": "2ea29262d3775f3434a99bb654195f21cc27013b1f17f9ae336bb8902852baa1",
-    "chars": 487
+    "sha256": "b6a6d9642404c5c0c2c80259b18cd00ab220c39ce8820b9c12f49dfeeeef23c0",
+    "chars": 497
    },
    "output": {
     "sha256": "d417b1df59e53b33ae7b69bf6dc5cda072196ecf16d9ccb31f0890edb2af0520",
@@ -329,8 +343,8 @@
     "tool_use_id"
    ],
    "input": {
-    "sha256": "c5c05710eff8c7c6e147861c70b710d1471fdad0af05d2cc58894d874a02eae3",
-    "chars": 563
+    "sha256": "50dc0101a769e6a308aaed8d4703c3644305dac70686e22a3af9abf4c9927cba",
+    "chars": 573
    },
    "output": {
     "sha256": "8826c8b6219392c375cdff139255b158566532a3d44f28d3ee3e1fa91d4ad19a",
@@ -349,8 +363,8 @@
    "harness_internal": false,
    "line": 30,
    "output": {
-    "sha256": "a7412e6eb307aaf727dd80405bceb7c7e0a2cfd91dd55e4ccb75797f2aa68a96",
-    "chars": 52
+    "sha256": "1a0ce86625630a257cddc6d8ddf6d587439e0956e708796093fe9ab50973a884",
+    "chars": 47
    }
   },
   {
@@ -378,8 +392,8 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "6d09fd7121531ddfaaf828c356366e03d713f7114efd5f46a045613cc0e39572",
-    "chars": 482
+    "sha256": "ca1631feb519940ff498575e50e9a4e0cc057f2fc09c067dfdaa65a812fb8d4e",
+    "chars": 487
    },
    "output": {
     "sha256": "6478f68d3b620d941073e9245da7aa7821ef4c291780328c60af34d7341ad500",
@@ -396,10 +410,25 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 10,
+   "line": 13,
    "output": {
     "sha256": "97ddad7b3d142df36e25ddffeabda2c46c386f16e0e7b5197ca2284f68f4f1ad",
     "chars": 23
+   }
+  },
+  {
+   "turn": 1,
+   "harness": "codex",
+   "kind": "message",
+   "role": "assistant",
+   "server": null,
+   "name": null,
+   "exit_code": null,
+   "harness_internal": false,
+   "line": 14,
+   "output": {
+    "sha256": "a7c7743eb4174dba6028ba67e29b166558ca14c72ef676f695cdc9ef30016820",
+    "chars": 36
    }
   },
   {
@@ -411,7 +440,7 @@
    "name": "lookup_order",
    "exit_code": null,
    "harness_internal": false,
-   "line": 13,
+   "line": 18,
    "input": {
     "order": "4471"
    },
@@ -427,10 +456,10 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 16,
+   "line": 23,
    "output": {
-    "sha256": "b0f586301120ab7f655e7678f4c55a1e16c4784753d89ae1631c8bf92521b86c",
-    "chars": 54
+    "sha256": "5ce4b0f409b5774f690301960f0cdee75e79d67520175428270197aa4b55da19",
+    "chars": 58
    }
   },
   {
@@ -471,8 +500,8 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "9db39a3188959ee08cd4bc8b79a012aaf0c14414cbe83681e3f2a3e825731302",
-    "chars": 388
+    "sha256": "af9860e3ad633213b50ba69afb5e2ce17f78b808e69592273843a6ed6a102ec9",
+    "chars": 398
    },
    "output": {
     "sha256": "7ad7037a58211c4f07ea12fb8f9a20eac0f55bfa7cd5ee029a2665c174be0c44",
@@ -522,8 +551,8 @@
     "tool_use_id"
    ],
    "input": {
-    "sha256": "ab5a45f074bd6fc7ed21c5dc22c1cf5620ea0235c497950908e8983a411029ba",
-    "chars": 488
+    "sha256": "220f0c8943ca7678f274747233e3d88fc9961863518b65b476873739c5503f68",
+    "chars": 498
    },
    "output": {
     "sha256": "d417b1df59e53b33ae7b69bf6dc5cda072196ecf16d9ccb31f0890edb2af0520",
@@ -560,8 +589,8 @@
     "tool_use_id"
    ],
    "input": {
-    "sha256": "08fb68bf5d30095f9c9269d4483b3734f605e696ed4e64b4b41b12030aa48213",
-    "chars": 610
+    "sha256": "841bd96aad9c4f40cae25d7ae68bae68bbd0c3cbb35e5f784fd1ad14ec67aae6",
+    "chars": 620
    },
    "output": {
     "sha256": "8826c8b6219392c375cdff139255b158566532a3d44f28d3ee3e1fa91d4ad19a",
@@ -583,8 +612,8 @@
    "harness_internal": false,
    "line": 39,
    "output": {
-    "sha256": "a5dab9c65062f88ad07df0db5f1e30be9f0f49d8eb421a23e44f81bf46a6246d",
-    "chars": 107
+    "sha256": "3faf117033f1cf0c15a44db07c04cdc1df3d21aa52aa9235c5835262a108600a",
+    "chars": 81
    }
   },
   {
@@ -612,8 +641,8 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "5cfc283127927ebe1d9a5fd7f324e5498d669479705465ad37e0e5a55334b970",
-    "chars": 538
+    "sha256": "eed0494b9c4098d95f649bf77c9f4eef7fc0494af76d3ed10d7efc8e04578143",
+    "chars": 521
    },
    "output": {
     "sha256": "6478f68d3b620d941073e9245da7aa7821ef4c291780328c60af34d7341ad500",
@@ -630,10 +659,25 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 24,
+   "line": 33,
    "output": {
     "sha256": "8fe790b82848fa46a5110bb9c31e623209fdb3a8a04c9e56453706694bebc305",
     "chars": 23
+   }
+  },
+  {
+   "turn": 2,
+   "harness": "codex",
+   "kind": "message",
+   "role": "assistant",
+   "server": null,
+   "name": null,
+   "exit_code": null,
+   "harness_internal": false,
+   "line": 34,
+   "output": {
+    "sha256": "9adfa2145dbe075b371ae50b43c1b37469c55398b6529f7b84a61a9dfc0ccc4a",
+    "chars": 36
    }
   },
   {
@@ -645,7 +689,7 @@
    "name": "lookup_order",
    "exit_code": null,
    "harness_internal": false,
-   "line": 27,
+   "line": 38,
    "input": {
     "order": "9999"
    },
@@ -661,10 +705,10 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 30,
+   "line": 41,
    "output": {
-    "sha256": "326b8681bfbc9c2b6367d5b45f857575b1d305806657cffc6179d5eee546c8c2",
-    "chars": 70
+    "sha256": "9c46d0d06f56de546b75130abb5c3f99d42d61b96afa078d75fe86f5141deed7",
+    "chars": 89
    }
   },
   {
@@ -705,8 +749,8 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "d2a25c5d219d98bc30c8f5ad554c9a7e3f70139597ac96ed965926cafb09253f",
-    "chars": 388
+    "sha256": "97f82c03066b49449638b3eea387c3bea2b28ce1aef087e03ad896e9c3207b31",
+    "chars": 398
    },
    "output": {
     "sha256": "7ad7037a58211c4f07ea12fb8f9a20eac0f55bfa7cd5ee029a2665c174be0c44",
@@ -725,8 +769,8 @@
    "harness_internal": false,
    "line": 45,
    "output": {
-    "sha256": "d16870b71d6e5417acf70261b0ae7a670acaa8a3af5958f06bf794c1fb242484",
-    "chars": 145
+    "sha256": "d3f8bd25615f71a21f99524f3fcad54ce196c1acf3703b516b57680ab9e81414",
+    "chars": 91
    }
   },
   {
@@ -754,8 +798,8 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "bb87e07d6355aba63b0deff960b18e369e53b214a3f3a05bdb192317add44acc",
-    "chars": 576
+    "sha256": "643256a579eda3a8493b5d58dac2733da731fa336962e17c2f1f032cd39e82f5",
+    "chars": 531
    },
    "output": {
     "sha256": "6478f68d3b620d941073e9245da7aa7821ef4c291780328c60af34d7341ad500",
@@ -772,10 +816,25 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 38,
+   "line": 49,
    "output": {
     "sha256": "95d6c9735a5aa1e3865403d5caf01f5437f46885524f34529b5cdc303a3cd1c1",
     "chars": 23
+   }
+  },
+  {
+   "turn": 3,
+   "harness": "codex",
+   "kind": "message",
+   "role": "assistant",
+   "server": null,
+   "name": null,
+   "exit_code": null,
+   "harness_internal": false,
+   "line": 50,
+   "output": {
+    "sha256": "d1d55f2661c15f603770f70409413928f193f0191287fb28b8f547eb8a2fb17e",
+    "chars": 42
    }
   },
   {
@@ -787,7 +846,7 @@
    "name": "check_stock",
    "exit_code": null,
    "harness_internal": false,
-   "line": 44,
+   "line": 58,
    "input": {
     "product": "teapot"
    },
@@ -803,10 +862,10 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 48,
+   "line": 61,
    "output": {
-    "sha256": "047935cb46b4f26110bff388aff8a069a592fbb05ec361c60d4f0d8e55bec1ae",
-    "chars": 37
+    "sha256": "5e0cda1b531ddf12c5b478c4e5c0d5e0f4ef7517dad5edbd98cd2c32da5c9c11",
+    "chars": 27
    }
   },
   {
@@ -847,8 +906,8 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "cba613590ce8acc6749ce0457f028a6d9fede6d84f384a61ec16570122059ea9",
-    "chars": 380
+    "sha256": "7b46a379bffc38a63db3a4d239391a2e89fa2157ef38e6376978375886d21d40",
+    "chars": 390
    },
    "output": {
     "sha256": "7ad7037a58211c4f07ea12fb8f9a20eac0f55bfa7cd5ee029a2665c174be0c44",
@@ -865,10 +924,10 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 50,
+   "line": 51,
    "output": {
-    "sha256": "dce78fc1ad2ae8d3532fbbda3c195e3db2de278ccb59e5169084432cc13b2b35",
-    "chars": 108
+    "sha256": "f4aa2f77fdb701c5dbcfa945554ac7ed1dfdd7392ee200e62400b2816eed4340",
+    "chars": 123
    }
   },
   {
@@ -896,8 +955,8 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "d76c3b40ec574d4f0825aeed7c313371e388b6e93d600f825b64f360e19f060e",
-    "chars": 539
+    "sha256": "f2a80d915141e37b1e9b5dc9d733642bdfdd781644c3842efd78991d377106eb",
+    "chars": 564
    },
    "output": {
     "sha256": "6478f68d3b620d941073e9245da7aa7821ef4c291780328c60af34d7341ad500",
@@ -914,10 +973,25 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 56,
+   "line": 69,
    "output": {
     "sha256": "b02c321f0b34584cafd4220bb2b571f0c7ba70a2722a01d1cb2a48fbdffc76cf",
     "chars": 19
+   }
+  },
+  {
+   "turn": 4,
+   "harness": "codex",
+   "kind": "message",
+   "role": "assistant",
+   "server": null,
+   "name": null,
+   "exit_code": null,
+   "harness_internal": false,
+   "line": 70,
+   "output": {
+    "sha256": "a232af4969bbaf0a562442326fff3e4757cb481a5861c604b8a562bba4b733af",
+    "chars": 45
    }
   },
   {
@@ -929,7 +1003,7 @@
    "name": null,
    "exit_code": 1,
    "harness_internal": false,
-   "line": 59,
+   "line": 74,
    "input": [
     "/bin/zsh",
     "-lc",
@@ -941,18 +1015,36 @@
   {
    "turn": 4,
    "harness": "codex",
+   "kind": "command",
+   "role": null,
+   "server": null,
+   "name": null,
+   "exit_code": 1,
+   "harness_internal": false,
+   "line": 79,
+   "input": [
+    "/bin/zsh",
+    "-lc",
+    "rg --files --hidden -g returns.txt -g '!.git' <repo>"
+   ],
+   "output": "",
+   "error": null
+  },
+  {
+   "turn": 4,
+   "harness": "codex",
    "kind": "message",
    "role": "assistant",
    "server": null,
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 62,
+   "line": 82,
    "output": {
-    "sha256": "10568f5f18d8f5b7234fe46702f2eec004bdfa229a35c6cc42f46a484b4a176e",
-    "chars": 98
+    "sha256": "daf8879f26a35cf2f284630eb80d302b25ed8a261d6396bf596f513967d09a75",
+    "chars": 103
    }
   }
  ],
- "pass": true
+ "pass": false
 }

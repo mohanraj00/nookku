@@ -543,7 +543,7 @@ def test_the_transcript_shows_version_untested_one_time_for_each_version(tmp_pat
         "- version_untested: version 2.1.999, tested: 2.1.286, 2.1.292, 2.1.293, 2.1.294, 2.1.295,"
         " 2.1.296, 2.1.299, 2.1.300, 2.1.301"
         " (claude-code, 5 sessions)",
-        "- version_untested: version 0.161.0, tested: 0.160.0, 0.162.1 (codex, 1 session)",
+        "- version_untested: version 0.161.0, tested: 0.160.0, 0.162.1, 0.169.0 (codex, 1 session)",
     ]
 
 

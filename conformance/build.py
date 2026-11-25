@@ -1808,7 +1808,7 @@ VERSION_CASE = {
             {
                 "check": "version_untested",
                 "turn": None,
-                "detail": "version 0.161.0, tested: 0.160.0, 0.162.1",
+                "detail": "version 0.161.0, tested: 0.160.0, 0.162.1, 0.169.0",
                 "harness": "codex",
                 "session": CX,
             },
