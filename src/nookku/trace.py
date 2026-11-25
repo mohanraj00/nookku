@@ -53,7 +53,7 @@ TESTED = {
         "2.1.300",
         "2.1.301",
     ),
-    "codex": ("0.160.0", "0.162.1"),
+    "codex": ("0.160.0", "0.162.1", "0.169.0"),
 }
 # Tools that the harness itself gives to the model. They are not tools of the app.
 HARNESS_INTERNAL = {"claude-code": {"ToolSearch"}, "codex": set()}

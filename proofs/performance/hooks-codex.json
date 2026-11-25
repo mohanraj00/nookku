@@ -1,8 +1,8 @@
 {
- "date": "2026-11-17",
+ "date": "2026-11-24",
  "relay": "hooks-codex",
  "versions": {
-  "nookku": "0.5.9",
+  "nookku": "0.6.0",
   "claude-code": "2.1.319 (Claude Code)",
   "codex": "codex-cli 0.169.0",
   "agent sdk": "claude-agent-sdk==0.2.168",
@@ -31,13 +31,13 @@
  "audit_exit": 0,
  "performance": {
   "v": "0.1",
-  "test": "20261117-222604-e8f5",
+  "test": "20261124-162353-b0d3",
   "unknown": null,
   "outside_turns": 0,
   "turns": [
    {
     "turn": 1,
-    "seconds": 3.039,
+    "seconds": 4.225,
     "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
@@ -45,10 +45,10 @@
     "sources": [
      {
       "harness": "claude-code",
-      "session": "a9d3de31-331d-4f36-b8ef-ab3dfabd2fb1",
+      "session": "bcaffd60-d3a9-4dc2-91ed-716dde3f9786",
       "model_calls": 2,
-      "input_tokens": 59366,
-      "output_tokens": 156,
+      "input_tokens": 59311,
+      "output_tokens": 82,
       "no_usage": 0
      },
      {
@@ -63,7 +63,7 @@
    },
    {
     "turn": 2,
-    "seconds": 60.127,
+    "seconds": 62.27,
     "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
@@ -71,10 +71,10 @@
     "sources": [
      {
       "harness": "claude-code",
-      "session": "a9d3de31-331d-4f36-b8ef-ab3dfabd2fb1",
+      "session": "bcaffd60-d3a9-4dc2-91ed-716dde3f9786",
       "model_calls": 2,
-      "input_tokens": 59752,
-      "output_tokens": 165,
+      "input_tokens": 59595,
+      "output_tokens": 126,
       "no_usage": 0
      },
      {
@@ -89,7 +89,7 @@
    },
    {
     "turn": 3,
-    "seconds": 2.038,
+    "seconds": 4.621,
     "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
@@ -97,10 +97,10 @@
     "sources": [
      {
       "harness": "claude-code",
-      "session": "a9d3de31-331d-4f36-b8ef-ab3dfabd2fb1",
+      "session": "bcaffd60-d3a9-4dc2-91ed-716dde3f9786",
       "model_calls": 2,
-      "input_tokens": 60121,
-      "output_tokens": 128,
+      "input_tokens": 59895,
+      "output_tokens": 102,
       "no_usage": 0
      },
      {
@@ -122,14 +122,14 @@
   {
    "class": "performance",
    "turn": "2",
-   "evidence": "turn 2 performance; spec/1.md Limits",
-   "issue": "The turn took 60.127 seconds, exceeding the `turn_seconds` limit of 30 seconds."
+   "evidence": "turn 2",
+   "issue": "The blue mug reply took 62.27 seconds against the 30-second limit, exceeding it by 32.27 seconds."
   },
   {
-   "class": "unsupported_reply",
-   "turn": "3",
-   "evidence": "trace.jsonl:30; trace.jsonl:27; trace.jsonl:5",
-   "issue": "The reply says \"so it may ship soon.\" The order lookup reports only \"waiting for stock,\" and the earlier stock result reports 3 units. Neither result nor the rules supplies a shipping estimate or confirms allocation to order 6210."
+   "class": "business_rule",
+   "turn": "-",
+   "evidence": "services.py:43, services.py:44, services.py:45, stock.py:79, spec/2.md:5",
+   "issue": "The reservation client sends the same `POST /reserve` twice, even after a 200 response. The stock service applies `item[\"left\"] -= ask[\"qty\"]` for each accepted request, so one customer request would reserve twice the requested quantity when stock covers both calls. The test did not exercise reservations."
   }
  ],
  "S3_performance_row_for_the_slow_turn": true,
@@ -155,7 +155,7 @@
   "other_calls": 1
  },
  "counts": {},
- "report": "# Test 20261117-222604-e8f5: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| performance | 2 | turn 2 performance; spec/1.md Limits | The turn took 60.127 seconds, exceeding the `turn_seconds` limit of 30 seconds. |\n| unsupported_reply | 3 | trace.jsonl:30; trace.jsonl:27; trace.jsonl:5 | The reply says \"so it may ship soon.\" The order lookup reports only \"waiting for stock,\" and the earlier stock result reports 3 units. Neither result nor the rules supplies a shipping estimate or confirms allocation to order 6210. |\n\n## Notes\n\nThe transcript reports \"Seal: intact. No record changed after the end of the test.\" The audit has no breaks, errors or blocked calls, and findings.json has no findings. Manual review found the two issues above.\n\nChecked all three requests, tool arguments and results, backend stock responses, direct model calls, replies, performance, the saved app spec and rules, and app.py, entry.py, services.py, stock.py and toy_model.py. Read current state.json and stock.json without starting or messaging the app. Order 6210 is a teapot set priced at EUR 80 with status \"waiting for stock\"; stock is 3 teapot sets and 12 blue mugs. These match the recorded lookups. Current state contains a case note for each turn. No app-state files were available under the test folder, so current files do not independently establish historical state.\n\nTurn durations were 3.039, 60.127 and 2.038 seconds. Model sessions together produced 156, 165 and 128 output tokens, all below the 2,000-token limit. Direct model API usage is partly unknown but is excluded from that limit. Each reply uses at most two sentences. Required stock checks, backend GETs, the order lookup and per-turn OpenAI calls appear in the trace. No reservation was requested, so the reservation path and its potential code defects were not exercised. Returns, refunds, other-customer privacy and off-topic boundaries were not exercised either.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
- "answer": "[Evaluation report](.nookku/tests/20261117-222604-e8f5/report.md) written.\n\nFound two issues: turn 2 exceeded the 30-second limit, and turn 3 gave an unsupported shipping prediction. The record seal is intact.",
+ "report": "# Test 20261124-162353-b0d3: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| performance | 2 | turn 2 | The blue mug reply took 62.27 seconds against the 30-second limit, exceeding it by 32.27 seconds. |\n| business_rule | - | services.py:43, services.py:44, services.py:45, stock.py:79, spec/2.md:5 | The reservation client sends the same `POST /reserve` twice, even after a 200 response. The stock service applies `item[\"left\"] -= ask[\"qty\"]` for each accepted request, so one customer request would reserve twice the requested quantity when stock covers both calls. The test did not exercise reservations. |\n\n## Notes\n\nThe record seal was intact. The audit found no differences across the three exchanges, and the automated findings list was empty. I checked the copied spec and rules, session tool calls, backend and model API traces, app code, and the project state files.\n\nBoth stock replies matched the service responses and `stock.json` (3 teapot sets and 12 blue mugs). The status for order 6210 matched the lookup result and `state.json`. The tester called it “my order.” The lookup takes only an order number, and the available order data cannot establish who owns it. The three case notes were present in `state.json`. No files were available under `app-state/`.\n\nAll three turns met the 2,000-token model-session limit (82, 126, and 102 output tokens). Turns 1 and 3 took 4.225 and 4.621 seconds. The stock tool took 8.018 seconds in turn 2 (`trace.jsonl:18`). The app also waits for the case note and department calls before returning the reply, but the records do not establish the cause of the full delay.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "[Evaluation report](<project>/.nookku/tests/20261124-162353-b0d3/report.md)\n\n- Turn 2 took 62.27 seconds, exceeding the 30-second limit by 32.27 seconds.\n- Code review found that one reservation request can reserve twice the requested quantity when stock allows. This test did not exercise reservations.\n- All three replies matched the tool results. The record seal was intact, and the available data could not verify ownership of order 6210.",
  "pass": true
 }

@@ -1,8 +1,8 @@
 {
- "date": "2026-11-19",
+ "date": "2026-11-21",
  "setup": "plugin-claude-code",
  "versions": {
-  "nookku": "0.5.9",
+  "nookku": "0.6.0",
   "claude-code": "2.1.319 (Claude Code)"
  },
  "policy": {
@@ -36,7 +36,7 @@
   "blocked_calls": [
    {
     "tool": "Bash",
-    "detail": "{\"command\": \"cat keys/stock.json\", \"description\": \"Show stock keys file\"}"
+    "detail": "{\"command\": \"cat keys/stock.json\", \"description\": \"Show stock.json contents\"}"
    }
   ],
   "deny_reason_shown": true,

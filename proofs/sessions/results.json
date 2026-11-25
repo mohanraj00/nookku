@@ -1,9 +1,9 @@
 {
- "date": "2026-10-23",
+ "date": "2026-11-21",
  "versions": {
-  "nookku": "0.5.5",
-  "claude-code": "2.1.302 (Claude Code)",
-  "codex": "codex-cli 0.162.1",
+  "nookku": "0.6.0",
+  "claude-code": "2.1.319 (Claude Code)",
+  "codex": "codex-cli 0.169.0",
   "claude-agent-sdk": "0.2.168"
  },
  "method": "scripts/proof_sessions.py",

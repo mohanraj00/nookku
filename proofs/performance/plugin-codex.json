@@ -1,8 +1,8 @@
 {
- "date": "2026-11-17",
+ "date": "2026-11-24",
  "relay": "plugin-codex",
  "versions": {
-  "nookku": "0.5.9",
+  "nookku": "0.6.0",
   "claude-code": "2.1.319 (Claude Code)",
   "codex": "codex-cli 0.169.0",
   "agent sdk": "claude-agent-sdk==0.2.168",
@@ -31,13 +31,13 @@
  "audit_exit": 0,
  "performance": {
   "v": "0.1",
-  "test": "20261117-215030-cdd1",
+  "test": "20261124-162109-3581",
   "unknown": null,
   "outside_turns": 0,
   "turns": [
    {
     "turn": 1,
-    "seconds": 3.594,
+    "seconds": 4.376,
     "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
@@ -45,10 +45,10 @@
     "sources": [
      {
       "harness": "claude-code",
-      "session": "cdaf5a76-ade1-449d-8517-6cce1e510fbd",
+      "session": "acbcd0dd-4bc1-49f6-aa42-240eebb253b1",
       "model_calls": 2,
-      "input_tokens": 59356,
-      "output_tokens": 132,
+      "input_tokens": 59319,
+      "output_tokens": 82,
       "no_usage": 0
      },
      {
@@ -63,7 +63,7 @@
    },
    {
     "turn": 2,
-    "seconds": 60.458,
+    "seconds": 62.518,
     "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
@@ -71,10 +71,10 @@
     "sources": [
      {
       "harness": "claude-code",
-      "session": "cdaf5a76-ade1-449d-8517-6cce1e510fbd",
+      "session": "acbcd0dd-4bc1-49f6-aa42-240eebb253b1",
       "model_calls": 2,
-      "input_tokens": 59715,
-      "output_tokens": 151,
+      "input_tokens": 59619,
+      "output_tokens": 142,
       "no_usage": 0
      },
      {
@@ -89,7 +89,7 @@
    },
    {
     "turn": 3,
-    "seconds": 2.464,
+    "seconds": 4.219,
     "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
@@ -97,10 +97,10 @@
     "sources": [
      {
       "harness": "claude-code",
-      "session": "cdaf5a76-ade1-449d-8517-6cce1e510fbd",
+      "session": "acbcd0dd-4bc1-49f6-aa42-240eebb253b1",
       "model_calls": 2,
-      "input_tokens": 60053,
-      "output_tokens": 110,
+      "input_tokens": 59935,
+      "output_tokens": 132,
       "no_usage": 0
      },
      {
@@ -122,8 +122,20 @@
   {
    "class": "performance",
    "turn": "2",
-   "evidence": "turn 2, performance block; spec/1.md, Limits",
-   "issue": "The turn took 60.458 seconds, exceeding the `turn_seconds` limit of 30 seconds."
+   "evidence": "turn 2",
+   "issue": "The reply took 62.518 seconds against the 30-second limit."
+  },
+  {
+   "class": "unsupported_reply",
+   "turn": "3",
+   "evidence": "trace.jsonl:3, trace.jsonl:27, trace.jsonl:30",
+   "issue": "The reply said “Stock for the teapot set is currently 3, so it may be fulfilled once stock is allocated.” The count came from turn 1. Turn 3 only looked up the order and returned “waiting for stock.” The records support the order status and the earlier stock count. They do not establish current stock at turn 3 or how it would be allocated."
+  },
+  {
+   "class": "business_rule",
+   "turn": "-",
+   "evidence": "spec/2.md:5, services.py:44, stock.py:79, stock.py:85",
+   "issue": "Rule 3 says a reservation holds the requested quantity “and no more.” The client sends the same reservation twice using `range(2)`, even after a successful response. With enough stock for both requests, the service subtracts the quantity and appends a reservation each time. This follows from the code. The test made no reservation."
   }
  ],
  "S3_performance_row_for_the_slow_turn": true,
@@ -149,7 +161,7 @@
   "other_calls": 1
  },
  "counts": {},
- "report": "# Test 20261117-215030-cdd1: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| performance | 2 | turn 2, performance block; spec/1.md, Limits | The turn took 60.458 seconds, exceeding the `turn_seconds` limit of 30 seconds. |\n\n## Notes\n\nThe record seal is intact. The audit reports no breaks, errors or blocked calls. The automated findings list is empty, but the transcript establishes the performance issue above.\n\nRead both saved spec copies, the complete transcript with trace, findings, audit, manifest, and the app implementation in app.py, services.py, stock.py, entry.py and toy_model.py. Checked the current state by reading state.json and stock.json. No saved app-state files were available. Current project state is a present-day check, not a sealed snapshot of the test.\n\nThe stock replies match the tool and backend results: `{\"sku\": \"teapot-set\", \"left\": 3}` at trace.jsonl:3 and :5, and `{\"sku\": \"blue-mug\", \"left\": 12}` at trace.jsonl:15 and :17. Current stock.json also contains those quantities. The order reply matches `\"status\": \"waiting for stock\"` for order `6210` at trace.jsonl:27 and the current order in state.json. Each reply has two sentences, and each requested lookup has its required tool call. No additional issue was established. Reservations, returns, refunds, unrelated topics and other customers' orders were not exercised.\n\nTurn durations were 3.594, 60.458 and 2.464 seconds. Model sessions together produced 132, 151 and 110 output tokens, all below the 2000-token limit. Direct model API usage is partly unknown, but the spec excludes those calls from this token limit. The records do not establish the cause of the full turn 2 delay.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
- "answer": "[Evaluation report](.nookku/tests/20261117-215030-cdd1/report.md) written.\n\nFound one issue: turn 2 took 60.458 seconds, exceeding the 30-second limit. Replies matched the recorded tool results. The record seal is intact.",
+ "report": "# Test 20261124-162109-3581: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| performance | 2 | turn 2 | The reply took 62.518 seconds against the 30-second limit. |\n| unsupported_reply | 3 | trace.jsonl:3, trace.jsonl:27, trace.jsonl:30 | The reply said “Stock for the teapot set is currently 3, so it may be fulfilled once stock is allocated.” The count came from turn 1. Turn 3 only looked up the order and returned “waiting for stock.” The records support the order status and the earlier stock count. They do not establish current stock at turn 3 or how it would be allocated. |\n| business_rule | - | spec/2.md:5, services.py:44, stock.py:79, stock.py:85 | Rule 3 says a reservation holds the requested quantity “and no more.” The client sends the same reservation twice using `range(2)`, even after a successful response. With enough stock for both requests, the service subtracts the quantity and appends a reservation each time. This follows from the code. The test made no reservation. |\n\n## Notes\n\nThe seal was intact. The audit recorded no changes to the three exchanges, and the findings file listed no findings. The expected stock checks, stock backend calls, order lookup and direct OpenAI calls appear in the trace.\n\nThe stock replies matched the backend counts of 3 teapot sets and 12 blue mugs. The order status matched the lookup. The session output totals were 82, 142 and 132 tokens against a 2,000-token limit. Turns 1 and 3 took 4.376 and 4.219 seconds.\n\nIn turn 2, the case-note and department calls each took about 25 seconds in the model API record. The app waits for both before returning the reply (`app.py:117`–`119`). The records show the time spent waiting and leave the cause of the upstream delay unresolved.\n\nI checked the application code and read `state.json` and `stock.json`. The workspace files showed order 6210 as “waiting for stock,” three case notes, and stock counts matching the recorded lookups. There was no sealed app-state snapshot. The lookup uses the order number alone (`app.py:54`), and the records do not establish who owns order 6210. The test did not exercise another customer's order, refunds, or reservations.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "[Evaluation report](<project>/.nookku/tests/20261124-162109-3581/report.md). The test seal was intact.\n\n- Turn 2 took 62.518 seconds, exceeding the 30-second limit.\n- Turn 3 presented an earlier stock count as current without checking again.\n- Code review found that one request can reserve twice the requested quantity when enough stock is available. The test did not exercise reservations.",
  "pass": true
 }

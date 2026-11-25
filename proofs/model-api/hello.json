@@ -1,7 +1,7 @@
 {
- "date": "2026-11-17",
+ "date": "2026-11-21",
  "versions": {
-  "claude-code": "2.1.302 (Claude Code)",
+  "claude-code": "2.1.319 (Claude Code)",
   "python": "3.13.12",
   "os": "Darwin"
  },
@@ -21,7 +21,7 @@
   {
    "method": "POST",
    "path": "/v1/messages",
-   "user_agent": "claude-cli/2.1.302",
+   "user_agent": "claude-cli/2.1.319",
    "content_length": "4055",
    "transfer_encoding": null,
    "body_size": 4055
@@ -29,10 +29,58 @@
   {
    "method": "POST",
    "path": "/v1/messages",
-   "user_agent": "claude-cli/2.1.302",
-   "content_length": "85285",
+   "user_agent": "claude-cli/2.1.319",
+   "content_length": "4055",
    "transfer_encoding": null,
-   "body_size": 85285
+   "body_size": 4055
+  },
+  {
+   "method": "POST",
+   "path": "/v1/messages",
+   "user_agent": "claude-cli/2.1.319",
+   "content_length": "49455",
+   "transfer_encoding": null,
+   "body_size": 49455
+  },
+  {
+   "method": "POST",
+   "path": "/v1/messages",
+   "user_agent": "claude-cli/2.1.319",
+   "content_length": "49455",
+   "transfer_encoding": null,
+   "body_size": 49455
+  },
+  {
+   "method": "POST",
+   "path": "/v1/messages",
+   "user_agent": "claude-cli/2.1.319",
+   "content_length": "49435",
+   "transfer_encoding": null,
+   "body_size": 49435
+  },
+  {
+   "method": "POST",
+   "path": "/v1/messages",
+   "user_agent": "claude-cli/2.1.319",
+   "content_length": "88842",
+   "transfer_encoding": null,
+   "body_size": 88842
+  },
+  {
+   "method": "POST",
+   "path": "/v1/messages",
+   "user_agent": "claude-cli/2.1.319",
+   "content_length": "88842",
+   "transfer_encoding": null,
+   "body_size": 88842
+  },
+  {
+   "method": "POST",
+   "path": "/v1/messages",
+   "user_agent": "claude-cli/2.1.319",
+   "content_length": "88822",
+   "transfer_encoding": null,
+   "body_size": 88822
   }
  ],
  "key_in_record": false,

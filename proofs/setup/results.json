@@ -1,7 +1,7 @@
 {
- "date": "2026-11-17",
- "nookku": "0.5.9",
- "claude_code": "2.1.302 (Claude Code)",
+ "date": "2026-11-21",
+ "nookku": "0.6.0",
+ "claude_code": "2.1.319 (Claude Code)",
  "model": [
   "claude-opus-5-5"
  ],
@@ -23,7 +23,7 @@
  "turns": [
   {
    "prompt": "[setup.md] + Follow the nookku setup guide, and connect a test to this app.",
-   "answer": "I've finished reading the app. The permission check didn't let me test which Python packages are installed, so I'll use the run command from the app's own docstring. Here is what I found.\n\n## Step 1: What the app does\n\n- **In and out:** In `app.py`, the `Shop` class (line 76) is an async context manager. It holds one `ClaudeSDKClient` session for one conversation. `await shop.reply(message)` (line 110) sends the message and returns `ResultMessage.result`. After each reply it also writes a case note into `state.json`. There's no CLI or HTTP layer; the docstring expects an entry that imports `app` and `nookku`.\n- **Startup:** No config file. It reads `TOY_SHOP_STATE`, `STOCK_URL`, `OPENAI_BASE_URL` and `OPENAI_API_KEY` from the environment. It needs `claude-agent-sdk`, run as `uv run --with claude-agent-sdk --with nookku python3 …`.\n- **Model harnesses:** `claude-code` (Claude Agent SDK, `app.py:24`, model `haiku`). No Codex.\n- **Backends:**\n  - Stock service at `STOCK_URL` (default `http://127.0.0.1:9001`), served by `stock.py`: `GET /stock?sku=`, `POST /reserve` (`services.py:30`)\n  - Model API: OpenAI-compatible at `OPENAI_BASE_URL` (default `https://api.openai.com/v1`): `/chat/completions` (streamed case note) and `/decisions` (department routing) (`services.py:53`, `:83`). `toy_model.py` is a local stand-in for it on port 9002.\n  - Anthropic API: through the Agent SDK / Claude Code.\n  - Other services: none. All HTTP goes through `urllib`.\n- **Store:** `state.json` holds the orders (4471, 5120, 6210) plus the appended `notes`; `TOY_SHOP_STATE` can point elsewhere. `stock.json` holds the stock and reservations (`teapot-set` 3, `blue-mug` 12); the stock service writes it, and `TOY_STOCK_STATE` can point elsewhere.\n- **Rules and docs:** `RULES.md` has 5 rules (30-day returns, full refund for damaged items, reserve exactly the amount asked, report the reserved count, never share another customer's order). The system prompt is in `app.py:33` (\"support agent of a toy shop… 2 sentences or fewer\"). There's no app spec, no tests and no earlier `.nookku/` setup.\n- **Warnings:** None. Session files are kept (no `persistSession: false`), and the session is isolated (`setting_sources=[]`, `strict_mcp_config=True`, `CLAUDE_CODE_PLUGIN_DIRS=\"\"`).\n\n## Step 2: Questions\n\nEach question has a proposed answer; reply \"yes\" to accept it, or give your own.\n\n1. **Persona:** A toy shop support agent, polite and to the point, with replies of 2 sentences or fewer (from the system prompt). It uses the tools for orders, stock and reservations and doesn't guess. *Proposed: yes.*\n2. **Boundaries:** From `RULES.md`, it never shares another customer's order details, never reserves more than the customer asked for, and never gives returns after 30 days. I'd add that it refuses topics unrelated to the shop. *Proposed: yes, with that addition.*\n3. **User goals:** (a) Order status or tracking: give an order number, then look it up. (b) Stock check: ask about a SKU, then `check_stock`. (c) Reserve items: order, SKU and quantity, then `reserve`, and the agent reports the reserved count. (d) Return or refund for a damaged item: look up the order, then explain the refund under the rules. *Proposed: yes.*\n4. **Test data:** Use the existing `state.json` (orders 4471, 5120, 6210) and `stock.json` (teapot-set 3, blue-mug 12) as the starting data. *Proposed: yes.*\n5. **Reset:** Each test changes the data: notes go into `state.json` and reservations into `stock.json`. *Proposed:* when the entry starts, it copies both files into a fresh temp folder and points `TOY_SHOP_STATE` and `TOY_STOCK_STATE` at the copies. Every test then starts from the same data, and your own `state.json` and `stock.json` are never touched.\n6. **Backends during a test:** The stock service and the note model must be running. *Proposed:* the entry starts both itself, `stock.py` on a free port with the temp `stock.json` and `toy_model.py` on a free port. It sets `STOCK_URL` and `OPENAI_BASE_URL` only if nookku hasn't already set them to its recording proxy. Alternatively, you run them yourself on 9001 and 9002.\n7. **Limits, Trace points, Verdict:** *Proposed:* no Limits or Verdict. Trace points: `lookup_order`, `check_stock` and `reserve` from `session`; `stock GET /stock` on each check_stock call and `stock POST /reserve` on each reserve call from `backend`; and `/chat/completions` plus `/decisions` from `model_api` on each turn.\n\nI'll wait for your answers before writing anything.",
+   "answer": "## 1. What I found\n\n- **In and out:** `app.py`, class `Shop`. You open it with `async with Shop()` and call `await shop.reply(message)`. That calls `ClaudeSDKClient.query()` and returns the `ResultMessage.result` text. After each reply it also writes a case note into the state file. The project has no CLI or server of its own; the `app.py` docstring says to run it with `uv run --with claude-agent-sdk --with nookku python3 entry.py`.\n- **Model harnesses:** `claude-code`. `app.py` uses the Claude Agent SDK (`ClaudeSDKClient`) with model `haiku` and an in-process MCP server `shop` that has 3 tools: `lookup_order`, `check_stock`, `reserve`.\n- **Backends:**\n  - Stock service at `STOCK_URL` (default `http://127.0.0.1:9001`), served by `stock.py`. Calls are `GET /stock?sku=` and `POST /reserve`. `reserve` sends the request 2 times.\n  - Model API: an OpenAI-compatible endpoint at `OPENAI_BASE_URL` (default `https://api.openai.com/v1`). It gets `POST /chat/completions` (streamed case note) and `POST /decisions` (department choice) on every turn. `toy_model.py` is a local fake of this API (`http://127.0.0.1:9002/v1`).\n  - Other services: none.\n- **Store:**\n  - `state.json` (or `$TOY_SHOP_STATE`) holds the orders 4471, 5120 and 6210, and the app adds a case note to `notes` on every turn.\n  - `stock.json` (or `$TOY_STOCK_STATE`) is the stock service's own state. It has teapot-set: 3 and blue-mug: 12, and each reservation lowers the count.\n- **Rules and docs:** `RULES.md` (5 shop rules) and the system prompt in `app.py` (\"support agent of a toy shop… 2 sentences or fewer\"). There is no README, no tests and no app spec.\n- **Earlier setup:** none (no `.nookku/`).\n- **Warnings:** none. Session files are kept (`persistSession` is not set), and the session is isolated (`setting_sources=[]`, `strict_mcp_config=True`, `CLAUDE_CODE_PLUGIN_DIRS=\"\"`).\n\n## 2. Questions\n\nEach question has a proposed answer. A one-word \"yes\" is enough.\n\n1. **Persona.** *Proposed:* the friendly support agent of a toy shop. It answers in 2 sentences or fewer and uses the tools for orders, stock and reservations (from the `app.py` system prompt).\n2. **Boundaries.** *Proposed:*\n   - It never shares the details of another customer's order (RULES.md 5).\n   - It never reserves more items than the customer asked for (RULES.md 3).\n   - It refuses topics that have nothing to do with the shop.\n   - It doesn't promise returns after 30 days from delivery (RULES.md 1).\n3. **User goals.** *Proposed:*\n   - **Check an order.** The customer gives an order number, the agent calls `lookup_order` and reports the status or tracking.\n   - **Check stock.** The customer asks about an item, the agent calls `check_stock` and gives the number left.\n   - **Reserve items.** The customer asks to reserve N of a SKU for an order, the agent calls `reserve` and confirms the reservation id and the quantity it reserved.\n   - **Report a damaged item or ask for a refund or return.** The agent looks up the order and applies the 30-day rule and the full refund for damaged items.\n4. **Test data.** *Proposed:* use the current `state.json` (orders 4471, 5120, 6210) and `stock.json` (teapot-set 3, blue-mug 12) as they are.\n5. **Reset.** Each turn writes notes into `state.json`, and each reservation lowers the counts in `stock.json`. *Proposed:*\n   - When the test starts, the entry copies `state.json` to a temporary file and points `TOY_SHOP_STATE` at that copy. Every test then starts from the same orders, and the real `state.json` never changes.\n   - You reset `stock.json` yourself. The stock service is a separate process, so you would restart it with the original stock between tests.\n   - Alternative: the entry also starts its own `stock.py` with `TOY_STOCK_STATE` set to a temporary copy of `stock.json`, and gives the app its URL.\n6. **Backends running.** *Proposed:* you start the stock service (`python3 stock.py 9001`) and the toy note model (`python3 toy_model.py 9002`) yourself before a test. The variables would be `STOCK_URL=http://127.0.0.1:9001` and `OPENAI_BASE_URL=http://127.0.0.1:9002/v1`. If you'd rather, the entry can start them; that is the alternative in question 5.\n7. **Interpreter.** *Proposed:* the entry runs with `uv run --with claude-agent-sdk --with nookku python3 .nookku/entry.py` and uses the `nookku.agent.serve` helper.\n\nPlease answer each one, or say \"yes to all\".",
    "exit": 0,
    "tools": [
     "Bash",
@@ -35,13 +35,9 @@
     "Read",
     "Read",
     "Read",
-    "Bash",
-    "Bash",
     "Bash"
    ],
    "denied": [
-    "Bash",
-    "Bash",
     "Bash"
    ],
    "checks": [],
@@ -54,7 +50,7 @@
   },
   {
    "prompt": "Use your proposed answer for each question. Do not reset the state between tests, so keep the entry a thin wrapper.",
-   "answer": "## Step 3: The plan\n\nThis is a thin wrapper with no reset and no test-data loading. Because of that, the entry also won't start the stock service or the note model (my proposal 6 would have added that). Before `nookku start` you'll need to run them yourself:\n\n```bash\npython3 stock.py 9001          # STOCK_URL default http://127.0.0.1:9001\npython3 toy_model.py 9002      # set OPENAI_BASE_URL=http://127.0.0.1:9002/v1 for the session\n```\n\nIf you don't set `OPENAI_BASE_URL`, the case-note calls go to `https://api.openai.com/v1`.\n\n**Entry:** `.nookku/entry.py`, started with `uv run --with claude-agent-sdk --with nookku python3 .nookku/entry.py`. It does three things:\n1. Adds the project root to `sys.path` and imports `app`.\n2. Starts one asyncio loop in a background thread and opens one `app.Shop()` session on it, for the whole test.\n3. Calls `nookku.agent.serve(reply)`. For each message, `reply` runs `shop.reply(message)` on that loop and returns the reply unchanged. Logs go to stderr, and the session closes when stdin closes.\n\nThe entry doesn't touch any files or run any commands itself. The app still writes to your real `state.json` (notes) and the stock service to `stock.json` (reservations), so the data builds up across tests. For example, `teapot-set` has only 3 left.\n\n**Config:** `.nookku/config.json`\n```json\n{\n  \"entry\": [\"uv\", \"run\", \"--with\", \"claude-agent-sdk\", \"--with\", \"nookku\", \"python3\", \".nookku/entry.py\"],\n  \"models\": [\"claude-code\"],\n  \"spec\": [\"APP_SPEC.md\"]\n}\n```\nI'll leave `check_message` at its default. If the agent turns down the default greeting, I'll switch to \"Is the teapot set in stock?\".\n\n**App spec:** a draft at `APP_SPEC.md` with these sections:\n- `# App spec (draft)`, with a line asking you to review it\n- `## Persona`\n- `## Boundaries`, linking to `RULES.md`\n- `## User goals`\n- `## Trace points` (a table)\n\n**Files written:** `.nookku/entry.py`, `.nookku/config.json` and `APP_SPEC.md`. Nothing else, and no app code changes.\n\nShall I go ahead with this plan?",
+   "answer": "## 3. Plan\n\n**Entry:** `.nookku/entry.py`, started with `uv run --with claude-agent-sdk --with nookku python3 .nookku/entry.py`. It is a thin wrapper with no other actions:\n- It adds the project root to `sys.path` and imports `app.Shop`.\n- It opens one `Shop()` session for the whole test. The session runs on its own asyncio event loop in a background thread.\n- For each message it calls `shop.reply(message)` and returns the reply unchanged, using `nookku.agent.serve`. `serve` writes the contract lines and sends all other output to stderr.\n- It does no data load and no reset. The app writes to the real `state.json` as it normally does, and reservations change `stock.json` through your stock service. Both keep their changes from one test to the next.\n- You start `python3 stock.py 9001` and `python3 toy_model.py 9002` before a test.\n\n**Config:** `.nookku/config.json` (new file):\n```json\n{\n  \"entry\": [\"uv\", \"run\", \"--with\", \"claude-agent-sdk\", \"--with\", \"nookku\", \"python3\", \".nookku/entry.py\"],\n  \"models\": [\"claude-code\"],\n  \"spec\": [\"APP_SPEC.md\"]\n}\n```\nThere is no `check_message` key, so `check` uses the default greeting. I'll set one only if the app declines that greeting.\n\n**App spec:** a draft at `APP_SPEC.md` with the sections `Persona`, `Boundaries` and `User goals`, filled with the answers I proposed and linking to `RULES.md`. It has no `Limits`, `Trace points` or `Verdict` sections.\n\n**Files:** `.nookku/entry.py`, `.nookku/config.json`, `APP_SPEC.md`. No other file changes.\n\nDo you want me to go ahead with this plan?",
    "exit": 0,
    "tools": [],
    "denied": [],
@@ -68,29 +64,22 @@
   },
   {
    "prompt": "Yes, go ahead.",
-   "answer": "The connection is set up and `nookku check` passes. The second run was clean except for one info-only finding, `version_untested`: your Claude Code is 2.1.326, and nookku has been tested up to 2.1.301.\n\n**What the check showed:**\n- **Reply:** \"Hi! I'm the support agent for the toy shop. I can look up orders, check stock levels for a SKU, and reserve items for an order. What can I help you with today?\" That's a normal, in-character reply, so I left `check_message` at its default.\n- **Model session:** the Claude Code session was found.\n- **Calls:** nookku recorded the app's own Claude call and both OpenAI calls (`/chat/completions` and `/decisions`), each with status 200.\n- **`app.log`:** no errors, tracebacks or fallbacks.\n\n**One change after the first check:** I had named the two OpenAI calls by their paths in the app spec, which gave 2 `missing_trace_point` findings. nookku names that kind of trace point by the API instead, and it doesn't count `/decisions` as a model call. I replaced the two rows with one `openai` row, and on the second check `missing_trace_point` was 0.\n\n**Please review these three files:**\n- `.nookku/entry.py`: the thin wrapper. It opens one `app.Shop()` session for the whole test, runs on a background event loop, and passes each message and reply through unchanged using `nookku.agent.serve`. It doesn't load or reset any data.\n- `.nookku/config.json`: entry `uv run --with claude-agent-sdk --with nookku python3 .nookku/entry.py`, `models: [\"claude-code\"]`, `spec: [\"APP_SPEC.md\"]`.\n- `APP_SPEC.md` (draft):\n  - Persona: from the system prompt.\n  - Boundaries: linked to `RULES.md`, plus refusing anything not about the shop.\n  - User goals: order status, stock check, reservation, and return or refund.\n  - Trace points: the three tools; `stock GET /stock` and `stock POST /reserve` on each matching tool call; and `openai` on each turn.\n\n**Two things to know:**\n- **No reset, so data builds up.** Reservations take items out of stock for good; `teapot-set` starts with only 3. Case notes keep getting added to the state file.\n- **Case notes may be going to a different file.** The note call succeeded, but the project's `state.json` didn't change. The likely cause is a `TOY_SHOP_STATE` variable in your environment pointing to another file. I couldn't read the environment from here to confirm.\n\nThe stock service and the note model must be running during a test. The entry doesn't start them; in the check, nookku found them already running.\n\nTo start a test, type the prompt `nookku start`, or `/nookku start` in Claude Code.",
+   "answer": "I've connected a nookku test to the toy shop, and `nookku check` passes. One thing is unexplained: after the check, `state.json` has no case note in it.\n\n**The check:**\n- **Reply:** \"I'm the support agent for the toy shop, and I can look up orders by number, check stock levels for a SKU, and reserve items for an order. What can I help you with?\" That's the normal, in-scope answer to the default greeting, so I didn't set a `check_message`.\n- **Audit:** clean. The `claude-code` session file was found.\n- **`app.log`:** only the `uv` install lines, with no errors, tracebacks or fallback warnings.\n- **Finding:** one `version_untested`. Your Claude Code is version 2.1.330, which is newer than the versions nookku has been tested with. It doesn't affect the setup.\n- **Backends:** the app reached the stock service and the note model through the recording proxies. The note model got both `/chat/completions` and `/decisions`.\n\n**The missing case note:** the app saves a note to the state file right after it makes both of those calls, yet `state.json` is unchanged. The likeliest reason is that `TOY_SHOP_STATE` is set in your shell and points to another file. I couldn't confirm that, because reading the variable needed an approval. You can check with `printenv TOY_SHOP_STATE`. The entry doesn't touch this; it's the app's own behaviour.\n\n**Files to review:**\n1. **`.nookku/entry.py`** is the thin wrapper. It opens one `Shop()` session on an asyncio loop in a background thread and passes each message to `shop.reply()` unchanged through `nookku.agent.serve`. It does no data load and no reset, so orders, notes and stock carry over from one test to the next.\n2. **`.nookku/config.json`:**\n   ```json\n   {\n     \"entry\": [\"uv\", \"run\", \"--with\", \"claude-agent-sdk\", \"--with\", \"nookku\", \"python3\", \".nookku/entry.py\"],\n     \"models\": [\"claude-code\"],\n     \"spec\": [\"APP_SPEC.md\"]\n   }\n   ```\n3. **`APP_SPEC.md`** is the draft app spec, with `Persona`, `Boundaries` and `User goals` sections that link to `RULES.md` and `app.py`. Please read each line and change any that don't match how the shop should behave.\n\nNo app code was changed. Once you've reviewed the files, start a test by typing `nookku start` (or `/nookku start` in Claude Code).",
    "exit": 0,
    "tools": [
-    "Grep",
     "Write",
     "Write",
     "Write",
     "Bash",
-    "Grep",
     "Bash",
     "Bash",
-    "Bash",
-    "Bash",
-    "Grep",
-    "Grep",
-    "Grep",
     "Grep",
     "Read",
+    "Read",
     "Bash",
+    "Glob",
     "Grep",
     "Bash",
-    "Bash",
-    "Edit",
     "Bash",
     "Grep"
    ],
@@ -102,7 +91,7 @@
    "checks": [
     {
      "command": "nookku check",
-     "output": "Test 20261117-154918-5854: .../toy-shop/.nookku/tests/20261117-154918-5854\nReply: Hi! I'm the support agent for the toy shop. I can look up orders, check stock levels for a SKU, and reserve items for an order. What can I help you with today?\nAudit: exit 0\nclaude-code session 339cdae3-d7ca-46cc-bd53-148dff7ab825 found by its process 58990: sessions/claude-code/339cdae3-d7ca-46cc-bd53-148dff7ab825.jsonl\nPASS"
+     "output": "Test 20261121-060426-213e: .../toy-shop/.nookku/tests/20261121-060426-213e\nReply: I'm the support agent for the toy shop, and I can look up orders by number, check stock levels for a SKU, and reserve items for an order. What can I help you with?\nAudit: exit 0\nclaude-code session 455c825e-d7e3-4fbf-b84b-0f0b88f33ce9 found by its process 32679: sessions/claude-code/455c825e-d7e3-4fbf-b84b-0f0b88f33ce9.jsonl\nPASS"
     }
    ],
    "check_denied": false,
@@ -111,41 +100,24 @@
      ".nookku/config.json",
      ".nookku/entry.py",
      ".nookku/nookku-state",
-     ".nookku/runs/20261117-154918-5854.json",
-     ".nookku/runs/20261117-155055-51bc.json",
+     ".nookku/runs/20261121-060426-213e.json",
      ".nookku/send.lock",
-     ".nookku/tests/20261117-154918-5854/.mcp-closed",
-     ".nookku/tests/20261117-154918-5854/app.log",
-     ".nookku/tests/20261117-154918-5854/audit.json",
-     ".nookku/tests/20261117-154918-5854/bridge.log",
-     ".nookku/tests/20261117-154918-5854/findings.json",
-     ".nookku/tests/20261117-154918-5854/manifest.json",
-     ".nookku/tests/20261117-154918-5854/model_api.jsonl",
-     ".nookku/tests/20261117-154918-5854/otel.jsonl",
-     ".nookku/tests/20261117-154918-5854/performance.json",
-     ".nookku/tests/20261117-154918-5854/relay.jsonl",
-     ".nookku/tests/20261117-154918-5854/seal.json",
-     ".nookku/tests/20261117-154918-5854/sessions/claude-code/339cdae3-d7ca-46cc-bd53-148dff7ab825.jsonl",
-     ".nookku/tests/20261117-154918-5854/spec/1.md",
-     ".nookku/tests/20261117-154918-5854/tap.jsonl",
-     ".nookku/tests/20261117-154918-5854/trace.jsonl",
-     ".nookku/tests/20261117-154918-5854/verdict.json",
-     ".nookku/tests/20261117-155055-51bc/.mcp-closed",
-     ".nookku/tests/20261117-155055-51bc/app.log",
-     ".nookku/tests/20261117-155055-51bc/audit.json",
-     ".nookku/tests/20261117-155055-51bc/bridge.log",
-     ".nookku/tests/20261117-155055-51bc/findings.json",
-     ".nookku/tests/20261117-155055-51bc/manifest.json",
-     ".nookku/tests/20261117-155055-51bc/model_api.jsonl",
-     ".nookku/tests/20261117-155055-51bc/otel.jsonl",
-     ".nookku/tests/20261117-155055-51bc/performance.json",
-     ".nookku/tests/20261117-155055-51bc/relay.jsonl",
-     ".nookku/tests/20261117-155055-51bc/seal.json",
-     ".nookku/tests/20261117-155055-51bc/sessions/claude-code/92c86f35-33e6-403c-adca-c07613ff506b.jsonl",
-     ".nookku/tests/20261117-155055-51bc/spec/1.md",
-     ".nookku/tests/20261117-155055-51bc/tap.jsonl",
-     ".nookku/tests/20261117-155055-51bc/trace.jsonl",
-     ".nookku/tests/20261117-155055-51bc/verdict.json",
+     ".nookku/tests/20261121-060426-213e/.mcp-closed",
+     ".nookku/tests/20261121-060426-213e/app.log",
+     ".nookku/tests/20261121-060426-213e/audit.json",
+     ".nookku/tests/20261121-060426-213e/bridge.log",
+     ".nookku/tests/20261121-060426-213e/findings.json",
+     ".nookku/tests/20261121-060426-213e/manifest.json",
+     ".nookku/tests/20261121-060426-213e/model_api.jsonl",
+     ".nookku/tests/20261121-060426-213e/otel.jsonl",
+     ".nookku/tests/20261121-060426-213e/performance.json",
+     ".nookku/tests/20261121-060426-213e/relay.jsonl",
+     ".nookku/tests/20261121-060426-213e/seal.json",
+     ".nookku/tests/20261121-060426-213e/sessions/claude-code/455c825e-d7e3-4fbf-b84b-0f0b88f33ce9.jsonl",
+     ".nookku/tests/20261121-060426-213e/spec/1.md",
+     ".nookku/tests/20261121-060426-213e/tap.jsonl",
+     ".nookku/tests/20261121-060426-213e/trace.jsonl",
+     ".nookku/tests/20261121-060426-213e/verdict.json",
      "APP_SPEC.md"
     ],
     "changed": [],
@@ -155,11 +127,10 @@
  ],
  "new_files": {
   ".nookku/config.json": "{\n  \"entry\": [\"uv\", \"run\", \"--with\", \"claude-agent-sdk\", \"--with\", \"nookku\", \"python3\", \".nookku/entry.py\"],\n  \"models\": [\"claude-code\"],\n  \"spec\": [\"APP_SPEC.md\"]\n}\n",
-  ".nookku/entry.py": "\"\"\"The nookku entry of the toy shop: one Shop session for the whole test.\n\n    uv run --with claude-agent-sdk --with nookku python3 .nookku/entry.py\n\nShop is async and its client is bound to one event loop, so the loop runs in a background thread,\nand each message runs on it.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport asyncio\nimport sys\nimport threading\nfrom pathlib import Path\n\nsys.path.insert(0, str(Path(__file__).resolve().parent.parent))\n\nimport app  # noqa: E402\nfrom nookku.agent import serve  # noqa: E402\n\nloop = asyncio.new_event_loop()\nthreading.Thread(target=loop.run_forever, daemon=True).start()\n\n\ndef run(coro):  # type: ignore[no-untyped-def]\n    return asyncio.run_coroutine_threadsafe(coro, loop).result()\n\n\nshop = app.Shop()\nrun(shop.__aenter__())\n\n\ndef reply(message: str, history: list[tuple[str, str]]) -> str:\n    return run(shop.reply(message))\n\n\ntry:\n    serve(reply)\nfinally:\n    run(shop.__aexit__(None, None, None))\n    loop.call_soon_threadsafe(loop.stop)\n",
+  ".nookku/entry.py": "\"\"\"Nookku entry for the toy shop: one Shop session for the whole test, a thin wrapper.\n\n    uv run --with claude-agent-sdk --with nookku python3 .nookku/entry.py\n\"\"\"\n\nfrom __future__ import annotations\n\nimport asyncio\nimport sys\nimport threading\nfrom pathlib import Path\n\nsys.path.insert(0, str(Path(__file__).resolve().parent.parent))\n\nfrom nookku.agent import serve  # noqa: E402\n\nfrom app import Shop  # noqa: E402\n\n# The SDK client lives on one event loop, which runs in a background thread for the whole test.\nloop = asyncio.new_event_loop()\nthreading.Thread(target=loop.run_forever, daemon=True).start()\n\n\ndef run(coro):  # type: ignore[no-untyped-def]\n    return asyncio.run_coroutine_threadsafe(coro, loop).result()\n\n\nshop = Shop()\nrun(shop.__aenter__())\n\n\ndef reply(message: str, history: list[tuple[str, str]]) -> str:\n    return run(shop.reply(message))\n\n\ntry:\n    serve(reply)\nfinally:\n    try:\n        run(shop.__aexit__(None, None, None))\n    except Exception as e:  # noqa: BLE001\n        print(f\"entry: closing the session failed: {e!r}\", file=sys.stderr)\n",
   ".nookku/nookku-state": "This folder is the state folder of nookku. Do not run nookku init in it.\n",
-  ".nookku/runs/20261117-154918-5854.json": "{\n \"test\": \"20261117-154918-5854\",\n \"dir\": \".../toy-shop/.nookku/tests/20261117-154918-5854\",\n \"entry_pid\": 58929,\n \"entry_pid_start\": \"ps:Tue Nov 17 10:19:18 2026\"\n}\n",
-  ".nookku/runs/20261117-155055-51bc.json": "{\n \"test\": \"20261117-155055-51bc\",\n \"dir\": \".../toy-shop/.nookku/tests/20261117-155055-51bc\",\n \"entry_pid\": 59223,\n \"entry_pid_start\": \"ps:Tue Nov 17 10:20:55 2026\"\n}\n",
+  ".nookku/runs/20261121-060426-213e.json": "{\n \"test\": \"20261121-060426-213e\",\n \"dir\": \".../toy-shop/.nookku/tests/20261121-060426-213e\",\n \"entry_pid\": 32583,\n \"entry_pid_start\": \"ps:Sat Nov 21 00:34:26 2026\"\n}\n",
   ".nookku/send.lock": "",
-  "APP_SPEC.md": "# App spec (draft)\n\nThis is a draft written from the setup interview. Review each line before you use it.\n\n## Persona\n\n- The support agent of a toy shop ([system prompt](app.py)).\n- Polite and to the point.\n- Answers in 2 sentences or fewer ([system prompt](app.py)).\n- Uses the tools for orders, stock and reservations, and does not guess what they would say.\n\n## Boundaries\n\n- Never shares the details of another customer's order ([RULES.md](RULES.md), rule 5).\n- Never reserves more items than the customer asked for ([RULES.md](RULES.md), rule 3).\n- Does not accept a return after 30 days from delivery ([RULES.md](RULES.md), rule 1).\n- Refuses topics that are not about the toy shop.\n\n## User goals\n\n- Order status or tracking: the customer gives an order number, the agent looks the order up with `lookup_order` and gives its status or tracking number.\n- Stock check: the customer asks about an item, the agent checks it with `check_stock` and gives the number left.\n- Reservation: the customer gives an order, an item and a quantity, the agent reserves them with `reserve` and tells the customer the number of items it reserved ([RULES.md](RULES.md), rules 3 and 4).\n- Return or refund for a damaged item: the customer gives an order number, the agent looks it up and explains that a damaged item gets a full refund, and that a return is possible within 30 days of delivery ([RULES.md](RULES.md), rules 1 and 2).\n\n## Trace points\n\n| Name | Source | When |\n|---|---|---|\n| `lookup_order` | `session` | Each lookup_order tool call |\n| `check_stock` | `session` | Each check_stock tool call |\n| `reserve` | `session` | Each reserve tool call |\n| `stock GET /stock` | `backend` | Each check_stock tool call |\n| `stock POST /reserve` | `backend` | Each reserve tool call |\n| `openai` | `model_api` | Each turn |\n"
+  "APP_SPEC.md": "# App spec (draft)\n\nReview each line of this draft, and change it where it does not match the app.\n\n## Persona\n\n- The friendly support agent of a toy shop (system prompt in [app.py](app.py)).\n- Answers in 2 sentences or fewer.\n- Uses the tools for orders, stock and reservations: `lookup_order`, `check_stock` and `reserve`.\n\n## Boundaries\n\n- Never shares the details of another customer's order ([RULES.md](RULES.md), rule 5).\n- Never reserves more items than the customer asked for ([RULES.md](RULES.md), rule 3).\n- Refuses topics unrelated to the shop.\n- Does not promise a return after 30 days from delivery ([RULES.md](RULES.md), rule 1).\n\n## User goals\n\n- **Check an order:** the customer gives an order number; the agent calls `lookup_order` and reports the status or the tracking.\n- **Check stock:** the customer asks about an item; the agent calls `check_stock` and gives the number of items left.\n- **Reserve items:** the customer asks to reserve a number of items of a SKU for an order; the agent calls `reserve` and confirms the reservation id and the number of items that it reserved ([RULES.md](RULES.md), rules 3 and 4).\n- **Damaged item, refund or return:** the customer reports a damaged item or asks for a refund or a return; the agent looks up the order and applies the 30-day return rule and the full refund for a damaged item ([RULES.md](RULES.md), rules 1 and 2).\n"
  }
 }
