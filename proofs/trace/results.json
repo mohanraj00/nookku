@@ -1,12 +1,12 @@
 {
- "date": "2026-11-24",
+ "date": "2026-11-25",
  "versions": {
   "session files": {
    "claude-code": "2.1.301",
    "codex": "0.169.0"
   },
   "claude-agent-sdk": "0.2.168",
-  "nookku": "0.6.0",
+  "nookku": "0.6.1",
   "claude-code": "2.1.319 (Claude Code)",
   "codex": "codex-cli 0.169.0"
  },
@@ -18,7 +18,6 @@
    "version": "2.1.301",
    "items": 10,
    "ignored": {
-    "ai-title": 2,
     "api-request": 6,
     "api-request-blob": 7,
     "api-request-shape": 1,
@@ -26,6 +25,7 @@
     "atis-latch": 4,
     "attachment": 17,
     "cost-state": 1,
+    "file-history-snapshot": 4,
     "last-prompt": 4,
     "queue-operation": 8
    }
@@ -223,46 +223,12 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "7c6063270d31bebfdff01b06a095c2363b51b46c37016acd33c74f1a13aed786",
-    "chars": 397
+    "sha256": "df165cf53485b439e1ab7276de4ca7dae4153d917b6881dd757466b6f5b34e5b",
+    "chars": 398
    },
    "output": {
     "sha256": "7ad7037a58211c4f07ea12fb8f9a20eac0f55bfa7cd5ee029a2665c174be0c44",
     "chars": 23
-   },
-   "error": null
-  },
-  {
-   "turn": 1,
-   "harness": "claude-code",
-   "kind": "log",
-   "role": null,
-   "server": null,
-   "name": "assistant_response",
-   "exit_code": null,
-   "harness_internal": false,
-   "line": 2,
-   "input_keys": [
-    "event.name",
-    "event.sequence",
-    "event.timestamp",
-    "message.uuid",
-    "model",
-    "prompt.id",
-    "query_source",
-    "request_id",
-    "response",
-    "response_length",
-    "session.id",
-    "terminal.type"
-   ],
-   "input": {
-    "sha256": "a98f7287dca486861a08035568231852a58c84ba3919f8648540250386fdfbe8",
-    "chars": 492
-   },
-   "output": {
-    "sha256": "6478f68d3b620d941073e9245da7aa7821ef4c291780328c60af34d7341ad500",
-    "chars": 30
    },
    "error": null
   },
@@ -291,7 +257,7 @@
    "name": "tool_decision",
    "exit_code": null,
    "harness_internal": false,
-   "line": 3,
+   "line": 2,
    "input_keys": [
     "decision",
     "event.name",
@@ -308,8 +274,8 @@
     "tool_use_id"
    ],
    "input": {
-    "sha256": "e9fc5b07443e2835b651ebf3e8e7e53e327fdf3a2f669f9c0a04388813bf2a0b",
-    "chars": 497
+    "sha256": "f300746b46a16cacc075647df569e20e6e0ac248e8e0f30cc9b9b48cb4c9633f",
+    "chars": 498
    },
    "output": {
     "sha256": "d417b1df59e53b33ae7b69bf6dc5cda072196ecf16d9ccb31f0890edb2af0520",
@@ -326,7 +292,7 @@
    "name": "tool_result",
    "exit_code": null,
    "harness_internal": false,
-   "line": 4,
+   "line": 3,
    "input_keys": [
     "duration_ms",
     "event.name",
@@ -345,8 +311,8 @@
     "tool_use_id"
    ],
    "input": {
-    "sha256": "f130a009877cf9d4587be5622f0b275406f302007a4da0fd4dc4fdc004ea91f7",
-    "chars": 573
+    "sha256": "9826d686c74aba194e34eedb9a71b0ee90859fbb65650d949846dae76bb06de7",
+    "chars": 574
    },
    "output": {
     "sha256": "8826c8b6219392c375cdff139255b158566532a3d44f28d3ee3e1fa91d4ad19a",
@@ -363,10 +329,10 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 35,
+   "line": 34,
    "output": {
-    "sha256": "0f73f7de039d0b21ef7e5bfc4efb037b0e99262c1af5882a9bd155d94f18c594",
-    "chars": 51
+    "sha256": "da2c4e15d23232824919be51c74b84f34e42fc9c623488bb4a7ed3c10c5137e9",
+    "chars": 58
    }
   },
   {
@@ -378,7 +344,7 @@
    "name": "assistant_response",
    "exit_code": null,
    "harness_internal": false,
-   "line": 5,
+   "line": 4,
    "input_keys": [
     "event.name",
     "event.sequence",
@@ -394,8 +360,8 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "b01b541790da3eac44f68bc764c6671fc276ed5509dea41b5971a279dbc501aa",
-    "chars": 491
+    "sha256": "3b6296b2ac006d8e74e8ec3a33bc2a65b8238ff4276525a3c9a834154ed756e6",
+    "chars": 498
    },
    "output": {
     "sha256": "6478f68d3b620d941073e9245da7aa7821ef4c291780328c60af34d7341ad500",
@@ -429,8 +395,8 @@
    "harness_internal": false,
    "line": 14,
    "output": {
-    "sha256": "d71a9b4aacc4dc674c3bf6fa260e0868dd195853505a6f4bf93e0770b0addade",
-    "chars": 37
+    "sha256": "a7c7743eb4174dba6028ba67e29b166558ca14c72ef676f695cdc9ef30016820",
+    "chars": 36
    }
   },
   {
@@ -460,23 +426,8 @@
    "harness_internal": false,
    "line": 21,
    "output": {
-    "sha256": "0e261ac6d629fd5ebaf93b2eb73bcd606d40531508bbac6b4e15c9b57ff0c500",
-    "chars": 62
-   }
-  },
-  {
-   "turn": 2,
-   "harness": "claude-code",
-   "kind": "message",
-   "role": "user",
-   "server": null,
-   "name": null,
-   "exit_code": null,
-   "harness_internal": false,
-   "line": 38,
-   "output": {
-    "sha256": "8fe790b82848fa46a5110bb9c31e623209fdb3a8a04c9e56453706694bebc305",
-    "chars": 23
+    "sha256": "a2f52915b87baa4d28e6408b185915f20659c09eda4bd0433a6bda24c14ac29a",
+    "chars": 49
    }
   },
   {
@@ -488,7 +439,7 @@
    "name": "user_prompt",
    "exit_code": null,
    "harness_internal": false,
-   "line": 6,
+   "line": 5,
    "input_keys": [
     "event.name",
     "event.sequence",
@@ -502,14 +453,29 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "318b0a52b446035ea2bc52caceffb0ff06364e60d320d9cbe221b123435c0d90",
-    "chars": 398
+    "sha256": "be1c85fa97166f3d76c40a2c2b47a13950f863566ba0f6d93061cc13c68f4039",
+    "chars": 399
    },
    "output": {
     "sha256": "7ad7037a58211c4f07ea12fb8f9a20eac0f55bfa7cd5ee029a2665c174be0c44",
     "chars": 23
    },
    "error": null
+  },
+  {
+   "turn": 2,
+   "harness": "claude-code",
+   "kind": "message",
+   "role": "user",
+   "server": null,
+   "name": null,
+   "exit_code": null,
+   "harness_internal": false,
+   "line": 37,
+   "output": {
+    "sha256": "8fe790b82848fa46a5110bb9c31e623209fdb3a8a04c9e56453706694bebc305",
+    "chars": 23
+   }
   },
   {
    "turn": 2,
@@ -536,7 +502,7 @@
    "name": "tool_decision",
    "exit_code": null,
    "harness_internal": false,
-   "line": 7,
+   "line": 6,
    "input_keys": [
     "decision",
     "event.name",
@@ -553,8 +519,8 @@
     "tool_use_id"
    ],
    "input": {
-    "sha256": "aa9ee3b4846133ed98d8721f318240f2c1dca3109ed756ec11d779f91d0b3801",
-    "chars": 498
+    "sha256": "f9d3d2b573e6dad8afe7d61492aa256bacb6b6c1342d73c03859d785f7df7323",
+    "chars": 499
    },
    "output": {
     "sha256": "d417b1df59e53b33ae7b69bf6dc5cda072196ecf16d9ccb31f0890edb2af0520",
@@ -571,7 +537,7 @@
    "name": "tool_result",
    "exit_code": null,
    "harness_internal": false,
-   "line": 8,
+   "line": 7,
    "input_keys": [
     "duration_ms",
     "error",
@@ -591,8 +557,8 @@
     "tool_use_id"
    ],
    "input": {
-    "sha256": "78a904bccacb15885d0c539ee6f4d27e2a55e227e72db23ded2ef82c351ce1e4",
-    "chars": 619
+    "sha256": "58de80f5991dcb42987a6c6fb1c7d4db353ce09ea6d4da82b0309684eaf3203c",
+    "chars": 620
    },
    "output": {
     "sha256": "8826c8b6219392c375cdff139255b158566532a3d44f28d3ee3e1fa91d4ad19a",
@@ -614,8 +580,8 @@
    "harness_internal": false,
    "line": 48,
    "output": {
-    "sha256": "58d5d486bdcea8c85b9a11ed3dabc269c0fa7a09386b9cf8ab8eef39c03b3d47",
-    "chars": 104
+    "sha256": "9cd3994d0783e520e9f61fcfa081d558a4a5e53bef200d16ff657d5c0c761391",
+    "chars": 103
    }
   },
   {
@@ -627,7 +593,7 @@
    "name": "assistant_response",
    "exit_code": null,
    "harness_internal": false,
-   "line": 9,
+   "line": 8,
    "input_keys": [
     "event.name",
     "event.sequence",
@@ -643,7 +609,7 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "1b1cb4c9abb1d1565341a254889bfbc7e95b05d99a45f6c6be48535d549e2933",
+    "sha256": "538fca7446a7b00bdf8578f37fcc6e9f9865c46fcecb1ee2285b5ad29cd99183",
     "chars": 545
    },
    "output": {
@@ -678,8 +644,8 @@
    "harness_internal": false,
    "line": 30,
    "output": {
-    "sha256": "c42a1c65c6af44b5f96de10f43a2a5bd3ad2c68bdeca74a31a5aedf608294f21",
-    "chars": 37
+    "sha256": "9adfa2145dbe075b371ae50b43c1b37469c55398b6529f7b84a61a9dfc0ccc4a",
+    "chars": 36
    }
   },
   {
@@ -709,9 +675,41 @@
    "harness_internal": false,
    "line": 37,
    "output": {
-    "sha256": "0624dc7bc056de278347d549d4330641d113cf56b0c2d24c4d2202e61e0fbd47",
-    "chars": 96
+    "sha256": "5e914ba0e8bf8a67132f58320dee5d48482d80eea70f88c9ad08c8675419a9fe",
+    "chars": 82
    }
+  },
+  {
+   "turn": 3,
+   "harness": "claude-code",
+   "kind": "log",
+   "role": null,
+   "server": null,
+   "name": "user_prompt",
+   "exit_code": null,
+   "harness_internal": false,
+   "line": 9,
+   "input_keys": [
+    "event.name",
+    "event.sequence",
+    "event.timestamp",
+    "message.uuid",
+    "prompt",
+    "prompt.id",
+    "prompt_length",
+    "prompt_text",
+    "session.id",
+    "terminal.type"
+   ],
+   "input": {
+    "sha256": "d27739de467a3279fb7d4a4e923dbaedd1961f60947cf191e11eb7380fd693dc",
+    "chars": 399
+   },
+   "output": {
+    "sha256": "7ad7037a58211c4f07ea12fb8f9a20eac0f55bfa7cd5ee029a2665c174be0c44",
+    "chars": 23
+   },
+   "error": null
   },
   {
    "turn": 3,
@@ -731,48 +729,16 @@
   {
    "turn": 3,
    "harness": "claude-code",
-   "kind": "log",
-   "role": null,
-   "server": null,
-   "name": "user_prompt",
-   "exit_code": null,
-   "harness_internal": false,
-   "line": 10,
-   "input_keys": [
-    "event.name",
-    "event.sequence",
-    "event.timestamp",
-    "message.uuid",
-    "prompt",
-    "prompt.id",
-    "prompt_length",
-    "prompt_text",
-    "session.id",
-    "terminal.type"
-   ],
-   "input": {
-    "sha256": "a34db06c88f636c1aa9640485ba257cb1ebc63cc81ef08afb4291d2c1c564412",
-    "chars": 398
-   },
-   "output": {
-    "sha256": "7ad7037a58211c4f07ea12fb8f9a20eac0f55bfa7cd5ee029a2665c174be0c44",
-    "chars": 23
-   },
-   "error": null
-  },
-  {
-   "turn": 3,
-   "harness": "claude-code",
    "kind": "message",
    "role": "assistant",
    "server": null,
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 55,
+   "line": 56,
    "output": {
-    "sha256": "1c655dc4d71a0f5c7912a45f9de14417efb959a5ec9b84b8d53528ed7c3e88f2",
-    "chars": 75
+    "sha256": "e6e6844fa8d4290bad3b145f18e8a4dd2617394514f0c9a3cd3fbdbd132419e3",
+    "chars": 141
    }
   },
   {
@@ -784,7 +750,7 @@
    "name": "assistant_response",
    "exit_code": null,
    "harness_internal": false,
-   "line": 11,
+   "line": 10,
    "input_keys": [
     "event.name",
     "event.sequence",
@@ -800,8 +766,8 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "b4e66cb2aaeccc6e5da566a9a20a7e23917a0c357479590ad5121a05900a801d",
-    "chars": 515
+    "sha256": "3d35d08c2652910bb1a0ab990c80d6bee25a136f103a7b9a482279a341c227e7",
+    "chars": 583
    },
    "output": {
     "sha256": "6478f68d3b620d941073e9245da7aa7821ef4c291780328c60af34d7341ad500",
@@ -866,8 +832,8 @@
    "harness_internal": false,
    "line": 57,
    "output": {
-    "sha256": "047935cb46b4f26110bff388aff8a069a592fbb05ec361c60d4f0d8e55bec1ae",
-    "chars": 37
+    "sha256": "5e0cda1b531ddf12c5b478c4e5c0d5e0f4ef7517dad5edbd98cd2c32da5c9c11",
+    "chars": 27
    }
   },
   {
@@ -879,7 +845,7 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 58,
+   "line": 59,
    "output": {
     "sha256": "b02c321f0b34584cafd4220bb2b571f0c7ba70a2722a01d1cb2a48fbdffc76cf",
     "chars": 19
@@ -894,7 +860,7 @@
    "name": "user_prompt",
    "exit_code": null,
    "harness_internal": false,
-   "line": 12,
+   "line": 11,
    "input_keys": [
     "event.name",
     "event.sequence",
@@ -908,8 +874,8 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "5704dade6bdac149f1b1396cca02728142341ad7bfe5961d91bd009202cd02a7",
-    "chars": 390
+    "sha256": "9f2f6e23da42607e80f92cb6843089249e5dbaeb3df442897d8620807a0c5905",
+    "chars": 391
    },
    "output": {
     "sha256": "7ad7037a58211c4f07ea12fb8f9a20eac0f55bfa7cd5ee029a2665c174be0c44",
@@ -926,10 +892,10 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 61,
+   "line": 63,
    "output": {
-    "sha256": "ee8bbd5d53bbbb4fb4557b21be29170cd6d27d9c7a08902ef791a728893e553d",
-    "chars": 162
+    "sha256": "2baa7cc6377cbb0724b75e4bf4119727ec4bffb24e0b2051e45e0cb0e2868f08",
+    "chars": 110
    }
   },
   {
@@ -941,7 +907,7 @@
    "name": "assistant_response",
    "exit_code": null,
    "harness_internal": false,
-   "line": 13,
+   "line": 12,
    "input_keys": [
     "event.name",
     "event.sequence",
@@ -957,8 +923,8 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "3845b39b563356b528387bf72f7dbbddc56d006eb22e567d531a433895a78718",
-    "chars": 603
+    "sha256": "b53f206b38f248dca2ea961209c19df8c76dba7ca3bdac42f59aa7b8a69bf834",
+    "chars": 552
    },
    "output": {
     "sha256": "6478f68d3b620d941073e9245da7aa7821ef4c291780328c60af34d7341ad500",
@@ -1027,7 +993,7 @@
    "input": [
     "/bin/zsh",
     "-lc",
-    "rg --files --hidden -g returns.txt -g '!**/.git/**' . ../.."
+    "rg --files --hidden -g returns.txt -g '!.git' ../.."
    ],
    "output": "",
    "error": null
@@ -1045,7 +1011,7 @@
    "input": [
     "/bin/zsh",
     "-lc",
-    "rg --files --hidden --no-ignore -g returns.txt -g '!**/.git/**' . ../../examples"
+    "rg --files --hidden -g returns.txt -g '!.git' ~/Reboot/public/nookku"
    ],
    "output": "",
    "error": null
@@ -1061,7 +1027,7 @@
    "harness_internal": false,
    "line": 85,
    "output": {
-    "sha256": "1d9169264efbdd92f3dd5ab1ab58bc63deb5b4fdfd9548aed95cbfc8a04cb0eb",
+    "sha256": "1200f3164f810beed00725888f0a1f63a54c8c50d861b1a0909075286abe1216",
     "chars": 105
    }
   }

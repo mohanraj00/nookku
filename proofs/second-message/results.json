@@ -1,7 +1,7 @@
 {
  "date": "2026-11-25",
  "versions": {
-  "nookku": "0.6.0",
+  "nookku": "0.6.1",
   "python": "3.13.12",
   "os": "Darwin"
  },
@@ -39,22 +39,22 @@
   "tap": [
    {
     "started": 0.0,
-    "ts": 0.445
+    "ts": 0.518
    },
    {
-    "started": 0.435,
-    "ts": 0.446
+    "started": 0.498,
+    "ts": 0.518
    },
    {
-    "started": 0.447,
-    "ts": 0.448
+    "started": 0.519,
+    "ts": 0.519
    }
   ],
   "second_messages": [
    {
     "turn": 2,
     "during": 1,
-    "after": 0.435,
+    "after": 0.498,
     "reply_first": false,
     "calls_cut": 1
    }
@@ -115,15 +115,15 @@
   "tap": [
    {
     "started": 0.0,
-    "ts": 1.847
+    "ts": 1.512
    },
    {
-    "started": 1.85,
-    "ts": 1.851
+    "started": 1.514,
+    "ts": 1.515
    },
    {
-    "started": 1.853,
-    "ts": 1.853
+    "started": 1.516,
+    "ts": 1.516
    }
   ],
   "second_messages": null,
