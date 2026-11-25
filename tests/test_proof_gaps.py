@@ -4,6 +4,7 @@ import copy
 import json
 import os
 import shlex
+import socket
 import subprocess
 import sys
 from pathlib import Path
@@ -121,6 +122,29 @@ def test_discovery_excludes_only_its_answer_files_and_test_folder(tmp_path: Path
         (state / name).write_text("answer")
     (state / "config.json").write_text("{}")
     assert set(pe.digest(tmp_path)) == {".nookku/config.json"}
+
+
+def test_egress_accepts_a_listening_postgres_host_port() -> None:
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        listener.settimeout(1)
+        port = listener.getsockname()[1]
+        pe.check_postgres_host(f"postgres://shop@127.0.0.1:{port}/shop")
+        connection, _ = listener.accept()
+        connection.close()
+
+
+def test_egress_stops_if_the_postgres_host_port_is_closed() -> None:
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+    with pytest.raises(SystemExit) as error:
+        pe.check_postgres_host(f"postgres://shop@127.0.0.1:{port}/shop", timeout=0.25)
+    assert str(error.value) == (
+        f"Cannot connect to the host port {port} of the Postgres container. "
+        "Check the Docker port mapping."
+    )
 
 
 def test_egress_requires_the_app_model_api() -> None:

@@ -2052,7 +2052,7 @@ Each `egress_denied` adds a note with the host (or `no host`), reason if present
 
 The transcript names the source of each query: `(proxy)` for a query of `database.jsonl`, and `(driver trace from the app process)` for a driver query. The result of a driver query is the line `result: none. A driver trace has no rows, and it can hide parameter values. Check the state with a read-only query.`
 
-The report is a model answer, and no code trusts it. The proofs check it. `nookku evaluation import` reads its issue table (section 9.4).
+The report is a model answer. The proofs check it. Only `nookku evaluation import` trusts it: the command reads the issue table and trusts the bytes of the file (section 9.4).
 
 ### 9.4 Issue rows
 
@@ -2088,6 +2088,8 @@ A string of a row is not only white space. It has no control character (U+0000 t
 - If `report.md` exists, its SHA-256 must be the `report` of `evaluation.json`. Else `add` writes no row and tells the person to run `nookku evaluation import`. Thus `evaluation.json` has each row of `report.md`.
 
 **The Markdown report.** The command writes `evaluation.json` and `report.md` from the same rows. The issue table of the model in `report.md` does not change. The command writes the human rows at the end of `report.md`, after the line `## Person issues`, in a table with the columns Class, Turn, Evidence, Issue and Author. This part replaces an earlier part. If no row is human and the file has no such part, the bytes of the file do not change. In a test folder with no `report.md`, the command writes no `report.md`, because such a test needs an evaluation (section 9.1). The seal does not cover `report.md`, so `report` keeps the SHA-256 of the bytes that the command wrote.
+
+**The trust of `report.md`.** The import trusts the bytes of `report.md` at the time of the import. The harness model writes the file with a tool of the harness, and Nookku does not record the bytes that the model wrote. Thus no record binds the file to the evaluation, and the first import has no SHA-256 to compare. Another user who can write the test folder (section 7.14) can replace `report.md` before the import, for example with an empty issue table. The import then seals the rows of the new file. The verdict can change to `pass`, and `nookku verify` shows an intact seal. Do not run the import in a test folder that another user can write. The command prints the number of model rows that it wrote, so compare that number with the report of the evaluation. After the import, `report` binds the file to `evaluation.json`: `add` writes no row for a changed file, and only a new import reads its rows.
 
 **The seal.** The command uses the rules and the code of `nookku adjudicate` (section 7.17, "The command" and "The bytes of the command"):
 

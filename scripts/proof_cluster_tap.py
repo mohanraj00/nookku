@@ -638,6 +638,15 @@ def blocked(c: Cluster, message: str) -> dict[str, Any]:
 
 def free_space(c: Cluster) -> int:
     """Check the Docker VM, without removing any image or volume."""
+    try:
+        run([c.docker, "image", "inspect", BASE_IMAGE])
+    except SystemExit as error:
+        if "No such image" not in str(error):
+            raise
+        raise SystemExit(
+            f"Docker has no image {BASE_IMAGE}. Run the following command.\n"
+            f"  docker pull {BASE_IMAGE}"
+        ) from None
     data = run(
         [
             c.docker,

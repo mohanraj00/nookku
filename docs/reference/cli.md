@@ -327,6 +327,7 @@ Write the issue rows of an evaluation to `evaluation.json` in the [test folder](
 - `import` reads the issue table of `report.md` and writes each row as a `model` row. Run it after the evaluation. A second import replaces the model rows and keeps your rows.
 - `add` writes one `human` row: an issue that you found. The command also writes your rows to the end of `report.md`, under `## Person issues`.
 - The command sets the author type. The text of a row never sets it.
+- `import` trusts the bytes of `report.md`. Do not run it in a test folder that another user can write ([limits.md](../limits.md)).
 - If `report.md` changed after the last import, `add` writes no row. Run `import` first.
 - The command writes `verdict.json` again and updates the [seal](glossary.md#seal), with the same rules as [`nookku adjudicate`](#nookku-adjudicate).
 - An issue row changes the verdict only if a `Verdict` row of the [app spec](app-spec.md#verdict) names its class.
