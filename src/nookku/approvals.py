@@ -11,6 +11,8 @@ from . import app_spec
 from .config import ConfigError
 
 SECTION = "approvals"
+# The key of the manifest with the rows (SPEC.md section 7.18).
+KEY = "approvals"
 COLUMNS = ("action", "source", "approval", "by")
 # The sources of an action: the sources of a trace point, and a tool call of an MCP proxy.
 SOURCES = (*app_spec.SOURCES, "mcp")
@@ -88,11 +90,16 @@ def row_problem(row: Any) -> str | None:
     return None
 
 
+def of_manifest(manifest: dict[str, Any]) -> list[dict[str, str]] | None:
+    """The rows of the approvals of a manifest, or None if its key `approvals` is not valid. A
+    manifest with no key, from a test before the key, has no rows. A key with the value null
+    is a key, and null is not valid (#640)."""
+    return valid(manifest[KEY]) if KEY in manifest else []
+
+
 def valid(rows: Any) -> list[dict[str, str]] | None:
-    """The rows of the manifest key `approvals`, or None if the key does not have the form of
-    SPEC.md section 7.18. A manifest with no key, from a test before the key, has no rows."""
-    if rows is None:
-        return []
+    """The rows of a value of the manifest key `approvals`, or None if the value does not have
+    the form of SPEC.md section 7.18."""
     if not isinstance(rows, list) or len(rows) > MAX_ROWS:
         return None
     if any(row_problem(r) is not None for r in rows):

@@ -7946,6 +7946,39 @@ APPROVALS_NOT_VALID_CASE = {
     },
 }
 
+# A manifest with `"approvals": null`. The key is in the manifest, so this is not a manifest
+# from a test before the key. Null is not a list of rows, so the trace gives the same finding
+# as for the row that is not valid, and it does not check the refund (#640).
+APPROVALS_NULL_CASE = {
+    "tap": [window(10, 20)],
+    "manifest": {"test": "20261119-090000-ap04", "model_sessions": [], "approvals": None},
+    "sessions": {},
+    "backend": [shop_call(12, "/refund", REFUND_80)],
+    "trace": [shop_item(1, 12, 1, "/refund", REFUND_80)],
+    "findings": {
+        "v": "0.2",
+        "test": "20261119-090000-ap04",
+        "turns": 1,
+        "items": 1,
+        "sessions": [],
+        "otel": None,
+        "backend": {"file": "backend.jsonl", "rows": 1, "items": 1, "ignored": {}},
+        "model_api": None,
+        "mcp": None,
+        "database": None,
+        "counts": counts(action_without_approval=1),
+        "findings": [
+            {
+                "check": "action_without_approval",
+                "turn": None,
+                "detail": "the approvals cannot be used: the key approvals of manifest.json is "
+                "not valid",
+            },
+        ],
+        "approvals": None,
+    },
+}
+
 
 # A second message during a turn (SPEC.md sections 4.2 and 8.3). Each expected row and each
 # finding is hand-written.
@@ -8117,6 +8150,7 @@ TRACE_CASES = {
     "approvals_elicitation": APPROVALS_ELICITATION_CASE,
     "approvals_interrupt": APPROVALS_INTERRUPT_CASE,
     "approvals_not_valid": APPROVALS_NOT_VALID_CASE,
+    "approvals_null": APPROVALS_NULL_CASE,
     "second_message": SECOND_MESSAGE_CASE,
     "answer_key_text": ANSWER_KEY_TEXT_CASE,
     "answer_key_changed": ANSWER_KEY_CHANGED_CASE,

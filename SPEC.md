@@ -1477,7 +1477,7 @@ Each other action of a row gives one `action_without_approval` finding (section 
 **Fail closed.**
 
 - The test does not start if a part of an `Approvals` section is not valid: a section with no table, a table with no `Action`, `Source`, `Approval` or `By` column, a row with an empty `Action` or `Approval`, an unknown `Source` or `By`, a `By` `message` with no valid `Interrupt`, another `By` with an `Interrupt`, a second row for one `Action` and `Source`, or more than 200 rows. The error names the file and the line.
-- If the manifest has a key `approvals` that is not in this form, the trace gives 1 `action_without_approval` finding with no turn and the `detail` `the approvals cannot be used: the key approvals of manifest.json is not valid`. `approvals` of `findings.json` is then `null`. A manifest with no key, from a test before the key, has no rows and no finding.
+- If the manifest has a key `approvals` that is not in this form, the trace gives 1 `action_without_approval` finding with no turn and the `detail` `the approvals cannot be used: the key approvals of manifest.json is not valid`. `approvals` of `findings.json` is then `null`. The value `null` is not in this form: a manifest with `"approvals": null` has the key, so it gets this finding. A manifest with no key, from a test before the key, has no rows and no finding.
 
 **Limits.** The check reads what the records show:
 
@@ -1487,7 +1487,7 @@ Each other action of a row gives one `action_without_approval` finding (section 
 - An `accept` of the mode `url` says only that the user agreed to open a page, so it is not an approval. Only the mode `form` gives an approval. Name an item of the trace as the approval of an app with another mode.
 - An MCP proxy does not see when a server does its work. For the second part of the rule, the check accepts an approval that the app gave before the result of the tool call.
 
-The cases [`conformance/trace/approvals_elicitation/`](conformance/trace/approvals_elicitation/) (an accept before the action and after it, a decline, an approval during a tool call of an HTTP server, the mode `url`, a request with no answer and an action in no turn), [`conformance/trace/approvals_interrupt/`](conformance/trace/approvals_interrupt/) (an interrupt and its resume, a message that is not the approval, a message with no interrupt before it, an item of the trace as the approval, and a failed item) and [`conformance/trace/approvals_not_valid/`](conformance/trace/approvals_not_valid/) give the forms. The case [`conformance/verdict/approval_limit/`](conformance/verdict/approval_limit/) gives a limit of the class.
+The cases [`conformance/trace/approvals_elicitation/`](conformance/trace/approvals_elicitation/) (an accept before the action and after it, a decline, an approval during a tool call of an HTTP server, the mode `url`, a request with no answer and an action in no turn), [`conformance/trace/approvals_interrupt/`](conformance/trace/approvals_interrupt/) (an interrupt and its resume, a message that is not the approval, a message with no interrupt before it, an item of the trace as the approval, and a failed item) and [`conformance/trace/approvals_not_valid/`](conformance/trace/approvals_not_valid/) give the forms. The case [`conformance/trace/approvals_null/`](conformance/trace/approvals_null/) gives a manifest with `"approvals": null`. The case [`conformance/verdict/approval_limit/`](conformance/verdict/approval_limit/) gives a limit of the class.
 
 ## 8. Trace
 

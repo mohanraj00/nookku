@@ -2290,7 +2290,7 @@ def build(folder: Path) -> dict[str, Any]:
             items.append(it)
     items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     assign(items, spans)
-    approved = approvals.valid(manifest.get("approvals"))
+    approved = approvals.of_manifest(manifest)
     if approved:
         # The interrupts and the resumes of the tap record (SPEC.md section 7.18). Each one has
         # the turn of its exchange.
