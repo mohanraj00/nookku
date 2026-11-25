@@ -103,10 +103,14 @@ def test_the_probe_mcp_server_answers_unknown_requests(tmp_path: Path) -> None:
     assert replies[-1]["error"]["code"] == -32601
 
 
-def test_the_codex_plugin_proof_records_the_mcp_server_of_a_thread(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("outcome", ["started", "timeout", "error", "missing_thread"])
+def test_the_codex_plugin_proof_checks_the_mcp_server_of_a_thread(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, outcome: str
 ) -> None:
     project = tmp_path / "codex-project"
+    probe = tmp_path / "codex-mcp.json"
+    home_start = json.dumps({"cwd": str(tmp_path / "codex-home"), "CLAUDE_PROJECT_DIR": None})
+    thread_start = json.dumps({"cwd": str(project), "CLAUDE_PROJECT_DIR": None})
     cwds = {"cwds": [str(project)]}
     plugin = {"pluginId": "nookku@nookku"}
     hooks = [
@@ -140,28 +144,48 @@ def test_the_codex_plugin_proof_records_the_mcp_server_of_a_thread(
             sent = requests.getvalue().splitlines()
             assert json.loads(sent[index]) == {"id": index, "method": method, "params": params}
             assert len(sent) == index + 1
-            # As in Codex 0.169.0: the status list starts the server in CODEX_HOME, and a
-            # thread starts it in its cwd. The probe writes the folder of the last start.
-            folder = {"mcpServerStatus/list": tmp_path / "codex-home", "thread/start": project}
-            if method in folder:
-                seen = {"cwd": str(folder[method]), "CLAUDE_PROJECT_DIR": None}
-                (tmp_path / "codex-mcp.json").write_text(json.dumps(seen))
-            yield json.dumps({"id": index, "result": result})
+            reply: dict[str, object] = {"id": index, "result": result}
+            if method == "mcpServerStatus/list":
+                probe.write_text(home_start)
+            if method == "thread/start" and outcome == "error":
+                reply = {"id": index, "error": {"code": -32602, "message": "Bad project"}}
+            if method == "thread/start" and outcome == "missing_thread":
+                reply["result"] = {}
+            yield json.dumps(reply)
 
     def fake_run(cmd: list[str], *_args: object) -> str:
         return "codex-cli test" if cmd[1:] == ["--version"] else '{"installedPath": "toy shop"}'
 
-    start = Mock(return_value=Mock(stdin=requests, stdout=replies()))
+    proc = Mock(stdin=requests, stdout=replies())
+
+    def advance(_seconds: float) -> None:
+        proc.terminate.assert_not_called()
+        if outcome == "started":
+            probe.write_text(thread_start)
+
+    clock = Mock(monotonic=Mock(side_effect=[0, 0, 0.2, 30]), sleep=Mock(side_effect=advance))
+    start = Mock(return_value=proc)
+    monkeypatch.setattr(pl, "time", clock)
     monkeypatch.setattr(pl.subprocess, "Popen", start)
     monkeypatch.setattr(pl, "run", fake_run)
 
+    if outcome in ("error", "missing_thread"):
+        detail = "Bad project" if outcome == "error" else "no thread"
+        with pytest.raises(SystemExit, match=f"thread/start.*{detail}"):
+            pl.codex(tmp_path)
+        clock.sleep.assert_not_called()
+        proc.terminate.assert_called_once()
+        return
     result = pl.codex(tmp_path)
 
+    assert clock.sleep.call_count == (1 if outcome == "started" else 2)
+    proc.terminate.assert_called_once()
     start.assert_called_once()
     assert len(requests.getvalue().splitlines()) == len(calls) + 2
     checks = result.pop("checks")
-    assert checks["the MCP server starts in the project"]
+    assert checks.pop("the MCP server starts in the project") is (outcome == "started")
     assert all(checks.values()), checks
+    assert probe.read_text() == (thread_start if outcome == "started" else home_start)
     assert result == {
         "version": "codex-cli test",
         "hooks": hooks,

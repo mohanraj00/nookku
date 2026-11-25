@@ -32,7 +32,9 @@ import struct
 import subprocess
 import sys
 import tempfile
+import time
 import zlib
+from collections.abc import Callable
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -88,13 +90,27 @@ def probe_plugin(folder: Path, hooks: dict[str, Any], seen: Path) -> None:
     (folder / ".mcp.json").write_text(json.dumps({"mcpServers": {"probe": server}}))
 
 
-def mcp_root(seen: Path, project: Path) -> dict[str, bool]:
-    got = loads(seen.read_text())
-    named = got["CLAUDE_PROJECT_DIR"]
+def mcp_root(seen: Path, project: Path, *, timeout: float = 0) -> dict[str, bool]:
+    got: dict[str, Any] = {}
+    deadline = time.monotonic() + timeout
+    while True:
+        # Keep the last complete record if the probe has not finished a write.
+        try:
+            got = loads(seen.read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            if not timeout:
+                raise
+        cwd = got.get("cwd")
+        started = cwd is not None and Path(cwd).resolve() == project.resolve()
+        remaining = deadline - time.monotonic()
+        if started or remaining <= 0:
+            break
+        time.sleep(min(0.2, remaining))
+    named = got.get("CLAUDE_PROJECT_DIR")
     return {
-        "the MCP server starts in the project": Path(got["cwd"]).resolve() == project.resolve(),
+        "the MCP server starts in the project": started,
         "the MCP server gets no CLAUDE_PROJECT_DIR of another project": (
-            named is None or Path(named).resolve() == project.resolve()
+            bool(got) and (named is None or Path(named).resolve() == project.resolve())
         ),
     }
 
@@ -194,7 +210,13 @@ def claude_code(work: Path) -> dict[str, Any]:
     }
 
 
-def app_server(home: Path, project: Path, calls: list[tuple[str, dict[str, Any]]]) -> list[Any]:
+def app_server(
+    home: Path,
+    project: Path,
+    calls: list[tuple[str, dict[str, Any]]],
+    *,
+    wait: Callable[[], None] | None = None,
+) -> list[Any]:
     """The result of each call, from one app-server. No call changes trust or config."""
     other = str(project.parent / "other-project")
     env = {**os.environ, "CODEX_HOME": str(home), "CLAUDE_PROJECT_DIR": other}
@@ -231,11 +253,19 @@ def app_server(home: Path, project: Path, calls: list[tuple[str, dict[str, Any]]
                 answer = loads(line)
                 if answer.get("id") != request["id"]:
                     continue
+                result = answer.get("result", answer.get("error"))
+                if request["method"] == "thread/start":
+                    if "error" in answer:
+                        raise SystemExit(f"thread/start failed: {answer['error']}")
+                    if not isinstance(result, dict) or "thread" not in result:
+                        raise SystemExit(f"thread/start reply has no thread: {answer}")
                 if request["id"] != 1:
-                    results.append(answer.get("result", answer.get("error")))
+                    results.append(result)
                 break
             else:
                 raise EOFError(f"The app-server closed before it answered {request['method']}.")
+        if wait is not None:
+            wait()
     finally:
         proc.terminate()
         proc.wait(timeout=10)
@@ -254,8 +284,9 @@ def codex(work: Path) -> dict[str, Any]:
     run(["codex", "plugin", "marketplace", "remove", "nookku"], ROOT, env)
     # A copy of the marketplace with the probe plugin.
     market = work / "codex-market"
+    seen = work / "codex-mcp.json"
     shutil.copytree(PLUGIN, market / "plugins" / "nookku")
-    probe_plugin(market / "plugins" / "probe", {"hooks": {}}, work / "codex-mcp.json")
+    probe_plugin(market / "plugins" / "probe", {"hooks": {}}, seen)
     listing = loads((ROOT / ".agents" / "plugins" / "marketplace.json").read_text())
     entry = listing["plugins"][0]
     probe = {**entry, "name": "probe", "source": {"source": "local", "path": "./plugins/probe"}}
@@ -267,8 +298,8 @@ def codex(work: Path) -> dict[str, Any]:
     run(["codex", "plugin", "add", "probe@nookku", "--json"], ROOT, env)
     cwds = {"cwds": [str(project)]}
     # Codex 0.169.0 starts a plugin MCP server in CODEX_HOME for mcpServerStatus/list, and in
-    # the project for a thread with the project as its cwd. A real session has a thread. The
-    # thread starts last, so the probe records the server of the thread.
+    # the project for a thread with the project as its cwd. Wait for the probe after thread/start.
+    root_checks: dict[str, bool] = {}
     hooks, servers, skills, _ = app_server(
         home,
         project,
@@ -278,6 +309,7 @@ def codex(work: Path) -> dict[str, Any]:
             ("skills/list", cwds),
             ("thread/start", {"cwd": str(project)}),
         ],
+        wait=lambda: root_checks.update(mcp_root(seen, project, timeout=30)),
     )
     ours = [h for h in hooks["data"][0]["hooks"] if h.get("pluginId") == "nookku@nookku"]
     server = next(s for s in servers["data"] if s.get("pluginId") == "nookku@nookku")
@@ -309,7 +341,7 @@ def codex(work: Path) -> dict[str, Any]:
                 f"mcp__{server['name']}__status" == tool_name("codex", "status")
             ),
             "the setup skill loads": found == ["nookku:setup"],
-            **mcp_root(work / "codex-mcp.json", project),
+            **root_checks,
         },
     }
 
