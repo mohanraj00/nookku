@@ -113,6 +113,20 @@ PASS
 
 ## Releases with a special step
 
+### 0.6.1
+
+No record changes its version. A 0.6.0 [audit](../reference/glossary.md#audit) reads a [tap record](../reference/glossary.md#tap-record) of 0.6.1. These changes need a step or change what you see:
+
+- **Exit code 3 of a gate run.** `nookku gate run` and `nookku gate verify` exit with 3 if a test is inconclusive: a call failed for a provider limit or a refused service, and no good call followed it. In 0.6.0, such a test failed, and the command exited with 1. If a CI job or a rollout controller reads the exit code, make it accept 3, for example with a new run of the gate ([gate-a-release.md](gate-a-release.md#read-the-result-in-a-ci-job-or-a-rollout-controller), [#671](https://github.com/mohanraj00/nookku/issues/671)). A gate folder of 0.6.0 still verifies.
+- **Timeout of a plugin hook.** `nookku start` and `nookku mode on` refuse a test if a required hook of the Claude Code plugin has a timeout that is not a whole number of at least the timeout of this version. If you changed a timeout in the plugin files, update the plugin ([step 3](#3-update-the-plugin), [#642](https://github.com/mohanraj00/nookku/issues/642)).
+- **`async` in a Codex hook.** The Codex hook gate gives a required nookku hook with `"async": true` the state `modified`, and refuses the test. Remove the key, or run `nookku init codex` again. Then trust the hooks again ([codex.md](codex.md#install), [#643](https://github.com/mohanraj00/nookku/issues/643)).
+- **Approvals with the value null.** If the key `approvals` of `manifest.json` is null, the [trace](../reference/glossary.md#trace) gives 1 `action_without_approval` [finding](../reference/glossary.md#findings). In 0.6.0, it gave no finding ([#640](https://github.com/mohanraj00/nookku/issues/640)).
+- **Size of a new `report.md`.** `nookku evaluation add` refuses a new `report.md` larger than 1 MiB ([#644](https://github.com/mohanraj00/nookku/issues/644)).
+
+Do the steps above. This new command is optional:
+
+- To write each confirmed defect of a test or a gate run as a [finding record](../reference/glossary.md#finding-record), run `nookku finding export` ([cli.md](../reference/cli.md#nookku-finding), [import-a-finding-record.md](import-a-finding-record.md)).
+
 ### 0.6.0
 
 No record changes its version. A 0.5.9 [audit](../reference/glossary.md#audit) reads a [tap record](../reference/glossary.md#tap-record) of 0.6.0. These changes need a step or change what you see:
