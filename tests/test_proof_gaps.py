@@ -7,7 +7,10 @@ import shlex
 import socket
 import subprocess
 import sys
+from collections.abc import Iterator
+from io import StringIO
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
@@ -99,6 +102,100 @@ def test_the_probe_mcp_server_answers_unknown_requests(tmp_path: Path) -> None:
     replies = [json.loads(line) for line in done.stdout.splitlines()]
     assert [r["id"] for r in replies] == [0, 2, 3]
     assert replies[-1]["error"]["code"] == -32601
+
+
+@pytest.mark.parametrize("outcome", ["started", "timeout", "error", "missing_thread"])
+def test_the_codex_plugin_proof_checks_the_mcp_server_of_a_thread(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, outcome: str
+) -> None:
+    project = tmp_path / "codex-project"
+    probe = tmp_path / "codex-mcp.json"
+    home_start = json.dumps({"cwd": str(tmp_path / "codex-home"), "CLAUDE_PROJECT_DIR": None})
+    thread_start = json.dumps({"cwd": str(project), "CLAUDE_PROJECT_DIR": None})
+    cwds = {"cwds": [str(project)]}
+    plugin = {"pluginId": "nookku@nookku"}
+    hooks = [
+        {
+            "eventName": name,
+            "matcher": None,
+            "timeoutSec": 30,
+            "trustStatus": "untrusted",
+            "enabled": False,
+        }
+        for name in ("userPromptSubmit", "preToolUse")
+    ]
+    server = {
+        **plugin,
+        "name": "nookku",
+        "toolsError": None,
+        "tools": ["transcript", "status", "run_script"],
+    }
+    hook_data = {"hooks": [{**plugin, **h} for h in hooks], "warnings": []}
+    calls = [
+        ("hooks/list", cwds, {"data": [hook_data]}),
+        ("mcpServerStatus/list", {}, {"data": [server]}),
+        ("skills/list", cwds, {"data": [{"skills": [{**plugin, "name": "nookku:setup"}]}]}),
+        ("thread/start", {"cwd": str(project)}, {"thread": {"id": "toy-shop"}}),
+    ]
+    requests = StringIO()
+
+    def replies() -> Iterator[str]:
+        yield json.dumps({"id": 1, "result": {}})
+        for index, (method, params, result) in enumerate(calls, 2):
+            sent = requests.getvalue().splitlines()
+            assert json.loads(sent[index]) == {"id": index, "method": method, "params": params}
+            assert len(sent) == index + 1
+            reply: dict[str, object] = {"id": index, "result": result}
+            if method == "mcpServerStatus/list":
+                probe.write_text(home_start)
+            if method == "thread/start" and outcome == "error":
+                reply = {"id": index, "error": {"code": -32602, "message": "Bad project"}}
+            if method == "thread/start" and outcome == "missing_thread":
+                reply["result"] = {}
+            yield json.dumps(reply)
+
+    def fake_run(cmd: list[str], *_args: object) -> str:
+        return "codex-cli test" if cmd[1:] == ["--version"] else '{"installedPath": "toy shop"}'
+
+    proc = Mock(stdin=requests, stdout=replies())
+
+    def advance(_seconds: float) -> None:
+        proc.terminate.assert_not_called()
+        if outcome == "started":
+            probe.write_text(thread_start)
+
+    clock = Mock(monotonic=Mock(side_effect=[0, 0, 0.2, 30]), sleep=Mock(side_effect=advance))
+    start = Mock(return_value=proc)
+    monkeypatch.setattr(pl, "time", clock)
+    monkeypatch.setattr(pl.subprocess, "Popen", start)
+    monkeypatch.setattr(pl, "run", fake_run)
+
+    if outcome in ("error", "missing_thread"):
+        detail = "Bad project" if outcome == "error" else "no thread"
+        with pytest.raises(SystemExit, match=f"thread/start.*{detail}"):
+            pl.codex(tmp_path)
+        clock.sleep.assert_not_called()
+        proc.terminate.assert_called_once()
+        return
+    result = pl.codex(tmp_path)
+
+    assert clock.sleep.call_count == (1 if outcome == "started" else 2)
+    proc.terminate.assert_called_once()
+    start.assert_called_once()
+    assert len(requests.getvalue().splitlines()) == len(calls) + 2
+    checks = result.pop("checks")
+    assert checks.pop("the MCP server starts in the project") is (outcome == "started")
+    assert all(checks.values()), checks
+    assert probe.read_text() == (thread_start if outcome == "started" else home_start)
+    assert result == {
+        "version": "codex-cli test",
+        "hooks": hooks,
+        "hook_warnings": [],
+        "mcp_server": "nookku",
+        "mcp_tools": ["run_script", "status", "transcript"],
+        "mcp_error": None,
+        "skills": ["nookku:setup"],
+    }
 
 
 def test_discovery_checks_new_removed_and_changed_project_files(tmp_path: Path) -> None:

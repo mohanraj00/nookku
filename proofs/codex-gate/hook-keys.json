@@ -1,0 +1,81 @@
+{
+ "date": "2026-11-25",
+ "versions": {
+  "codex": "codex-cli 0.169.0",
+  "nookku": "0.6.0",
+  "python": "3.13.12",
+  "os": "Darwin"
+ },
+ "method": "scripts/proof_codex_hook_keys.py",
+ "hooks_file": {
+  "hooks": {
+   "UserPromptSubmit": [
+    {
+     "hooks": [
+      {
+       "type": "command",
+       "command": "echo toy-shop-hook",
+       "timeout": 300,
+       "async": true
+      }
+     ]
+    }
+   ],
+   "PreToolUse": [
+    {
+     "matcher": ".*",
+     "hooks": [
+      {
+       "type": "command",
+       "command": "echo toy-shop-hook",
+       "timeout": 30
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "notes": 0,
+ "keys": [
+  "key",
+  "eventName",
+  "handlerType",
+  "command",
+  "async",
+  "matcher",
+  "timeoutSec",
+  "statusMessage",
+  "additionalContextLimit",
+  "sourcePath",
+  "source",
+  "pluginId",
+  "environmentId",
+  "displayOrder",
+  "enabled",
+  "isManaged",
+  "currentHash",
+  "trustStatus"
+ ],
+ "listed": [
+  {
+   "eventName": "preToolUse",
+   "handlerType": "command",
+   "async": false,
+   "matcher": ".*",
+   "timeoutSec": 30
+  },
+  {
+   "eventName": "userPromptSubmit",
+   "handlerType": "command",
+   "async": true,
+   "matcher": null,
+   "timeoutSec": 300
+  }
+ ],
+ "checks": {
+  "Codex lists the 2 hooks": true,
+  "the async hook has async true": true,
+  "the other hook has async false": true
+ },
+ "pass": true
+}

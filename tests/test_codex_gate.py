@@ -111,11 +111,27 @@ def test_project_hooks_that_codex_does_not_list_are_missing(tmp_path: Path) -> N
         ({"timeoutSec": 31}, "the plugin hook PreToolUse is modified: its matcher or its timeout"),
         ({"matcher": "Bash"}, "the plugin hook PreToolUse is modified: its matcher or its timeout"),
         ({"command": "sh other.sh"}, "the plugin hook PreToolUse is modified: its command is not"),
+        ({"async": True}, "the plugin hook PreToolUse is modified: its key async is not false"),
+        ({"async": None}, "the plugin hook PreToolUse is modified: its key async is not false"),
+        ({"async": "false"}, "the plugin hook PreToolUse is modified: its key async is not false"),
     ],
 )
 def test_each_refused_state_of_a_plugin_hook(tmp_path: Path, change: dict, reason: str) -> None:
     found = codex_gate.problems(plugin_hooks(tmp_path, PreToolUse=change), tmp_path)
     assert len(found) == 1 and found[0].startswith(reason)
+
+
+def test_an_async_hook_is_refused(tmp_path: Path) -> None:
+    # Codex does not wait for a hook with "async": true, so the hook cannot block the prompt
+    # (#643). Codex 0.169.0 gives "async": false for each other command hook.
+    hooks = project_hooks(tmp_path, UserPromptSubmit={"async": True}, PreToolUse={"async": False})
+    [found] = codex_gate.problems(hooks, tmp_path)
+    assert found == (
+        "the project hook UserPromptSubmit is modified: its key async is not false, and Codex "
+        "does not wait for an async hook."
+    )
+    listed = [{**hook, "async": False} for hook in project_hooks(tmp_path)]
+    assert codex_gate.problems(listed, tmp_path) == []
 
 
 def test_a_changed_plugin_script_is_modified(tmp_path: Path) -> None:

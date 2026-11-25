@@ -84,6 +84,7 @@ The `check` target of the `Makefile` runs ruff, the format check, mypy, pytest, 
 - `scripts/proof_trace.py` checks that the trace reads real model sessions of a toy shop app (SPEC.md section 8), and writes `proofs/trace/`.
 - `scripts/proof_plugin_load.py` checks that the plugin folder loads in Claude Code and in Codex, and writes `proofs/plugin/load.json`.
 - `scripts/proof_codex_gate.py` runs the Codex hook gate against a real Codex, and writes `proofs/codex-gate/gate.json`. Part B runs with `--trusted`, after the maintainer trusts the hooks.
+- `scripts/proof_codex_hook_keys.py` reads `hooks/list` of a real Codex for 2 toy shop hooks in a new `CODEX_HOME`, with no model and no trust step. One hook has `"async": true`. It records the keys of a row and the value of `async`, and writes `proofs/codex-gate/hook-keys.json`.
 - `scripts/proof_tutorial.py` runs the commands of `docs/getting-started.md` in a new toy shop project, and writes `proofs/tutorial/`. With `--model`, Claude Code and the model also run.
 - `scripts/proof_setup.py` runs the setup guide in Claude Code on a copy of `examples/toy-shop-full/` with no entry and no app spec. It checks that the setup gives a summary, asks a question and writes no file before a yes, and writes `proofs/setup/`.
 - `scripts/proof_replay.py` records a test of a toy shop app with a stock service and a model API, with no model. It replays the test 10 times with `--recorded` after the 2 services stop, and once with a planted change. It writes `proofs/replay/`.
