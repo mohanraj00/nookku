@@ -31,19 +31,19 @@
   {"backend": "stock", "method": "GET", "path": "/login", "query": null, "request_body": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}}
  ],
  "expected": [
-  {"line": 2, "miss": null, "status": 200, "body": "9 teapot sets left.", "stopped": null, "length": null},
-  {"line": 1, "miss": null, "status": 200, "body": "3 teapot sets left.", "stopped": null, "length": null},
-  {"line": null, "miss": "the replay has no recorded response: the base test has no unused call with this method, path, query and body", "status": 502, "body": null, "stopped": null, "length": null},
-  {"line": 3, "miss": null, "status": 200, "body": "In stock.", "stopped": null, "length": null},
-  {"line": null, "miss": "the replay has no recorded response: the base test has no unused call with this method, path, query and body", "status": 502, "body": null, "stopped": null, "length": null},
-  {"line": 4, "miss": "the replay has no recorded response: the recorded response is cut at record_limit", "status": 502, "body": null, "stopped": null, "length": null},
-  {"line": 5, "miss": null, "status": 200, "body": "data: one", "stopped": "the backend closed the connection", "length": null},
-  {"line": 6, "miss": null, "status": 502, "body": null, "stopped": null, "length": null},
-  {"line": 7, "miss": "the replay has no recorded response: the base test ended before this call ended", "status": 502, "body": null, "stopped": null, "length": null},
-  {"line": 8, "miss": "the replay has no recorded response: the base test ended before this call ended", "status": 502, "body": null, "stopped": null, "length": null},
-  {"line": null, "miss": "the replay has no recorded response: the base test has no unused call with this method, path, query and body", "status": 502, "body": null, "stopped": null, "length": null},
-  {"line": 10, "miss": null, "status": 200, "body": "", "stopped": null, "length": "9876"},
-  {"line": 11, "miss": "the replay has no recorded response: the record has no length of a response with no body", "status": 502, "body": null, "stopped": null, "length": null},
-  {"line": 12, "miss": "the replay has no recorded response: a recorded response header has a removed secret value", "status": 502, "body": null, "stopped": null, "length": null}
+  {"line": 2, "miss": null, "status": 200, "body": "9 teapot sets left.", "stopped": null, "length": null, "ignored": []},
+  {"line": 1, "miss": null, "status": 200, "body": "3 teapot sets left.", "stopped": null, "length": null, "ignored": []},
+  {"line": null, "miss": "the replay has no recorded response: the base test has no unused call with this method, path, query and body", "status": 502, "body": null, "stopped": null, "length": null, "ignored": []},
+  {"line": 3, "miss": null, "status": 200, "body": "In stock.", "stopped": null, "length": null, "ignored": []},
+  {"line": null, "miss": "the replay has no recorded response: the base test has no unused call with this method, path, query and body", "status": 502, "body": null, "stopped": null, "length": null, "ignored": []},
+  {"line": 4, "miss": "the replay has no recorded response: the recorded response is cut at record_limit", "status": 502, "body": null, "stopped": null, "length": null, "ignored": []},
+  {"line": 5, "miss": null, "status": 200, "body": "data: one", "stopped": "the backend closed the connection", "length": null, "ignored": []},
+  {"line": 6, "miss": null, "status": 502, "body": null, "stopped": null, "length": null, "ignored": []},
+  {"line": 7, "miss": "the replay has no recorded response: the base test ended before this call ended", "status": 502, "body": null, "stopped": null, "length": null, "ignored": []},
+  {"line": 8, "miss": "the replay has no recorded response: the base test ended before this call ended", "status": 502, "body": null, "stopped": null, "length": null, "ignored": []},
+  {"line": null, "miss": "the replay has no recorded response: the base test has no unused call with this method, path, query and body", "status": 502, "body": null, "stopped": null, "length": null, "ignored": []},
+  {"line": 10, "miss": null, "status": 200, "body": "", "stopped": null, "length": "9876", "ignored": []},
+  {"line": 11, "miss": "the replay has no recorded response: the record has no length of a response with no body", "status": 502, "body": null, "stopped": null, "length": null, "ignored": []},
+  {"line": 12, "miss": "the replay has no recorded response: a recorded response header has a removed secret value", "status": 502, "body": null, "stopped": null, "length": null, "ignored": []}
  ]
 }

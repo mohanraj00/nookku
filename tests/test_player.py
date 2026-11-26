@@ -84,7 +84,7 @@ def test_a_player_gives_the_recorded_response_and_calls_no_backend(tmp_path: Pat
     assert (status, body) == (200, b'{"sku": "teapot-set", "left": 3}')
     assert ("X-Stock-Trace", "a b  c") in headers
     row = rows(path)[0]
-    assert row["replay"] == {"line": 1, "miss": None}
+    assert row["replay"] == {"line": 1, "miss": None, "ignored": []}
     assert row["status"] == 200 and row["error"] is None
     # The secret value of the query does not count in the match.
     assert row["query"] == "sku=teapot&api_key="
@@ -103,7 +103,7 @@ def test_a_head_response_replays_with_its_recorded_length(tmp_path: Path) -> Non
             proxies.stop()
     assert (status, body) == (200, b"")
     assert ("Content-Length", "9876") in headers
-    assert rows(path)[0]["replay"] == {"line": 1, "miss": None}
+    assert rows(path)[0]["replay"] == {"line": 1, "miss": None, "ignored": []}
     # A row of an older Nookku has no length. The player cannot give the same response.
     old = {**rows(base)[0]}
     del old["response_length"]
@@ -124,7 +124,7 @@ def test_a_response_with_a_removed_secret_header_is_a_miss(tmp_path: Path) -> No
     # The app never gets the placeholder in place of the true value.
     assert status == 502 and not any(k.lower() == "set-cookie" for k, _ in headers)
     miss = f"{player.MISS}: {player.REMOVED}"
-    assert rows(path)[0]["replay"] == {"line": 1, "miss": miss}
+    assert rows(path)[0]["replay"] == {"line": 1, "miss": miss, "ignored": []}
     assert player.REMOVED_VALUE == backend.REMOVED
 
 
@@ -145,9 +145,9 @@ def test_a_request_with_no_unused_recorded_call_is_a_miss_with_status_502(
     got = [r["replay"] for r in rows(path)]
     miss = f"{player.MISS}: {player.NO_CALL}"
     assert got == [
-        {"line": 1, "miss": None},
-        {"line": None, "miss": miss},
-        {"line": None, "miss": miss},
+        {"line": 1, "miss": None, "ignored": []},
+        {"line": None, "miss": miss, "ignored": []},
+        {"line": None, "miss": miss, "ignored": []},
     ]
     assert rows(path)[1]["error"] == f"the backend did not answer: {miss}"
 
@@ -233,7 +233,7 @@ def test_a_stopped_stream_stops_again_after_its_bytes(tmp_path: Path) -> None:
     assert e.value.partial == b"part one"
     got = rows(path)[0]
     assert got["error"] == "the stream stopped: the API sent 8 of 20 bytes"
-    assert got["replay"] == {"line": 1, "miss": None}
+    assert got["replay"] == {"line": 1, "miss": None, "ignored": []}
 
 
 def test_a_model_api_player_gives_the_recorded_result(tmp_path: Path) -> None:
@@ -273,11 +273,21 @@ def test_a_model_api_player_gives_the_recorded_result(tmp_path: Path) -> None:
     assert harness[0] == 502 and played_rows[1]["replay"]["miss"] is not None
 
 
-def test_the_conformance_case_gives_its_expected_outcomes() -> None:
+@pytest.mark.parametrize("name", ["match.json", "match_rules.json"])
+def test_the_conformance_case_gives_its_expected_outcomes(name: str) -> None:
     case = json.loads(
-        (Path(__file__).resolve().parent.parent / "conformance/replay/match.json").read_text()
+        (Path(__file__).resolve().parent.parent / "conformance/replay" / name).read_text()
     )
-    assert player.case(case["recorded"], case["requests"]) == case["expected"]
+    got = player.case(case["recorded"], case["requests"], case.get("rules"))
+    assert got == case["expected"]
+
+
+def test_with_no_rule_a_new_request_id_is_a_miss() -> None:
+    case = json.loads(
+        (Path(__file__).resolve().parent.parent / "conformance/replay/match_rules.json").read_text()
+    )
+    got = player.case(case["recorded"], case["requests"][:1])
+    assert got[0]["miss"] is not None and got[0]["ignored"] == []
 
 
 def _answer(stock: StockServer) -> dict[str, Any]:
@@ -477,7 +487,9 @@ def test_a_request_to_a_player_with_no_token_gets_403_and_no_recorded_body(
     assert env["STOCK_URL"] == f"{origin}/{token}"
     assert again[0] == 200 and again[2] == b'{"sku": "teapot-set", "secret": "tenant-1"}'
     # The refused request writes no row, and the call of the app keeps its path with no token.
-    assert [(r["path"], r["replay"]) for r in rows(path)] == [("/me", {"line": 1, "miss": None})]
+    assert [(r["path"], r["replay"]) for r in rows(path)] == [
+        ("/me", {"line": 1, "miss": None, "ignored": []})
+    ]
 
 
 def test_each_player_has_a_new_token_and_a_live_proxy_has_none(tmp_path: Path) -> None:
@@ -522,3 +534,17 @@ def test_a_recorded_redirect_to_a_path_goes_through_the_player(tmp_path: Path) -
     proxy = proxies.proxies[0]
     assert proxy.app_header("Location", "//other/x") == "//other/x"
     assert proxy.app_header("Location", "https://example.test/x") == "https://example.test/x"
+
+
+def test_play_gives_each_proxy_the_rules_of_its_name(tmp_path: Path) -> None:
+    class Proxy:
+        def __init__(self, name: str) -> None:
+            self.backend = type("Backend", (), {"name": name})()
+            self.target_field = "backend"
+            self.player: Any = None
+
+    proxies = [Proxy("orders"), Proxy("stock")]
+    rules = {"orders": {"body": ["request_id"]}}
+    lines = player.play(tmp_path / "backend.jsonl", proxies, rules)
+    assert lines == ["player orders: 0 recorded calls", "player stock: 0 recorded calls"]
+    assert proxies[0].player.rules == rules["orders"] and proxies[1].player.rules == {}

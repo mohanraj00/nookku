@@ -216,6 +216,14 @@ A changed reply does not change the exit code. Only a person runs `nookku replay
 
 With `--recorded`, the backends, the model APIs and the MCP servers over HTTP of the test give the responses of the base test, and the replay calls none of them ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests), "Recorded backends"). Then a changed reply comes from the agent, not from a backend. A request that the base test did not make gets status 502, and the trace gives the [finding](glossary.md#findings) `replay_miss`. Each changed turn gives the finding `replay_changed`. The default limit of each of these 2 classes is 0, so with `--verdict`, a changed reply or a miss gives exit code 1.
 
+A request matches a recorded call only if it has the same method, path, query and body bytes. If the app sends a new value in each request, for example a request ID or a time, give match rules in the config key [`replay_ignore`](config.md). The rules of the toy shop backend `orders` ignore the body field `request_id` and the query parameter `ts`:
+
+```json
+{"replay_ignore": {"orders": {"body": ["request_id"], "query": ["ts"]}}}
+```
+
+A body rule works only on a JSON body. The manifest records the rules, and `replay` prints a line `Match rule: ...` for each call whose match ignored a value. With no rule, the match is exact.
+
 `--recorded` needs a base test with an intact seal. It does not start if the test has a stdio MCP server or a database with a proxy, because the replay has no player for these parts.
 
 | Flag | Default | Meaning |

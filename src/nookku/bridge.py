@@ -165,6 +165,8 @@ class TestConfig:
     answer_key_data: bytes = b""
     # The rows of the Approvals sections of the app spec (SPEC.md section 7.18).
     approvals: list[dict[str, str]] = field(default_factory=list)
+    # The match rules of a replay with the recorded backends (SPEC.md section 7.10).
+    replay_ignore: dict[str, Any] = field(default_factory=dict)
 
 
 def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
@@ -219,6 +221,7 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
         answer_key=key,
         answer_key_data=key_data,
         approvals=approved,
+        replay_ignore=data.get("replay_ignore", {}),
     )
 
 
@@ -1005,12 +1008,11 @@ def _write_json(path: Path, data: dict[str, Any], mode: int | None = None) -> No
     tmp.replace(path)
 
 
-def _play(folder: Path, group: backend.Proxies, file: str) -> None:
-    """Make each proxy of `group` a player with its calls of the copied base record `file`
-    (SPEC.md section 7.10, "Recorded backends")."""
-    for p in group.proxies:
-        p.player = player.Player.load(folder / replay.BASE / file, p.target_field, p.backend.name)
-        _log(f"player {p.backend.name}: {len(p.player.recorded)} recorded calls")
+def _play(folder: Path, group: backend.Proxies, file: str, rules: Any) -> None:
+    """Make each proxy of `group` a player with its calls of the copied base record `file` and
+    its match rules (SPEC.md section 7.10, "Recorded backends")."""
+    for line in player.play(folder / replay.BASE / file, group.proxies, rules):
+        _log(line)
 
 
 def _start_failed(folder: Path, manifest: dict[str, Any]) -> int:
@@ -1096,7 +1098,7 @@ def run(
         # record (SPEC.md section 7.10).
         "replay": None
         if play_base is None
-        else {"base": play_base, "files": replay.base_files(folder)},
+        else replay.manifest_key(folder, play_base, config.replay_ignore),
         # After the entry stops, the bridge copies the key file into answer_key.json (SPEC.md
         # section 7.17).
         "answer_key": config.answer_key,
@@ -1149,7 +1151,7 @@ def run(
         budget=budget,
     )
     if play_base is not None:
-        _play(folder, proxies, backend.FILE)
+        _play(folder, proxies, backend.FILE, config.replay_ignore)
     env.update(proxies.start())
     for p in proxies.proxies:
         _log(f"backend {p.backend.name}: {p.backend.env}={p.url} -> {p.backend.url}")
@@ -1162,7 +1164,7 @@ def run(
         budget,
     )
     if play_base is not None:
-        _play(folder, apis, model_api.FILE)
+        _play(folder, apis, model_api.FILE, config.replay_ignore)
     env.update(apis.start())
     # The app can keep its state in the test folder, for example in app-state/, so that the seal
     # covers it (SPEC.md section 6.1).
@@ -1183,7 +1185,7 @@ def run(
         budget=budget,
     )
     if play_base is not None:
-        _play(folder, mcp, mcp_proxy.FILE)
+        _play(folder, mcp, mcp_proxy.FILE, config.replay_ignore)
     env.update(mcp.start())
     for p in mcp.proxies:
         _log(f"MCP server {p.backend.name}: {p.backend.env}={p.url} -> {p.backend.url}")
