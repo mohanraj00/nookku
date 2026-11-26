@@ -40,6 +40,17 @@ Obey these rules:
 - If the app fails on one message, write an `error` line and continue.
 - Exit when stdin closes.
 
+### Contract helpers
+
+The package has a helper for [Python](#in-python-use-serve) and a helper for [Node](#in-node). The Node helper works with TypeScript and JavaScript apps.
+
+The count uses the official SDK docs of four agent frameworks as read on 2026-11-26. It measures SDK support by language. Python is in all four. TypeScript is in three of the four, so Node is the next runtime with a helper. See the [issue comment](https://github.com/mohanraj00/nookku/issues/331#issuecomment-7181515696).
+
+- [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview): Python and TypeScript.
+- [OpenAI Agents SDK](https://developers.openai.com/api/docs/guides/agents/sdk): Python and TypeScript.
+- [Google Agent Development Kit](https://adk.dev/): Python, TypeScript, Go, Java and Kotlin.
+- [Microsoft Agent Framework](https://learn.microsoft.com/agent-framework/overview/agent-framework-overview): Python and C#.
+
 ### In Python, use `serve()`
 
 `nookku.agent.serve(reply)` speaks the contract for one function. It writes the contract lines to the original stdout. It sends all other output of the process to stderr, also the output of child processes ([agent.py](../../src/nookku/agent.py)).
@@ -65,15 +76,14 @@ If `reply` raises an exception, `serve()` writes an `error` line with the except
 
 ### In Node
 
-[examples/toy-shop-node/entry.mjs](../../examples/toy-shop-node/entry.mjs) is an entry for the toy shop in Node. It needs no package. Copy it to `.nookku/entry.mjs`, and replace the function `reply` with the call to your app. `reply` can be `async`.
+Copy [contract.mjs](../../src/nookku/helpers/contract.mjs) from `helpers/` in the installed package to `.nookku/contract.mjs`. Copy the [toy shop entry](../../examples/toy-shop-node/entry.mjs) to `.nookku/entry.mjs`. Replace `reply` with the call to your app. It can return a string or a promise of a string.
 
 ```js
 // The toy shop agent in Node, as the entry of a nookku test (SPEC.md section 6).
 // It reads one JSON line on stdin for each message, and writes one JSON line on stdout.
 // Usage: node examples/toy-shop-node/entry.mjs
 
-// Stdout is only for contract lines. Send the console.log output of the app to stderr.
-console.log = console.error;
+import { serve } from "./contract.mjs";
 
 // The app. Replace this function with the call to your own app.
 const REPLIES = {
@@ -87,33 +97,8 @@ async function reply(message, history) {
   return key ? REPLIES[key] : "Which item is this about: the mug or the teapot?";
 }
 
-async function answer(line) {
-  let request;
-  try {
-    request = JSON.parse(line);
-  } catch (err) {
-    console.error(`toy shop agent: not a contract line: ${err.message}`);
-    return;
-  }
-  const out = { v: 1, id: request.id };
-  try {
-    out.reply = await reply(request.message, request.history);
-  } catch (err) {
-    out.error = String(err?.message ?? err);
-  }
-  process.stdout.write(JSON.stringify(out) + "\n");
-}
-
 console.error("toy shop agent: ready");
-// Split the input only at "\n". node:readline also splits at "\r", and in Node 25 also at
-// U+2028 and U+2029. A message can contain U+2028.
-process.stdin.setEncoding("utf8");
-let pending = "";
-for await (const chunk of process.stdin) {
-  const lines = (pending + chunk).split("\n");
-  pending = lines.pop();
-  for (const line of lines) await answer(line);
-}
+await serve(reply);
 ```
 
 The configuration:
@@ -124,10 +109,12 @@ The configuration:
 
 Obey these rules in Node:
 
-- Do not read the input with `node:readline`. It also ends a line at `\r`. In Node 25, it also ends a line at U+2028 and U+2029 ([test](../../tests/test_example_entries.py), run with Node 25.8.0). The [relays](../reference/glossary.md#relay) do not escape U+2028 in the input line, so a message with U+2028 arrives in 2 parts.
-- Keep `console.log = console.error` at the top. Then a `console.log` of the app goes to stderr.
+- Let the helper read stdin. It splits input only at `\n`. In Node 25, `node:readline` also splits at U+2028 and U+2029. The [relay](../reference/glossary.md#relay) sends these characters as text in the input line. See the [test](../../tests/test_example_entries.py).
+- Import the helper before you load the app. It sends console output to stderr from the time of import.
 - If the app starts a child process, send its stdout to stderr, for example with `stdio: ["ignore", 2, 2]` in `spawn`.
-- If `reply` throws, the entry writes an `error` line, and the test continues.
+- If `reply` throws or rejects with an `Error`, the helper writes its name and message, for example `Error: the order service is down`. The test continues.
+
+The helper writes an `error` line with an empty `id` and the reason for each invalid request. It then reads the next line. When stdin closes, the helper answers the last line even if it ends without `\n`.
 
 `nookku check` with this entry gives:
 
