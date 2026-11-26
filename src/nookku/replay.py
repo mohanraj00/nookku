@@ -215,6 +215,12 @@ def findings(
     return out
 
 
+def manifest_key(folder: Path, base: str, rules: dict[str, Any]) -> dict[str, Any]:
+    """The manifest key `replay` of a new test: the base test, the SHA-256 of each copied base
+    record and the match rules (SPEC.md section 7.10)."""
+    return {"base": base, "files": base_files(folder), "ignore": rules}
+
+
 def base_files(folder: Path) -> dict[str, str]:
     """The SHA-256 of each copied base record of a new test, for the manifest key `replay`."""
     from nookku import seal
@@ -506,11 +512,57 @@ def _marked(parts: list[list[str]], color: bool = False) -> str:
     return "".join(out)
 
 
+def ignored(folder: Path) -> list[dict[str, Any]]:
+    """Each row of a player in a test folder whose match used a match rule (SPEC.md section
+    7.10): the file, the proxy name, the method, the path, the line and the rules."""
+    out: list[dict[str, Any]] = []
+    for file, field in PLAYED:
+        try:
+            lines = (folder / file).read_bytes().split(b"\n")
+        except FileNotFoundError:
+            continue
+        for n, line in enumerate(lines, 1):
+            try:
+                row = loads(line) if line.strip() else None
+            except ValueError:
+                continue
+            got = row.get("replay") if isinstance(row, dict) else None
+            rules = got.get("ignored") if isinstance(got, dict) else None
+            if not isinstance(row, dict) or not isinstance(rules, list) or not rules:
+                continue
+            out.append(
+                {
+                    "file": file,
+                    "name": row.get(field),
+                    "method": row.get("method"),
+                    "path": row.get("path"),
+                    "line": n,
+                    "ignored": rules,
+                }
+            )
+    return out
+
+
 def report(
     root: Path, old: Path | None, new: Path, color: bool = False
 ) -> tuple[list[str], dict[str, Any]]:
     """The lines and the JSON part of the replay, after the run of the script. If color is true,
-    the lines mark the deleted words in red and the inserted words in green."""
+    the lines mark the deleted words in red and the inserted words in green. Each call whose
+    match used a match rule gives one more line."""
+    lines, data = _report(root, old, new, color)
+    used = ignored(new)
+    for r in used:
+        rules = ", ".join(str(x) for x in r["ignored"])
+        lines.append(
+            f"Match rule: {r['file']}: {r['name']}: {r['method']} {r['path']}: "
+            f"the match ignored {rules}."
+        )
+    return lines, {**data, "ignored": used}
+
+
+def _report(
+    root: Path, old: Path | None, new: Path, color: bool = False
+) -> tuple[list[str], dict[str, Any]]:
     if old is None:
         text = (
             "Replay: no test to compare with. The script name is not a test id. "

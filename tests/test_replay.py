@@ -445,3 +445,59 @@ def test_a_replay_after_a_change_to_one_toy_shop_reply_shows_one_changed_turn(
     assert code == 0
     assert "1 of 3 turns changed." in text
     assert f"select tests {old.name} and " in text
+
+
+def test_the_report_gives_a_line_for_each_call_that_a_match_rule_ignored(tmp_path: Path) -> None:
+    old_folder = make_test(tmp_path, OLD, TURNS[:1], 1_800_000_000.0)
+    new_folder = make_test(tmp_path, NEW, TURNS[:1], 1_800_000_600.0)
+    call = {"type": "call", "backend": "orders", "method": "POST", "path": "/orders"}
+    rows = [
+        {**call, "replay": {"line": 1, "miss": None, "ignored": ["body:request_id"]}},
+        {**call, "replay": {"line": 2, "miss": None, "ignored": []}},
+        {**call, "replay": {"line": 3, "miss": None}},
+    ]
+    (new_folder / "backend.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    lines, data = replay.report(tmp_path, old_folder, new_folder)
+    line = "Match rule: backend.jsonl: orders: POST /orders: the match ignored body:request_id."
+    assert [x for x in lines if x.startswith("Match rule:")] == [line]
+    assert data["ignored"] == [
+        {
+            "file": "backend.jsonl",
+            "name": "orders",
+            "method": "POST",
+            "path": "/orders",
+            "line": 1,
+            "ignored": ["body:request_id"],
+        }
+    ]
+
+
+def test_the_manifest_key_replay_records_the_match_rules(tmp_path: Path) -> None:
+    rules = {"orders": {"body": ["request_id"]}}
+    assert replay.manifest_key(tmp_path, OLD, rules) == {"base": OLD, "files": {}, "ignore": rules}
+
+
+@pytest.mark.parametrize(
+    ("value", "ok"),
+    [
+        ({}, True),
+        ({"orders": {}}, True),
+        ({"orders": {"body": ["request_id", "meta.trace_id"], "query": ["ts"]}}, True),
+        ([], False),
+        ({"orders": []}, False),
+        ({"orders": {"headers": ["X-Request-Id"]}}, False),
+        ({"orders": {"body": "request_id"}}, False),
+        ({"orders": {"body": [""]}}, False),
+        ({"orders": {"body": ["meta..id"]}}, False),
+        ({"orders": {"query": [1]}}, False),
+        ({"orders": {"query": ["ts"] * 51}}, False),
+    ],
+)
+def test_the_config_key_replay_ignore_has_the_form_of_the_rules(value: Any, ok: bool) -> None:
+    from nookku import config
+
+    if ok:
+        assert config.check({"replay_ignore": value})["replay_ignore"] == value
+    else:
+        with pytest.raises(config.ConfigError, match="'replay_ignore' must be an object"):
+            config.check({"replay_ignore": value})

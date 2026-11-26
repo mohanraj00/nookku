@@ -137,6 +137,9 @@ class Config:
     # The hosts that the checks of the Koodam egress spans skip, for example the git and package
     # hosts (SPEC.md section 8.8).
     egress_ignore: list[str] = field(default_factory=list)
+    # The match rules of a replay with the recorded backends, by proxy name (SPEC.md section
+    # 7.10, "Match rules").
+    replay_ignore: dict[str, dict[str, list[str]]] = field(default_factory=dict)
 
     @classmethod
     def load(cls, root: Path) -> Config:
@@ -232,6 +235,31 @@ def is_host_list(value: Any) -> bool:
     )
 
 
+# The most strings of one list of the config key replay_ignore. This is a chosen value.
+MAX_RULES = 50
+RULES_ERROR = (
+    f"{FILE}: 'replay_ignore' must be an object from a proxy name to "
+    '{"body": [dot paths], "query": [names]}'
+)
+
+
+def is_rules(value: Any) -> bool:
+    """True if value has the form of the config key replay_ignore (SPEC.md section 7.1)."""
+    if not isinstance(value, dict):
+        return False
+    for rules in value.values():
+        if not isinstance(rules, dict) or not set(rules) <= {"body", "query"}:
+            return False
+        for key, items in rules.items():
+            if not isinstance(items, list) or len(items) > MAX_RULES:
+                return False
+            if not all(isinstance(i, str) and i for i in items):
+                return False
+            if key == "body" and not all(all(i.split(".")) for i in items):
+                return False
+    return True
+
+
 def check(data: Any) -> dict[str, Any]:
     """Apply the rule for the keys to the parsed file. Return it, or raise ConfigError."""
     if not isinstance(data, dict):
@@ -275,6 +303,8 @@ def check(data: Any) -> dict[str, Any]:
         raise ConfigError(f"{FILE}: 'citation_field' must be empty or a dot path such as sources")
     if not is_host_list(data.get("egress_ignore", [])):
         raise ConfigError(f"{FILE}: 'egress_ignore' must be a list of host names")
+    if not is_rules(data.get("replay_ignore", {})):
+        raise ConfigError(RULES_ERROR)
     if data.get("model_reply_match", "normalized") not in MATCHES:
         raise ConfigError(f"{FILE}: 'model_reply_match' must be exact, normalized or off")
     entries = data.get("entries", {})

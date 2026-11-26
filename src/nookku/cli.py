@@ -64,6 +64,7 @@ LIST_KEYS = {
     "body_limit",
     "spec",
     "egress_ignore",
+    "replay_ignore",
 }
 # The plain string flags of init. A flag that the user does not give is None.
 STRING_KEYS = [k for k in CONFIG_KEYS if k not in LIST_KEYS]

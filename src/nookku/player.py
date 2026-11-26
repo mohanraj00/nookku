@@ -10,6 +10,8 @@ response to the app as it does for a live backend.
 A request matches the first unused call of the base record of its proxy with the same method,
 path, query and SHA-256 of the request body, in the order of `started`. A request with no such
 call, or with a call that the record cannot give again, is a miss: the app gets status 502.
+The match rules of a proxy (the config key `replay_ignore`) remove declared query parameters and
+JSON body values before the compare.
 
 Each player has a new random token. The URL that the app gets has the token as the first part of
 its path, and the proxy refuses a request with no token with status 403. Thus another local
@@ -97,15 +99,122 @@ def request_key(row: dict[str, Any]) -> tuple[Any, Any, Any, Any]:
 
 
 def match(
-    recorded: list[tuple[int, dict[str, Any]]], used: set[int], request: dict[str, Any]
-) -> int | None:
+    recorded: list[tuple[int, dict[str, Any]]],
+    used: set[int],
+    request: dict[str, Any],
+    rules: dict[str, list[str]] | None = None,
+) -> tuple[int | None, list[str]]:
     """The index in `recorded` of the first call that is not in `used` and has the method, the
-    path, the query and the body SHA-256 of `request`, else None."""
+    path, the query and the body SHA-256 of `request`, else None. With match rules, the query
+    and the body compare with no ignored part. The second value is the sorted list of the rules
+    that the match used (SPEC.md section 7.10, "Match rules")."""
     want = request_key(request)
     for i, (_, row) in enumerate(recorded):
-        if i not in used and request_key(row) == want:
-            return i
-    return None
+        if i in used:
+            continue
+        if not rules:
+            if request_key(row) == want:
+                return i, []
+            continue
+        ignored = _ruled(rules, request, row)
+        if ignored is not None:
+            return i, ignored
+    return None, []
+
+
+def _ruled(rules: dict[str, list[str]], a: dict[str, Any], b: dict[str, Any]) -> list[str] | None:
+    """The rules whose values are not the same in 2 call rows, or None if the rows do not match
+    with the rules."""
+    if (a.get("method"), a.get("path")) != (b.get("method"), b.get("path")):
+        return None
+    ignored: list[str] = []
+    names = set(rules.get("query", []))
+    qa, qb = a.get("query"), b.get("query")
+    if names:
+        # An absent query is None in a row, and an empty query for the query rules.
+        qa, qb = ("" if q is None else q for q in (qa, qb))
+    if names and isinstance(qa, str) and isinstance(qb, str):
+        kept = [_query(qa, names, False), _query(qb, names, False)]
+        if kept[0] != kept[1]:
+            return None
+        for name in sorted(names):
+            if _query(qa, {name}, True) != _query(qb, {name}, True):
+                ignored.append(f"query:{name}")
+    elif qa != qb:
+        return None
+    paths = rules.get("body", [])
+    ja, jb = _json_body(a), _json_body(b)
+    if not paths or ja is _NOT_JSON or jb is _NOT_JSON:
+        return ignored if request_key(a)[3] == request_key(b)[3] else None
+    if _canonical(_without(ja, paths)) != _canonical(_without(jb, paths)):
+        return None
+    for path in paths:
+        if _at(ja, path) != _at(jb, path):
+            ignored.append(f"body:{path}")
+    return sorted(ignored)
+
+
+def _query(query: str, names: set[str], keep: bool) -> list[str]:
+    """The parts of a query with a name in `names` (keep) or with no such name."""
+    parts = query.split("&") if query else []
+    return [p for p in parts if (p.split("=", 1)[0] in names) == keep]
+
+
+_NOT_JSON = object()
+
+
+def _json_body(row: dict[str, Any]) -> Any:
+    """The JSON value of the complete text of a request body, or _NOT_JSON."""
+    body = row.get("request_body")
+    if not isinstance(body, dict) or body.get("cut") is not False:
+        return _NOT_JSON
+    text = body.get("text")
+    if not isinstance(text, str):
+        return _NOT_JSON
+    try:
+        return json.loads(text)
+    except (ValueError, RecursionError):
+        return _NOT_JSON
+
+
+def _canonical(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def _step(data: Any, key: str) -> tuple[bool, Any]:
+    if isinstance(data, dict) and key in data:
+        return True, data[key]
+    if isinstance(data, list) and key.isdigit() and int(key) < len(data):
+        return True, data[int(key)]
+    return False, None
+
+
+def _at(data: Any, path: str) -> str | None:
+    """The JSON text of the value at a dot path, or None if the path has no value."""
+    for key in path.split("."):
+        found, data = _step(data, key)
+        if not found:
+            return None
+    return _canonical(data)
+
+
+def _without(data: Any, paths: list[str]) -> Any:
+    """A copy of a JSON value with no value at each path. A key of an object goes, and an item
+    of a list becomes null, so the other indexes do not change."""
+    data = json.loads(_canonical(data))
+    for path in paths:
+        *head, last = path.split(".")
+        parent: Any = data
+        for key in head:
+            found, parent = _step(parent, key)
+            if not found:
+                break
+        else:
+            if isinstance(parent, dict):
+                parent.pop(last, None)
+            elif _step(parent, last)[0]:
+                parent[int(last)] = None
+    return data
 
 
 def body_bytes(body: Any) -> tuple[bytes | None, str | None]:
@@ -203,8 +312,14 @@ def response(row: dict[str, Any]) -> Response | Miss | OSError:
 class Player:
     """The recorded calls of one proxy. One lock keeps each recorded call for one request."""
 
-    def __init__(self, recorded: list[tuple[int, dict[str, Any]]]) -> None:
+    def __init__(
+        self,
+        recorded: list[tuple[int, dict[str, Any]]],
+        rules: dict[str, list[str]] | None = None,
+    ) -> None:
         self.recorded = recorded
+        # The match rules of the proxy (SPEC.md section 7.10, "Match rules").
+        self.rules = rules or {}
         self.used: set[int] = set()
         self.lock = threading.Lock()
         # The first part of the path of each request to the player (SPEC.md section 7.10).
@@ -222,25 +337,38 @@ class Player:
         return rest if rest.startswith("/") else "/" + rest
 
     @classmethod
-    def load(cls, path: Path, field: str, name: str) -> Player:
-        """The player of the proxy `name` from a copied record file. A file that does not exist
-        gives a player with no calls."""
+    def load(
+        cls, path: Path, field: str, name: str, rules: dict[str, list[str]] | None = None
+    ) -> Player:
+        """The player of the proxy `name` from a copied record file, with its match rules. A
+        file that does not exist gives a player with no calls."""
         try:
             data = path.read_bytes()
         except FileNotFoundError:
             data = b""
-        return cls(calls(data, field, name))
+        return cls(calls(data, field, name), rules)
 
-    def answer(self, request: dict[str, Any]) -> tuple[int | None, Response | OSError]:
-        """The line of the matched call in the base record (or None), and what the proxy gives
-        to the app."""
+    def answer(self, request: dict[str, Any]) -> tuple[int | None, Response | OSError, list[str]]:
+        """The line of the matched call in the base record (or None), what the proxy gives to
+        the app, and the rules that the match used."""
         with self.lock:
-            i = match(self.recorded, self.used, request)
+            i, ignored = match(self.recorded, self.used, request, self.rules)
             if i is None:
-                return None, Miss(f"{MISS}: {NO_CALL}")
+                return None, Miss(f"{MISS}: {NO_CALL}"), []
             self.used.add(i)
         line, row = self.recorded[i]
-        return line, response(row)
+        return line, response(row), ignored
+
+
+def play(path: Path, proxies: list[Any], rules: dict[str, dict[str, list[str]]]) -> list[str]:
+    """Make each proxy a player with its calls of the copied base record at `path` and the match
+    rules of its name (SPEC.md section 7.10). Return a log line for each player."""
+    out = []
+    for p in proxies:
+        name = p.backend.name
+        p.player = Player.load(path, p.target_field, name, rules.get(name))
+        out.append(f"player {name}: {len(p.player.recorded)} recorded calls")
+    return out
 
 
 class Connection:
@@ -269,25 +397,30 @@ class Connection:
         pass
 
     def getresponse(self) -> Response:
-        line, out = self.player.answer(self.row)
+        line, out, ignored = self.player.answer(self.row)
         miss = str(out) if isinstance(out, Miss) else None
         with self.lock:
-            self.row["replay"] = {"line": line, "miss": miss}
+            self.row["replay"] = {"line": line, "miss": miss, "ignored": [] if miss else ignored}
         if isinstance(out, OSError):
             raise out
         return out
 
 
-def case(recorded: list[dict[str, Any]], requests: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def case(
+    recorded: list[dict[str, Any]],
+    requests: list[dict[str, Any]],
+    rules: dict[str, dict[str, list[str]]] | None = None,
+) -> list[dict[str, Any]]:
     """The outcome of each request of a conformance case (conformance/replay/): the line of the
     matched call and the miss, or the status, the body and the Content-Length that the app
-    gets."""
+    gets, and the rules that the match used. `rules` is the manifest value `replay.ignore`."""
     data = b"".join(json.dumps(r).encode() + b"\n" for r in recorded)
     names = {r.get("backend") for r in requests}
-    players = {n: Player(calls(data, "backend", str(n))) for n in names}
+    rules = rules or {}
+    players = {n: Player(calls(data, "backend", str(n)), rules.get(str(n))) for n in names}
     out = []
     for r in requests:
-        line, got = players[r.get("backend")].answer(r)
+        line, got, ignored = players[r.get("backend")].answer(r)
         if isinstance(got, Response):
             body, stopped = b"", None
             try:
@@ -303,6 +436,7 @@ def case(recorded: list[dict[str, Any]], requests: list[dict[str, Any]]) -> list
                     "body": body.decode(),
                     "stopped": stopped,
                     "length": got.getheader("Content-Length"),
+                    "ignored": ignored,
                 }
             )
         else:
@@ -315,6 +449,7 @@ def case(recorded: list[dict[str, Any]], requests: list[dict[str, Any]]) -> list
                     "body": None,
                     "stopped": None,
                     "length": None,
+                    "ignored": [],
                 }
             )
     return out
