@@ -5,6 +5,8 @@ The check uses no model."""
 from __future__ import annotations
 
 import json
+import math
+from decimal import Decimal
 from typing import Any
 
 from . import app_spec
@@ -111,24 +113,30 @@ def _bind_problem(by: str, bind: str) -> str | None:
     return None
 
 
-def _bound(it: dict[str, Any], path: str) -> str | float | None:
+def _bound(it: dict[str, Any], path: str) -> str | int | Decimal | None:
     """The value at a dot path of a Bind in an item of the trace, or None (SPEC.md section
     7.18). If the path gets to a string before its last part, the walk reads the string as
-    JSON. Only a string or a number is a value."""
+    JSON, with each number exact. Only a string or a finite number is a value."""
     data: Any = it
     for key in path.split("."):
         if isinstance(data, str):
-            data = structured(data)
+            data = structured(data, exact=True)
         try:
             data = pick(data, key)
         except AdapterError:
             return None
-    if isinstance(data, bool) or not isinstance(data, (str, int, float)):
+    if isinstance(data, float):
+        # A number of the item itself is a float. Its shortest text gives the same value as the
+        # text of the same number in a JSON body, so 0.1 matches 0.1.
+        return Decimal(repr(data)) if math.isfinite(data) else None
+    if isinstance(data, Decimal):
+        return data if data.is_finite() else None
+    if isinstance(data, bool) or not isinstance(data, (str, int)):
         return None
     return data
 
 
-def _same(a: str | float, b: str | float) -> bool:
+def _same(a: str | int | Decimal, b: str | int | Decimal) -> bool:
     """True if 2 values of a Bind are equal: 2 strings byte for byte, or 2 numbers in value."""
     return isinstance(a, str) == isinstance(b, str) and a == b
 
@@ -239,7 +247,7 @@ def _in_call(it: dict[str, Any], server: str, asked: set[tuple[Any, ...]]) -> bo
     return (server, it["source"]["line"], it["name"], it["turn"]) in asked
 
 
-def _covers(approval: dict[str, Any], path: str, value: str | float | None) -> bool:
+def _covers(approval: dict[str, Any], path: str, value: str | int | Decimal | None) -> bool:
     """True if an approval item has the value of the action at the path of a Bind. With no
     Bind, the value is None, and each approval covers the action."""
     if value is None:

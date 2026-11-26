@@ -370,3 +370,34 @@ def test_a_bind_matches_only_2_equal_strings_or_2_equal_numbers(approved: Any, a
     assert len(_found([row], items)) == 1
     items = [_call(4.0, "ask_approval", {"o": 2.0}), _call(5.0, "refund", {"o": 2})]
     assert _found([row], items) == []
+
+
+@pytest.mark.parametrize(
+    ("approved", "action", "found"),
+    [
+        ('{"order": 1.0000000000000001}', '{"order": 1}', 1),
+        ('{"order": 1e400}', '{"order": 2e400}', 1),
+        ('{"order": 1e400}', '{"order": 1e400}', 0),
+        ('{"order": 2.50}', '{"order": 2.5}', 0),
+        ('{"order": 10}', '{"order": 1e1}', 0),
+    ],
+)
+def test_a_bind_reads_each_number_of_a_json_text_with_all_its_digits(
+    approved: str, action: str, found: int
+) -> None:
+    row = _row(
+        "mcp__shop__refund", "session", "ask_approval", "session", bind="output.order = input.order"
+    )
+    ask = {**_call(4.0, "ask_approval", {}), "output": approved}
+    refund = {**_call(5.0, "refund", {}), "input": action}
+    assert len(_found([row], [ask, refund])) == found
+
+
+def test_a_float_of_the_item_matches_the_same_number_of_a_json_text() -> None:
+    row = _row(
+        "mcp__shop__refund", "session", "ask_approval", "session", bind="output.order = input.order"
+    )
+    ask = {**_call(4.0, "ask_approval", {}), "output": '{"order": 0.1}'}
+    assert _found([row], [ask, _call(5.0, "refund", {"order": 0.1})]) == []
+    items = [ask, _call(5.0, "refund", {"order": float("inf")})]
+    assert len(_found([row], items)) == 1
