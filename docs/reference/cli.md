@@ -156,7 +156,7 @@ With `--persona FILE`, a simulated user writes each message in place of a script
 The config key [`persona_runner`](config.md) selects the runner of the simulated user ([#667](https://github.com/mohanraj00/nookku/issues/667)):
 
 - `claude-code` (the default): for each turn, `run` starts `claude -p` in a new session, with no settings, no `CLAUDE.md`, no plugin, no hook, no MCP server and no tool.
-- A list of strings: a command that you declare, for example `["python3", "toy_shop_user.py"]`. It gets the prompt on stdin and writes the message on stdout. Nookku cannot check what the command loads, so you own its isolation.
+- A list of strings: a command that you declare, for example `["python3", "/srv/toy-shop/toy_shop_user.py"]`. It gets the prompt on stdin and writes the message on stdout. The command starts in a new empty temporary folder, not in the project. Thus give an absolute path for each file of the command, because a relative path points into that empty folder. Nookku cannot check what the command loads, so you own its isolation.
 
 **Warning:** Give a declared command with no tools. The prompt holds each reply of the agent, and an agent under test can be hostile. A command that can read files or the network can send a secret to the agent in its next message. For this reason Nookku has no built-in `codex` runner: `codex exec` has no flag that removes each tool.
 
