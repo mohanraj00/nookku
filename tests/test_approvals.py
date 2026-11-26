@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +12,7 @@ import pytest
 
 from nookku import approvals, bridge, trace
 from nookku.config import ConfigError
+from nookku.structured import Exact
 
 SECTION = """# Toy shop
 
@@ -370,3 +373,83 @@ def test_a_bind_matches_only_2_equal_strings_or_2_equal_numbers(approved: Any, a
     assert len(_found([row], items)) == 1
     items = [_call(4.0, "ask_approval", {"o": 2.0}), _call(5.0, "refund", {"o": 2})]
     assert _found([row], items) == []
+
+
+@pytest.mark.parametrize(
+    ("approved", "action", "found"),
+    [
+        ('{"order": 1.0000000000000001}', '{"order": 1}', 1),
+        ('{"order": 1e400}', '{"order": 2e400}', 1),
+        ('{"order": 1e400}', '{"order": 1e400}', 0),
+        ('{"order": 2.50}', '{"order": 2.5}', 0),
+        ('{"order": 10}', '{"order": 1e1}', 0),
+    ],
+)
+def test_a_bind_reads_each_number_of_a_json_text_with_all_its_digits(
+    approved: str, action: str, found: int
+) -> None:
+    row = _row(
+        "mcp__shop__refund", "session", "ask_approval", "session", bind="output.order = input.order"
+    )
+    ask = {**_call(4.0, "ask_approval", {}), "output": approved}
+    refund = {**_call(5.0, "refund", {}), "input": action}
+    assert len(_found([row], [ask, refund])) == found
+
+
+def test_a_float_of_the_item_matches_the_same_number_of_a_json_text() -> None:
+    row = _row(
+        "mcp__shop__refund", "session", "ask_approval", "session", bind="output.order = input.order"
+    )
+    ask = {**_call(4.0, "ask_approval", {}), "output": '{"order": 0.1}'}
+    assert _found([row], [ask, _call(5.0, "refund", {"order": 0.1})]) == []
+    items = [ask, _call(5.0, "refund", {"order": float("inf")})]
+    assert len(_found([row], items)) == 1
+
+
+def test_a_bind_compares_an_exact_number_and_a_plain_float_by_text() -> None:
+    # A plain float has no record text, for example a number that the trace makes itself.
+    exact, plain = Exact("9007199254740993.0"), 9007199254740992.0
+    assert exact == plain
+    assert approvals._bound({"n": exact}, "n") == Decimal("9007199254740993.0")
+    assert approvals._bound({"n": plain}, "n") == Decimal("9007199254740992.0")
+    row = _row(
+        "mcp__shop__refund", "session", "ask_approval", "session", bind="input.order = input.order"
+    )
+    for ask, act in [(plain, exact), (exact, plain)]:
+        items = [_call(4.0, "ask_approval", {"order": ask}), _call(5.0, "refund", {"order": act})]
+        assert len(_found([row], items)) == 1
+    same = [
+        _call(4.0, "ask_approval", {"order": Exact("9007199254740992.0")}),
+        _call(5.0, "refund", {"order": plain}),
+    ]
+    assert _found([row], same) == []
+
+
+def test_a_bind_reads_each_number_of_a_record_line_with_all_its_digits(tmp_path: Path) -> None:
+    # The security review of #695: a direct field of an item kept only the digits of a float.
+    line = '{"order": 9007199254740993.0, "price": 1.50, "big": 1e400}'
+    path = tmp_path / "rows.jsonl"
+    path.write_text(line + "\n", encoding="utf-8")
+    [(_, value)] = list(trace._lines(path, Counter()))
+    assert value["order"] == 9007199254740992.0
+    assert json.dumps(value) == '{"order": 9007199254740992.0, "price": 1.5, "big": Infinity}'
+    row = _row(
+        "mcp__shop__refund", "session", "ask_approval", "session", bind="input.order = input.order"
+    )
+    ask = _call(4.0, "ask_approval", {"order": trace._json('{"n": 9007199254740992.0}')["n"]})
+    assert len(_found([row], [ask, _call(5.0, "refund", value)])) == 1
+    big = _call(4.0, "ask_approval", {"order": value["big"]})
+    assert _found([row], [big, _call(5.0, "refund", {"order": trace._json("1e400")})]) == []
+    assert len(_found([row], [big, _call(5.0, "refund", {"order": trace._json("2e400")})])) == 1
+
+
+def test_a_bind_number_out_of_the_range_of_decimal_has_no_value() -> None:
+    # Code review 3 of #695: Decimal of this text raised InvalidOperation and stopped the trace.
+    huge = Exact("1e9999999999999999999")
+    assert approvals._bound({"n": huge}, "n") is None
+    row = _row(
+        "mcp__shop__refund", "session", "ask_approval", "session", bind="input.order = input.order"
+    )
+    for ask, act in [(huge, huge), (Exact("4471.0"), huge), (huge, Exact("4471.0"))]:
+        items = [_call(4.0, "ask_approval", {"order": ask}), _call(5.0, "refund", {"order": act})]
+        assert len(_found([row], items)) == 1

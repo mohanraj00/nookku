@@ -130,6 +130,9 @@ def _ruled(rules: dict[str, list[str]], a: dict[str, Any], b: dict[str, Any]) ->
     ignored: list[str] = []
     names = set(rules.get("query", []))
     qa, qb = a.get("query"), b.get("query")
+    if names:
+        # An absent query is None in a row, and an empty query for the query rules.
+        qa, qb = ("" if q is None else q for q in (qa, qb))
     if names and isinstance(qa, str) and isinstance(qb, str):
         kept = [_query(qa, names, False), _query(qb, names, False)]
         if kept[0] != kept[1]:
