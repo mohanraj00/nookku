@@ -69,12 +69,12 @@ def test_the_node_entry_answers_each_line_and_logs_on_stderr() -> None:
         timeout=30,
     )
     out = p.stdout.split(b"\n")
-    assert out[-1] == b"" and len(out) == 4
+    assert out[-1] == b"" and len(out) == 5
     assert contract.parse_reply(out[0], "m-1") == (SHIP, None)
-    assert contract.parse_reply(out[1], "m-2") == (None, "the order service is down")
-    assert contract.parse_reply(out[2], "m-3") == (FALLBACK, None)
+    assert contract.parse_reply(out[1], "m-2") == (None, "Error: the order service is down")
+    assert contract.parse_reply(out[2], "") == (None, "nookku agent: the request is not UTF-8 JSON")
+    assert contract.parse_reply(out[3], "m-3") == (FALLBACK, None)
     assert b"toy shop agent: ready" in p.stderr
-    assert b"not a contract line" in p.stderr
     assert p.returncode == 0
 
 
