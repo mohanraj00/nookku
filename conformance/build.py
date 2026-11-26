@@ -8180,6 +8180,112 @@ APPROVALS_BIND_NUMBERS_CASE = {
     },
 }
 
+# The numbers of a Bind in the item itself (SPEC.md section 7.18, the security reviews of #695).
+# Each expected row and each finding is hand-written. The approvals and the actions are tool
+# calls of the MCP server stock, and each Bind compares an argument of 2 calls. The trace reads
+# each number of the record line with all its digits. trace.jsonl shows each number as a float.
+# Turn 1, a direct field: 9007199254740993.0 (2^53 + 1) is not equal to 9007199254740992.0
+# (2^53), as it would be for 2 floats. Turn 2, a direct field: the integers 2^53 + 1 and 2^53
+# are not equal. Turn 3, a nested field: 2^53 + 1 and 2^53 with a point are not equal. Turn 4:
+# 4471 and 4471.0 have the same value.
+BIND_TOOL_ROW = {
+    **approval_row("mcp__stock__refund", "mcp", "mcp__stock__approve", "mcp"),
+    "bind": "input.order = input.order",
+}
+BIND_NESTED_ROW = {
+    **approval_row("mcp__stock__credit", "mcp", "mcp__stock__approve_credit", "mcp"),
+    "bind": "input.credit.order = input.credit.order",
+}
+TWO_53 = "9007199254740992"
+TWO_53_AND_1 = "9007199254740993"
+
+
+def mcp_text(t: float, direction: str, text: str) -> dict:
+    """A row of mcp.jsonl with the JSON-RPC message as written text, with each digit."""
+    row = {"v": 1, "type": "message", "server": "stock", "transport": "stdio", "ts": T0 + t}
+    return {**row, "direction": direction, "body": body(text + "\n")}
+
+
+def tool_text(t: float, n: int, tool: str, arguments: str) -> list[dict]:
+    """A tools/call request with the arguments as JSON text, and its result."""
+    call_text = (
+        f'{{"jsonrpc": "2.0", "id": {n}, "method": "tools/call", '
+        f'"params": {{"name": "{tool}", "arguments": {arguments}}}}}'
+    )
+    return [
+        mcp_text(t, "to_server", call_text),
+        mcp_message(t + 0.5, "from_server", rpc_result(n, "done")),
+    ]
+
+
+def bind_tool_finding(turn: int, row: dict, line: int, path: str) -> dict:
+    """An expected action_without_approval finding of a tool call of tool_text."""
+    detail = f"{row['action']} ({row['source']}): no approval of the same {path} before it in "
+    detail += f"this turn. Approval: {row['approval']} ({row['by']})"
+    out = {"check": "action_without_approval", "turn": turn, "detail": detail}
+    source = {"file": "mcp.jsonl", "line": line, "result_line": line + 1}
+    return {**out, "harness": "mcp", "session": "stock", "source": source}
+
+
+def tool_item(turn: int, ts: float, line: int, tool: str, arguments: dict) -> dict:
+    """An expected trace row of a tool call of tool_text."""
+    return mitem(
+        turn, "stock", ts, line, tool, input=arguments, output="done", result_line=line + 1
+    )
+
+
+APPROVALS_BIND_MCP_NUMBERS_CASE = {
+    "tap": [window(10, 20), window(30, 40), window(50, 60), window(70, 80)],
+    "manifest": {
+        "test": "20261126-100000-ap07",
+        "model_sessions": [],
+        "approvals": [BIND_TOOL_ROW, BIND_NESTED_ROW],
+    },
+    "sessions": {},
+    "mcp": [
+        *tool_text(12, 1, "approve", f'{{"order": {TWO_53}.0}}'),
+        *tool_text(14, 2, "refund", f'{{"order": {TWO_53_AND_1}.0}}'),
+        *tool_text(32, 3, "approve", f'{{"order": {TWO_53}}}'),
+        *tool_text(34, 4, "refund", f'{{"order": {TWO_53_AND_1}}}'),
+        *tool_text(52, 5, "approve_credit", f'{{"credit": {{"order": {TWO_53}.0}}}}'),
+        *tool_text(54, 6, "credit", f'{{"credit": {{"order": {TWO_53_AND_1}.0}}}}'),
+        *tool_text(72, 7, "approve", '{"order": 4471}'),
+        *tool_text(74, 8, "refund", '{"order": 4471.0}'),
+    ],
+    "trace": [
+        tool_item(1, 12, 1, "approve", {"order": 9007199254740992.0}),
+        tool_item(1, 14, 3, "refund", {"order": 9007199254740992.0}),
+        tool_item(2, 32, 5, "approve", {"order": 9007199254740992}),
+        tool_item(2, 34, 7, "refund", {"order": 9007199254740993}),
+        tool_item(3, 52, 9, "approve_credit", {"credit": {"order": 9007199254740992.0}}),
+        tool_item(3, 54, 11, "credit", {"credit": {"order": 9007199254740992.0}}),
+        tool_item(4, 72, 13, "approve", {"order": 4471}),
+        tool_item(4, 74, 15, "refund", {"order": 4471.0}),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261126-100000-ap07",
+        "turns": 4,
+        "items": 8,
+        "sessions": [],
+        "otel": None,
+        "backend": None,
+        "model_api": None,
+        "mcp": {"file": "mcp.jsonl", "rows": 16, "items": 8, "ignored": {}},
+        "database": None,
+        "counts": counts(action_without_approval=3),
+        "findings": [
+            bind_tool_finding(1, BIND_TOOL_ROW, 3, "input.order"),
+            bind_tool_finding(2, BIND_TOOL_ROW, 7, "input.order"),
+            bind_tool_finding(3, BIND_NESTED_ROW, 11, "input.credit.order"),
+        ],
+        "approvals": [
+            {**BIND_TOOL_ROW, "actions": 3, "without_approval": 2},
+            {**BIND_NESTED_ROW, "actions": 1, "without_approval": 1},
+        ],
+    },
+}
+
 # A second message during a turn (SPEC.md sections 4.2 and 8.3). Each expected row and each
 # finding is hand-written.
 #
@@ -8353,6 +8459,7 @@ TRACE_CASES = {
     "approvals_null": APPROVALS_NULL_CASE,
     "approvals_bind": APPROVALS_BIND_CASE,
     "approvals_bind_numbers": APPROVALS_BIND_NUMBERS_CASE,
+    "approvals_bind_mcp_numbers": APPROVALS_BIND_MCP_NUMBERS_CASE,
     "second_message": SECOND_MESSAGE_CASE,
     "answer_key_text": ANSWER_KEY_TEXT_CASE,
     "answer_key_changed": ANSWER_KEY_CHANGED_CASE,
