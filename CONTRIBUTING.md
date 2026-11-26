@@ -26,6 +26,7 @@ make check
 - **Relays change, proofs run again.** After a change to the plugin or the project hooks, run the proofs ([docs/contributing/run-the-proofs.md](docs/contributing/run-the-proofs.md)). Commit the new results with the harness version that they record.
 - **Examples use a toy shop or a support agent.**
 - **Code quality.** Follow [docs/contributing/code-quality.md](docs/contributing/code-quality.md). It gives each rule and the check that enforces it.
+- **Module size.** When you change code in a module above the budget, split out the part you change. See the [module size rule](docs/contributing/code-quality.md#11-module-size).
 - **Docs.** Write in ASD-STE100: short sentences, active voice, simple words. If you add a page to `docs/`, add it to [docs/index.md](docs/index.md). If you add a command, a flag or a config key, add it to [docs/reference/cli.md](docs/reference/cli.md) or [docs/reference/config.md](docs/reference/config.md). The tests fail if you do not.
 
 ## Issues and pull requests
