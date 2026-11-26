@@ -6,6 +6,8 @@ Each date is the day of the upload to PyPI, in UTC ([nookku](https://pypi.org/pr
 
 Not released yet.
 
+- **The test key `answer_key` of a gate file.** Nookku 0.6.1 and older accepted the key `answer_key` in a test of a gate file, and the test always failed with the check `answer_key`. `nookku gate run` now refuses such a gate file and exits with 2, and the error names the `Answer key` section of the app spec. The app spec declares the answer key, and a gate limit of `answer_key_mismatch` gives the most mismatches. `nookku gate verify` cannot use a gate folder of an older version with the key, and exits with 2 ([SPEC.md section 7.15](SPEC.md#715-gate-run), [gate-a-release.md](docs/how-to/gate-a-release.md#check-the-answers-with-an-answer-key), [#617](https://github.com/mohanraj00/nookku/issues/617)).
+
 ## 0.6.1
 
 Released 2026-11-26.

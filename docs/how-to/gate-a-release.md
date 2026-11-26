@@ -21,6 +21,29 @@ Put the gate file and the scripts in the project. The paths are relative to the 
 - `entry` is optional, a name of the config key `entries`.
 - `limits` is optional. It adds limits to the `Verdict` table of the app spec. Only the checks of the [trace](../reference/glossary.md#trace) can have a limit. A model issue class, for example `tone`, cannot.
 
+## Check the answers with an answer key
+
+A test of a gate file has no key `answer_key`. The app spec declares the answer key, and each test with that spec checks it ([app-spec.md](../reference/app-spec.md#answer-key), [SPEC.md section 7.17](../../SPEC.md#717-answer-key)). Add the section `Answer key` to the app spec, for example the toy shop key of stock counts:
+
+```markdown
+## Answer key
+
+| File | Field | Match | Tolerance |
+|---|---|---|---|
+| `keys/stock.json` | `count` | number | 0.5 |
+```
+
+Then give the test a limit of `answer_key_mismatch`. With the limit 0, one reply that does not match its answer fails the test:
+
+```json
+{"name": "stock", "script": "scripts/stock.jsonl", "limits": {"answer_key_mismatch": 0}}
+```
+
+- The check compares each answer with no model, so the result is the same on each run.
+- A key that the check cannot use fails the test with each limit.
+- To stop the [harness model](../reference/glossary.md#harness-model) from a read of the key, run `nookku policy set answer_keys keys/stock.json`.
+- Nookku 0.6.1 and older accepted the key `answer_key` in a test, and the test always failed. Now `nookku gate run` refuses such a gate file, runs no test and exits with 2. The error names the `Answer key` section. Remove the key from the test and declare the key in the app spec.
+
 ## Compare a test with a base test
 
 A replay check compares the replies of a new test with the replies of an older test, turn by turn, byte for byte. It uses no model. Give the test id of the older test and the most changed turns:
@@ -109,4 +132,4 @@ It exits with 0 if the result can be used and its verdict is `pass`, with 1 for 
 ## Limits
 
 - Only a person or CI runs `nookku gate run`. The relay denies it from the model, with each policy.
-- Version 1 has no answer key check. A test with `answer_key` fails, so a declared key never passes with no check.
+- `nookku gate verify` cannot use a gate folder of Nookku 0.6.1 or older whose `gate.json` has the key `answer_key`. It exits with 2. Run the gate again with this version.

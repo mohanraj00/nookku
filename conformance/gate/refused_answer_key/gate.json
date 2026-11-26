@@ -1,0 +1,17 @@
+{
+ "v": 1,
+ "tests": [
+  {
+   "name": "refund",
+   "script": "scripts/refund.jsonl"
+  },
+  {
+   "name": "stock",
+   "script": "scripts/stock.jsonl",
+   "answer_key": "keys/stock.json",
+   "limits": {
+    "answer_key_mismatch": 0
+   }
+  }
+ ]
+}

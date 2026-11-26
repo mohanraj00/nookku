@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from nookku import commands, gate, record, script, seal, verdict
+from nookku import commands, gate, gate_file, record, script, seal, verdict
 from nookku.cli import main
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -19,7 +19,10 @@ TOY_SPEC = ROOT / "examples" / "toy-shop-full" / "APP_SPEC.md"
 REFUND = ["What is your refund policy?", "Do you ship to Pune?"]
 PRICE = ["What is the price of the blue mug?", "Is the teapot in stock?"]
 SUBJECT = "sha256:ab12cd34"
-CASES = sorted(p for p in (ROOT / "conformance" / "gate").iterdir() if p.is_dir())
+ALL_CASES = sorted(p for p in (ROOT / "conformance" / "gate").iterdir() if p.is_dir())
+# A case of a refused gate file has expect_error.json in place of expect_result.json.
+CASES = [c for c in ALL_CASES if not (c / "expect_error.json").exists()]
+REFUSED = [c for c in ALL_CASES if (c / "expect_error.json").exists()]
 
 
 def _shop(tmp_path: Path, tests: list[dict]) -> tuple[Path, Path]:
@@ -220,17 +223,35 @@ def test_a_missing_script_fails_the_gate_with_missing_test(
     assert result["tests"][2]["test"] is None
 
 
-def test_a_declared_answer_key_fails_until_a_check_exists(
+def test_a_test_with_the_key_answer_key_is_refused_and_runs_no_test(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     tests = [{"name": "refund", "script": "scripts/refund.jsonl", "answer_key": "key.json"}]
     root, path = _shop(tmp_path, tests)
     (path.parent / "key.json").write_text("{}")
+    assert main(["gate", "run", str(path), "--subject", SUBJECT, "--root", str(root)]) == 2
+    out = capsys.readouterr()
+    assert f"test 1 {gate_file.REMOVED_ANSWER_KEY}" in out.out + out.err
+    assert not (root / ".nookku" / "gates").exists()
+    assert not (root / ".nookku" / "tests").exists()
+
+
+def test_verify_cannot_use_an_older_gate_folder_with_the_key_answer_key(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Nookku 0.6.1 accepted the key, so its gate folder can have a sealed gate.json with it.
+    root, path = _shop(tmp_path, TWO[:1])
     code, out = _run(root, path, capsys)
-    assert code == 1, out
-    assert out["result"]["reasons"] == [{"test": "refund", "check": "answer_key"}]
-    # The run copies the key into the result folder, so the seal covers it.
-    assert (Path(out["gate"]) / "inputs" / "refund" / "answer_key").read_text() == "{}"
+    assert code == 0, out
+    folder = Path(out["gate"])
+    older = {"v": 1, "tests": [{**TWO[0], "answer_key": "key.json"}]}
+    (folder / gate.GATE_FILE).write_text(json.dumps(older))
+    seal.write(folder)
+    report, why = gate.verify(folder)
+    assert report is None
+    assert why == f"{gate.GATE_FILE} is not valid: test 1 {gate_file.REMOVED_ANSWER_KEY}"
+    assert main(["gate", "verify", folder.name, "--root", str(root)]) == 2
+    assert why in capsys.readouterr().out
 
 
 def test_a_replay_of_the_same_agent_passes_and_a_changed_reply_fails(
@@ -530,6 +551,14 @@ def test_each_case_gives_its_result(case: Path, tmp_path: Path) -> None:
     assert gate.compute("gate-case", data, inputs, ledger, evidence, copies) == expect
 
 
+@pytest.mark.parametrize("case", REFUSED, ids=[c.name for c in REFUSED])
+def test_each_refused_case_gives_its_error(case: Path) -> None:
+    expect = json.loads((case / "expect_error.json").read_text(encoding="utf-8"))
+    with pytest.raises(gate.GateError) as e:
+        gate.parse((case / "gate.json").read_bytes())
+    assert str(e.value) == expect["error"]
+
+
 @pytest.mark.parametrize(
     "name, code, lines",
     [
@@ -579,6 +608,7 @@ def test_verify_gives_an_inconclusive_result_its_own_exit_code(
 
 def test_the_cases_cover_a_pass_a_fail_and_a_missing_test() -> None:
     assert {c.name for c in CASES} >= {"pass", "fail", "missing_test"}
+    assert {c.name for c in REFUSED} == {"refused_answer_key"}
     proofs = {"proof_pass", "proof_missing", "proof_stale", "proof_above_limit"}
     assert {c.name for c in CASES} >= proofs
 
