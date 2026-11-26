@@ -6,7 +6,7 @@ The plugin also has a display layer: `/nookku`, the status line and the Nookku p
 
 **Warning:** Do not also write the project hooks in this project. With both forms, each message goes to the agent two times ([choose-a-relay.md](choose-a-relay.md#switch-from-one-form-to-the-other)).
 
-The plugin loads in Claude Code 2.1.319 with nookku 0.6.0 on 2026-11-24 (the keys `nookku` and `date`): its command hook blocks a relayed prompt, `/nookku status` shows the text of the core, and the model calls the `status` tool ([data](../../proofs/plugin/load.json), [method](../../scripts/proof_plugin_load.py)). Each Claude Code check of the proof passes. [#219](https://github.com/mohanraj00/nookku/issues/219) runs the proofs P1 to P8 on the plugin.
+The plugin loads in Claude Code 2.1.319 with nookku 0.6.1 on 2026-11-25 (the keys `nookku` and `date`): its command hook blocks a relayed prompt, `/nookku status` shows the text of the core, and the model calls the `status` tool ([data](../../proofs/plugin/load.json), [method](../../scripts/proof_plugin_load.py)). Each Claude Code check of the proof passes. [#219](https://github.com/mohanraj00/nookku/issues/219) runs the proofs P1 to P8 on the plugin.
 
 Before you start, connect a test to your app: [connect-your-agent.md](connect-your-agent.md). For the toy shop agent of this repo, the configuration is one line:
 

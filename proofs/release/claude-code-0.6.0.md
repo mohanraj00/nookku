@@ -97,7 +97,7 @@ The owner ran these proofs in the main checkout of the repo. The first run was o
 | Proof | Result | Data |
 |---|---|---|
 | `proof_sessions.py` | pass, run 1 | [results](../sessions/results.json) |
-| `proof_plugin_load.py` | 1 Codex check fails, run 2 | [results](../plugin/load.json) |
+| `proof_plugin_load.py` | 1 Codex check fails, run 2 | [results at the tag v0.6.0](https://github.com/mohanraj00/nookku/blob/v0.6.0/proofs/plugin/load.json) |
 | `proof_trace.py` | pass, run 3 | [results](../trace/results.json) |
 | `bench/score.py` | no new data: the scores are of the 2026-10-04 runs. I did not commit the new version labels | [results](../../bench/results.json) |
 

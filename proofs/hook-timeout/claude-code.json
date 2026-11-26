@@ -14,7 +14,7 @@
     "timeout": 30
    },
    "exit": 0,
-   "seconds": 6.0,
+   "seconds": 2.9,
    "says_blocked": true,
    "model_calls": 2,
    "turn_calls_with_the_prompt": 0,
@@ -27,7 +27,7 @@
     "timeout": 1
    },
    "exit": 1,
-   "seconds": 5.9,
+   "seconds": 2.9,
    "says_blocked": false,
    "model_calls": 8,
    "turn_calls_with_the_prompt": 6,

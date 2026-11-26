@@ -2,7 +2,7 @@
  "date": "2026-11-25",
  "versions": {
   "codex": "codex-cli 0.169.0",
-  "nookku": "0.6.0",
+  "nookku": "0.6.1",
   "python": "3.13.12",
   "os": "Darwin"
  },
