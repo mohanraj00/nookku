@@ -240,38 +240,6 @@ def test_run_persona_obeys_verdict(
     assert "FAIL: The verdict is fail." in capsys.readouterr().out
 
 
-# A codex exec of the test. It logs each call, and writes message n of the plan to the file of
-# -o. The plan item "no file" writes no file, and "exit 3" exits with 3.
-FAKE_CODEX = """import json, os, sys
-if sys.argv[1:] == ["--version"]:
-    print("codex-cli 0.169.0")
-    sys.exit(0)
-prompt = sys.stdin.read()
-plan = json.loads(open(os.environ["FAKE_PLAN"]).read())
-with open(os.environ["FAKE_LOG"], "a") as log:
-    log.write(json.dumps({"argv": sys.argv[1:], "cwd": os.getcwd(), "prompt": prompt,
-        "nookku": sorted(k for k in os.environ if k.startswith("NOOKKU_"))}) + "\\n")
-said = plan[min(prompt.count("\\nYou: "), len(plan) - 1)]
-if said == "exit 3":
-    sys.exit(3)
-print("progress text on stdout")
-if said != "no file":
-    with open(sys.argv[sys.argv.index("-o") + 1], "w") as out:
-        out.write(said + "\\n")
-"""
-
-
-@pytest.fixture
-def fake_codex(fake: Path) -> Path:
-    bin_dir = fake / "bin"
-    script = bin_dir / "codex.py"
-    script.write_text(FAKE_CODEX)
-    codex = bin_dir / "codex"
-    codex.write_text(f'#!/bin/sh\nexec {shlex.join([sys.executable, str(script)])} "$@"\n')
-    codex.chmod(0o755)
-    return fake
-
-
 RUNNERS = json.loads(
     (Path(__file__).parents[1] / "conformance" / "persona_runner" / "runners.json").read_text()
 )["cases"]
@@ -293,73 +261,10 @@ def test_the_runner_cases_of_the_conformance_suite(case: dict, tmp_path: Path) -
             "<system prompt>", simulated_user.SYSTEM
         )
 
-    assert simulated_user.command(runner, tmp_path) == [fill(a) for a in want["argv"]]
+    assert simulated_user.command(runner) == [fill(a) for a in want["argv"]]
     assert simulated_user.harness(runner) == want["harness"]
     assert (runner if isinstance(runner, list) else None) == want["command"]
-    message = fill(want["message"])
-    if message != "stdout":
-        assert message == str(tmp_path / simulated_user.CODEX_MESSAGE)
-
-
-def test_the_codex_runner_reads_the_message_file(
-    fake_codex: Path, homes: tuple, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("NOOKKU_TEST_ID", "the tester's test")
-    root, path = _setup(fake_codex, ["My teapot came broken.", "GOAL MET"], runner="codex")
-    passed, lines, folder = bridge.run_persona(root, path)
-    assert passed, lines
-    turns = relay_turns(folder)
-    # The message is the -o file, not the progress text on stdout.
-    assert [(t["harness"], t["said"]) for t in turns] == [
-        ("simulated-user", "My teapot came broken.")
-    ]
-    result = json.loads((folder / simulated_user.RESULT).read_text())
-    assert result == {
-        "harness": "codex",
-        "command": None,
-        "version": "0.169.0",
-        "turns": 1,
-        "limit": 8,
-        "ended": "goal",
-        "error": None,
-    }
-    assert seal.verify(folder)["intact"]
-    calls = _calls(fake_codex)
-    assert len(calls) == 2
-    for call in calls:
-        cwd = call["cwd"]
-        assert Path(cwd).name.startswith("nookku-simulated-user-")
-        assert call["argv"][-5:] == ["-C", cwd, "-o", str(Path(cwd) / "message.txt"), "-"]
-        assert call["argv"][:6] == [
-            "exec",
-            "--ignore-user-config",
-            "--ignore-rules",
-            "--ephemeral",
-            "--skip-git-repo-check",
-            "--sandbox",
-        ]
-        assert call["nookku"] == []
-        # codex exec has no system prompt flag, so the prompt starts with the system prompt.
-        assert call["prompt"].startswith(simulated_user.SYSTEM + "\n\n")
-        assert PERSONA["goal"] in call["prompt"]
-
-
-@pytest.mark.parametrize(
-    ("plan", "error"),
-    [
-        (["no file"], "codex exec wrote no message.txt"),
-        (["exit 3"], "codex exec exited with 3"),
-    ],
-)
-def test_a_failed_codex_session_fails_the_run(
-    fake_codex: Path, homes: tuple, plan: list[str], error: str
-) -> None:
-    root, path = _setup(fake_codex, plan, runner="codex")
-    passed, lines, folder = bridge.run_persona(root, path)
-    assert not passed
-    assert f"FAIL: The simulated user stopped: {error}" in lines
-    result = json.loads((folder / simulated_user.RESULT).read_text())
-    assert (result["harness"], result["ended"], result["error"]) == ("codex", "error", error)
+    assert want["message"] == "stdout"
 
 
 def test_a_declared_command_writes_each_message(fake: Path, homes: tuple) -> None:
@@ -389,7 +294,7 @@ def test_a_failed_declared_command_fails_the_run(fake: Path, homes: tuple) -> No
 
 
 def test_a_runner_that_is_not_valid_starts_no_test(tmp_path: Path, homes: tuple) -> None:
-    root, path = _setup(tmp_path, ["Hello."], runner="gemini")
+    root, path = _setup(tmp_path, ["Hello."], runner="codex")
     with pytest.raises(bridge.BridgeError, match="'persona_runner' must be"):
         bridge.run_persona(root, path)
     assert not (root / ".nookku" / "current.json").exists()

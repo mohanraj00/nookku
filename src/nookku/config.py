@@ -140,8 +140,8 @@ class Config:
     # The match rules of a replay with the recorded backends, by proxy name (SPEC.md section
     # 7.10, "Match rules").
     replay_ignore: dict[str, dict[str, list[str]]] = field(default_factory=dict)
-    # The runner of a simulated user: claude-code, codex or a declared command (SPEC.md section
-    # 7.10, "Simulated user").
+    # The runner of a simulated user: claude-code or a declared command (SPEC.md section 7.10,
+    # "Simulated user").
     persona_runner: str | list[str] = "claude-code"
 
     @classmethod
@@ -263,14 +263,14 @@ def is_rules(value: Any) -> bool:
     return True
 
 
-RUNNER_ERROR = f"{FILE}: 'persona_runner' must be claude-code, codex or a list of strings"
+RUNNER_ERROR = f"{FILE}: 'persona_runner' must be claude-code or a list of strings"
 
 
 def is_runner(value: Any) -> bool:
     """True if value has the form of the config key persona_runner (SPEC.md section 7.1)."""
     if isinstance(value, list):
         return bool(value) and all(isinstance(a, str) for a in value)
-    return value in ("claude-code", "codex")
+    return isinstance(value, str) and value == "claude-code"
 
 
 def check(data: Any) -> dict[str, Any]:

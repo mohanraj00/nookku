@@ -2,8 +2,8 @@
 the agent in a new session. It gets only the persona, the goal and the conversation so far, and
 writes each next message. Nookku calls no model: it runs the harness CLI.
 
-The config key `persona_runner` selects the runner of each message (#667): `claude -p`, `codex
-exec`, or a command that the tester declares. Each runner gets the same prompt and environment.
+The config key `persona_runner` selects the runner of each message (#667): `claude -p`, or a
+command that the tester declares. Each runner gets the same prompt and environment.
 
 The messages of a simulated user are not deterministic, so a gate run never starts one (ADR
 0002), with any runner. Save the test as a script with `nookku script save`, and run the script
@@ -47,8 +47,6 @@ SYSTEM = (
 )
 # The runner of a simulated user if the config has no key persona_runner.
 DEFAULT_RUNNER = "claude-code"
-# The file of the message of a codex exec session, in its temporary folder.
-CODEX_MESSAGE = "message.txt"
 
 # A value of the config key persona_runner: a runner name or a declared command.
 Runner = str | list[str]
@@ -108,33 +106,12 @@ def prompt(persona: dict[str, Any], turns: list[tuple[str, str | None]]) -> str:
     return "\n\n".join(parts)
 
 
-def command(runner: Runner = DEFAULT_RUNNER, folder: Path | None = None) -> list[str]:
+def command(runner: Runner = DEFAULT_RUNNER) -> list[str]:
     """The command of one message. The claude -p session loads no settings, no CLAUDE.md, no
-    plugin, no hook and no MCP server, has no tools and keeps no session file. The codex exec
-    session loads no config.toml and no rules file, keeps no session file and runs only
-    read-only commands in its empty folder. A declared command is the tester's own."""
+    plugin, no hook and no MCP server, has no tools and keeps no session file. A declared
+    command is the tester's own."""
     if isinstance(runner, list):
         return list(runner)
-    if runner == "codex":
-        if folder is None:
-            raise ValueError("codex exec needs the folder of the message")
-        return [
-            "codex",
-            "exec",
-            "--ignore-user-config",
-            "--ignore-rules",
-            "--ephemeral",
-            "--skip-git-repo-check",
-            "--sandbox",
-            "read-only",
-            "--color",
-            "never",
-            "-C",
-            str(folder),
-            "-o",
-            str(folder / CODEX_MESSAGE),
-            "-",
-        ]
     return [
         "claude",
         "-p",
@@ -151,14 +128,12 @@ def command(runner: Runner = DEFAULT_RUNNER, folder: Path | None = None) -> list
 
 
 def harness(runner: Runner) -> str:
-    """The harness of simulated_user.json: claude-code, codex or command."""
+    """The harness of simulated_user.json: claude-code or command."""
     return "command" if isinstance(runner, list) else runner
 
 
 def _name(runner: Runner) -> str:
-    if isinstance(runner, list):
-        return "the declared command"
-    return "codex exec" if runner == "codex" else "claude -p"
+    return "the declared command" if isinstance(runner, list) else "claude -p"
 
 
 def environment() -> dict[str, str]:
@@ -177,14 +152,11 @@ def next_message(
     """The next message of the simulated user, or None if the goal is met. Raise OSError or
     PersonaError if the session fails or gives no valid message."""
     text = prompt(persona, turns)
-    if runner == "codex":
-        # codex exec has no flag for a system prompt, so the prompt starts with it.
-        text = f"{SYSTEM}\n\n{text}"
     with tempfile.TemporaryDirectory(prefix="nookku-simulated-user-") as tmp:
         folder = Path(tmp).resolve()
         try:
             done = subprocess.run(
-                command(runner, folder),
+                command(runner),
                 input=text.encode("utf-8"),
                 capture_output=True,
                 cwd=folder,
@@ -196,13 +168,7 @@ def next_message(
             raise PersonaError(f"the simulated user gave no message in {TIMEOUT} seconds") from None
         if done.returncode != 0:
             raise PersonaError(f"{_name(runner)} exited with {done.returncode}")
-        raw = done.stdout
-        if runner == "codex":
-            try:
-                raw = (folder / CODEX_MESSAGE).read_bytes()
-            except OSError:
-                raise PersonaError(f"codex exec wrote no {CODEX_MESSAGE}") from None
-    return _message(raw)
+    return _message(done.stdout)
 
 
 def _message(raw: bytes) -> str | None:
@@ -225,10 +191,9 @@ def version(runner: Runner = DEFAULT_RUNNER) -> str | None:
     none."""
     if isinstance(runner, list):
         return None
-    cmd = "codex" if runner == "codex" else "claude"
     try:
         done = subprocess.run(
-            [cmd, "--version"],
+            ["claude", "--version"],
             capture_output=True,
             env=environment(),
             timeout=30,
@@ -237,7 +202,4 @@ def version(runner: Runner = DEFAULT_RUNNER) -> str | None:
     except (OSError, subprocess.TimeoutExpired):
         return None
     text = done.stdout.decode("utf-8", "replace").split()
-    if done.returncode != 0 or not text:
-        return None
-    # claude prints "2.1.319 (Claude Code)", and codex prints "codex-cli 0.169.0".
-    return text[-1] if runner == "codex" else text[0]
+    return text[0] if done.returncode == 0 and text else None
