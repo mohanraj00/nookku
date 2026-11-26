@@ -140,6 +140,9 @@ class Config:
     # The match rules of a replay with the recorded backends, by proxy name (SPEC.md section
     # 7.10, "Match rules").
     replay_ignore: dict[str, dict[str, list[str]]] = field(default_factory=dict)
+    # The runner of a simulated user: claude-code or a declared command (SPEC.md section 7.10,
+    # "Simulated user").
+    persona_runner: str | list[str] = "claude-code"
 
     @classmethod
     def load(cls, root: Path) -> Config:
@@ -260,6 +263,16 @@ def is_rules(value: Any) -> bool:
     return True
 
 
+RUNNER_ERROR = f"{FILE}: 'persona_runner' must be claude-code or a list of strings"
+
+
+def is_runner(value: Any) -> bool:
+    """True if value has the form of the config key persona_runner (SPEC.md section 7.1)."""
+    if isinstance(value, list):
+        return bool(value) and all(isinstance(a, str) for a in value)
+    return isinstance(value, str) and value == "claude-code"
+
+
 def check(data: Any) -> dict[str, Any]:
     """Apply the rule for the keys to the parsed file. Return it, or raise ConfigError."""
     if not isinstance(data, dict):
@@ -305,6 +318,8 @@ def check(data: Any) -> dict[str, Any]:
         raise ConfigError(f"{FILE}: 'egress_ignore' must be a list of host names")
     if not is_rules(data.get("replay_ignore", {})):
         raise ConfigError(RULES_ERROR)
+    if not is_runner(data.get("persona_runner", "claude-code")):
+        raise ConfigError(RUNNER_ERROR)
     if data.get("model_reply_match", "normalized") not in MATCHES:
         raise ConfigError(f"{FILE}: 'model_reply_match' must be exact, normalized or off")
     entries = data.get("entries", {})

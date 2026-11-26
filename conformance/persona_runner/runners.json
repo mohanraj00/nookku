@@ -1,0 +1,40 @@
+{
+  "about": "The runner of a simulated user (SPEC.md section 7.10, \"Simulated user\", #667). Each case gives a value of the config key persona_runner, and the command of one message and the record keys, or the error of the reader. <folder> is the new temporary folder of the message. A case with no value has no key persona_runner. Nookku has no built-in codex runner, so the value codex is an error. This file is hand-written.",
+  "cases": [
+    {
+      "name": "no_key",
+      "expect": {
+        "argv": ["claude", "-p", "--setting-sources", "", "--tools", "", "--strict-mcp-config", "--disable-slash-commands", "--no-session-persistence", "--system-prompt", "<system prompt>"],
+        "message": "stdout",
+        "harness": "claude-code",
+        "command": null
+      }
+    },
+    {
+      "name": "claude_code",
+      "value": "claude-code",
+      "expect": {
+        "argv": ["claude", "-p", "--setting-sources", "", "--tools", "", "--strict-mcp-config", "--disable-slash-commands", "--no-session-persistence", "--system-prompt", "<system prompt>"],
+        "message": "stdout",
+        "harness": "claude-code",
+        "command": null
+      }
+    },
+    {"name": "codex_is_not_a_runner", "value": "codex", "error": ".nookku/config.json: 'persona_runner' must be claude-code or a list of strings"},
+    {
+      "name": "declared_command",
+      "value": ["python3", "toy_shop_user.py", "--quiet"],
+      "expect": {
+        "argv": ["python3", "toy_shop_user.py", "--quiet"],
+        "message": "stdout",
+        "harness": "command",
+        "command": ["python3", "toy_shop_user.py", "--quiet"]
+      }
+    },
+    {"name": "other_name", "value": "gemini", "error": ".nookku/config.json: 'persona_runner' must be claude-code or a list of strings"},
+    {"name": "empty_list", "value": [], "error": ".nookku/config.json: 'persona_runner' must be claude-code or a list of strings"},
+    {"name": "list_with_a_number", "value": ["python3", 3], "error": ".nookku/config.json: 'persona_runner' must be claude-code or a list of strings"},
+    {"name": "empty_string", "value": "", "error": ".nookku/config.json: 'persona_runner' must be claude-code or a list of strings"},
+    {"name": "object", "value": {"command": ["python3"]}, "error": ".nookku/config.json: 'persona_runner' must be claude-code or a list of strings"}
+  ]
+}

@@ -15,6 +15,7 @@ from test_bridge import homes as homes
 
 from nookku import bridge, evaluation, kit, script, script_save, seal, simulated_user
 from nookku.cli import main
+from nookku.config import ConfigError, check
 from nookku.record import Turn
 
 PERSONA = {
@@ -56,11 +57,16 @@ def fake(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return tmp_path
 
 
-def _setup(tmp_path: Path, plan: list[str], persona: dict = PERSONA) -> tuple[Path, Path]:
+def _setup(
+    tmp_path: Path, plan: list[str], persona: dict = PERSONA, runner: object = None
+) -> tuple[Path, Path]:
     (tmp_path / "plan.json").write_text(json.dumps(plan))
     app = tmp_path / "app.py"
     app.write_text(ECHO_APP)
     root = project(tmp_path, [sys.executable, str(app)])
+    if runner is not None:
+        conf = root / ".nookku" / "config.json"
+        conf.write_text(json.dumps({**json.loads(conf.read_text()), "persona_runner": runner}))
     path = tmp_path / "persona.json"
     path.write_text(json.dumps(persona))
     return root, path
@@ -104,6 +110,7 @@ def test_the_simulated_user_writes_each_message_up_to_the_goal(
     result = json.loads((folder / simulated_user.RESULT).read_text())
     assert result == {
         "harness": "claude-code",
+        "command": None,
         "version": "2.1.319",
         "turns": 2,
         "limit": 8,
@@ -231,3 +238,63 @@ def test_run_persona_obeys_verdict(
     capsys.readouterr()
     assert main([*argv, "--verdict"]) == 1
     assert "FAIL: The verdict is fail." in capsys.readouterr().out
+
+
+RUNNERS = json.loads(
+    (Path(__file__).parents[1] / "conformance" / "persona_runner" / "runners.json").read_text()
+)["cases"]
+
+
+@pytest.mark.parametrize("case", RUNNERS, ids=[c["name"] for c in RUNNERS])
+def test_the_runner_cases_of_the_conformance_suite(case: dict, tmp_path: Path) -> None:
+    data = {} if "value" not in case else {"persona_runner": case["value"]}
+    if "error" in case:
+        with pytest.raises(ConfigError) as e:
+            check(data)
+        assert str(e.value) == case["error"]
+        return
+    runner = check(data).get("persona_runner", simulated_user.DEFAULT_RUNNER)
+    want = case["expect"]
+
+    def fill(text: str) -> str:
+        return text.replace("<folder>", str(tmp_path)).replace(
+            "<system prompt>", simulated_user.SYSTEM
+        )
+
+    assert simulated_user.command(runner) == [fill(a) for a in want["argv"]]
+    assert simulated_user.harness(runner) == want["harness"]
+    assert (runner if isinstance(runner, list) else None) == want["command"]
+    assert want["message"] == "stdout"
+
+
+def test_a_declared_command_writes_each_message(fake: Path, homes: tuple) -> None:
+    command = [sys.executable, str(fake / "bin" / "claude.py"), "--quiet"]
+    root, path = _setup(fake, ["Where is my teapot?", "GOAL MET"], runner=command)
+    passed, lines, folder = bridge.run_persona(root, path)
+    assert passed, lines
+    assert [t["said"] for t in relay_turns(folder)] == ["Where is my teapot?"]
+    result = json.loads((folder / simulated_user.RESULT).read_text())
+    assert result["harness"] == "command"
+    assert result["command"] == command
+    # A declared command has no version.
+    assert result["version"] is None
+    calls = _calls(fake)
+    assert [c["argv"] for c in calls] == [["--quiet"], ["--quiet"]]
+    assert all(c["nookku"] == [] for c in calls)
+    assert all(Path(c["cwd"]).name.startswith("nookku-simulated-user-") for c in calls)
+
+
+def test_a_failed_declared_command_fails_the_run(fake: Path, homes: tuple) -> None:
+    command = [sys.executable, str(fake / "bin" / "claude.py")]
+    root, path = _setup(fake, ["exit 3"], runner=command)
+    passed, lines, folder = bridge.run_persona(root, path)
+    assert not passed
+    assert "FAIL: The simulated user stopped: the declared command exited with 3" in lines
+    assert json.loads((folder / simulated_user.RESULT).read_text())["harness"] == "command"
+
+
+def test_a_runner_that_is_not_valid_starts_no_test(tmp_path: Path, homes: tuple) -> None:
+    root, path = _setup(tmp_path, ["Hello."], runner="codex")
+    with pytest.raises(bridge.BridgeError, match="'persona_runner' must be"):
+        bridge.run_persona(root, path)
+    assert not (root / ".nookku" / "current.json").exists()

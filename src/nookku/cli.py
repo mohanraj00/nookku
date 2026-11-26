@@ -36,7 +36,6 @@ from nookku import (
 from nookku.adapters import make
 from nookku.audit import audit, render
 from nookku.config import FILE as CONFIG_FILE
-from nookku.config import KEYS as CONFIG_KEYS
 from nookku.config import (
     OLD_STATE_DIR,
     ConfigError,
@@ -46,28 +45,11 @@ from nookku.config import (
     read_config,
     spec_hashes,
 )
+from nookku.config_flags import LIST_KEYS as LIST_KEYS  # the old place of the name
+from nookku.config_flags import STRING_KEYS, add_string_flags
 from nookku.record import RecordError, loads, read_manifest
 from nookku.tap import Tap, serve
 
-# Config keys that are not a plain string flag of init.
-LIST_KEYS = {
-    "entry",
-    "entries",
-    "models",
-    "evaluate",
-    "otel",
-    "openai_stream",
-    "repeated_reply",
-    "transcript_compact",
-    "page",
-    "record_limit",
-    "body_limit",
-    "spec",
-    "egress_ignore",
-    "replay_ignore",
-}
-# The plain string flags of init. A flag that the user does not give is None.
-STRING_KEYS = [k for k in CONFIG_KEYS if k not in LIST_KEYS]
 # The relays and the bridge run these commands. A tester does not run them
 # (docs/reference/cli.md, "Internal commands").
 INTERNAL_COMMANDS = frozenset({"hook", "mcp", "mcp-stdio", "bridge"})
@@ -303,12 +285,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="plugin: write only the config, because the nookku plugin has the hooks",
     )
     ini.add_argument("--root", type=Path, default=Path.cwd(), help="the project (default: here)")
-    defaults = vars(kit.Config())
-    for name in STRING_KEYS:
-        ini.add_argument(
-            f"--{name.replace('_', '-')}",
-            help=f"the config key {name} (new file: {defaults[name]!r})",
-        )
+    add_string_flags(ini)
     ini.add_argument(
         "--openai-stream",
         action=argparse.BooleanOptionalAction,

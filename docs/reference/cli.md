@@ -153,7 +153,14 @@ With `--persona FILE`, a simulated user writes each message in place of a script
 {"persona": "A customer whose teapot came broken.", "goal": "Get a return label for the teapot.", "turns": 8}
 ```
 
-For each turn, `run` starts `claude -p` in a new session, with no settings, no `CLAUDE.md`, no plugin, no hook, no MCP server and no tool. The session gets only the persona, the goal and the turns so far. The relay row of each message has `"harness": "simulated-user"`. The run stops when the simulated user writes `GOAL MET`, at the turn limit, at a turn with no reply, or when the session fails. The test folder gets `persona.json`, a copy of the file, and `simulated_user.json` with the result. The messages are not deterministic, so a [gate run](#nookku-gate) does not start a simulated user. To send the same messages again, save the test with [`nookku script save`](#nookku-script) and run the script.
+The config key [`persona_runner`](config.md) selects the runner of the simulated user ([#667](https://github.com/mohanraj00/nookku/issues/667)):
+
+- `claude-code` (the default): for each turn, `run` starts `claude -p` in a new session, with no settings, no `CLAUDE.md`, no plugin, no hook, no MCP server and no tool.
+- A list of strings: a command that you declare, for example `["python3", "/srv/toy-shop/toy_shop_user.py"]`. It gets the prompt on stdin and writes the message on stdout. The command starts in a new empty temporary folder, not in the project. Thus give an absolute path for each file of the command, because a relative path points into that empty folder. Nookku cannot check what the command loads, so you own its isolation.
+
+**Warning:** Give a declared command with no tools. The prompt holds each reply of the agent, and an agent under test can be hostile. A command that can read files or the network can send a secret to the agent in its next message. For this reason Nookku has no built-in `codex` runner: `codex exec` has no flag that removes each tool.
+
+Each session gets only the persona, the goal and the turns so far. The relay row of each message has `"harness": "simulated-user"`. The run stops when the simulated user writes `GOAL MET`, at the turn limit, at a turn with no reply, or when the session fails. The test folder gets `persona.json`, a copy of the file, and `simulated_user.json` with the result and the runner. The messages are not deterministic, so a [gate run](#nookku-gate) does not start a simulated user. To send the same messages again, save the test with [`nookku script save`](#nookku-script) and run the script.
 
 The output gives the test id, the count of turns, the audit and the trace, and the verdict if the [app spec](app-spec.md#verdict) gives limits, and then `PASS` or each `FAIL:` line. It does not give the replies. Read them with `nookku transcript`.
 
@@ -162,7 +169,7 @@ By default, only a person runs `nookku run`: the relay denies it from the model.
 | Flag | Default | Meaning |
 |---|---|---|
 | `--script FILE` | `--script` or `--persona` | The script file. |
-| `--persona FILE` | `--script` or `--persona` | The persona file of a simulated user. It needs Claude Code. |
+| `--persona FILE` | `--script` or `--persona` | The persona file of a simulated user. It needs the harness of the config key `persona_runner`, Claude Code by default. |
 | `--entry NAME` | the key `entry` | A name in the config key `entries`. It does not take a command line. |
 | `--root PATH` | the current folder | The project. |
 | `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
