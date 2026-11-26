@@ -8125,6 +8125,61 @@ APPROVALS_BIND_CASE = {
     },
 }
 
+# The numbers of a Bind (SPEC.md section 7.18, the review of #695). Each expected row and each
+# finding is hand-written. The check reads each number of a JSON text with all its digits.
+# Turn 1: 1.0000000000000001 is not equal to 1, as it would be for 2 floats. Turn 2: 1e400 is
+# not equal to 2e400, as it would be for 2 infinite floats. Turn 3: 2.50 and 2.5 have the same
+# value.
+APPROVE_LONG = '{"order": 1.0000000000000001}'
+REFUND_ONE = '{"order": 1}'
+APPROVE_HUGE = '{"order": 1e400}'
+REFUND_HUGE = '{"order": 2e400}'
+APPROVE_TWO_AND_A_HALF = '{"order": 2.50}'
+REFUND_TWO_AND_A_HALF = '{"order": 2.5}'
+APPROVALS_BIND_NUMBERS_CASE = {
+    "tap": [window(10, 20), window(30, 40), window(50, 60)],
+    "manifest": {
+        "test": "20261126-090000-ap06",
+        "model_sessions": [],
+        "approvals": [BIND_REFUND_ROW],
+    },
+    "sessions": {},
+    "backend": [
+        shop_call(12, "/approvals", APPROVE_LONG),
+        shop_call(14, "/refund", REFUND_ONE),
+        shop_call(32, "/approvals", APPROVE_HUGE),
+        shop_call(34, "/refund", REFUND_HUGE),
+        shop_call(52, "/approvals", APPROVE_TWO_AND_A_HALF),
+        shop_call(54, "/refund", REFUND_TWO_AND_A_HALF),
+    ],
+    "trace": [
+        shop_item(1, 12, 1, "/approvals", APPROVE_LONG),
+        shop_item(1, 14, 2, "/refund", REFUND_ONE),
+        shop_item(2, 32, 3, "/approvals", APPROVE_HUGE),
+        shop_item(2, 34, 4, "/refund", REFUND_HUGE),
+        shop_item(3, 52, 5, "/approvals", APPROVE_TWO_AND_A_HALF),
+        shop_item(3, 54, 6, "/refund", REFUND_TWO_AND_A_HALF),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261126-090000-ap06",
+        "turns": 3,
+        "items": 6,
+        "sessions": [],
+        "otel": None,
+        "backend": {"file": "backend.jsonl", "rows": 6, "items": 6, "ignored": {}},
+        "model_api": None,
+        "mcp": None,
+        "database": None,
+        "counts": counts(action_without_approval=2),
+        "findings": [
+            bind_finding(1, BIND_REFUND_ROW, 2, SAME),
+            bind_finding(2, BIND_REFUND_ROW, 4, SAME),
+        ],
+        "approvals": [{**BIND_REFUND_ROW, "actions": 3, "without_approval": 2}],
+    },
+}
+
 # A second message during a turn (SPEC.md sections 4.2 and 8.3). Each expected row and each
 # finding is hand-written.
 #
@@ -8297,6 +8352,7 @@ TRACE_CASES = {
     "approvals_not_valid": APPROVALS_NOT_VALID_CASE,
     "approvals_null": APPROVALS_NULL_CASE,
     "approvals_bind": APPROVALS_BIND_CASE,
+    "approvals_bind_numbers": APPROVALS_BIND_NUMBERS_CASE,
     "second_message": SECOND_MESSAGE_CASE,
     "answer_key_text": ANSWER_KEY_TEXT_CASE,
     "answer_key_changed": ANSWER_KEY_CHANGED_CASE,
