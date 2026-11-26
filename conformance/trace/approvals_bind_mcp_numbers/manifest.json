@@ -1,0 +1,22 @@
+{
+ "test": "20261126-100000-ap07",
+ "model_sessions": [],
+ "approvals": [
+  {
+   "action": "mcp__stock__refund",
+   "source": "mcp",
+   "approval": "mcp__stock__approve",
+   "by": "mcp",
+   "interrupt": "",
+   "bind": "input.order = input.order"
+  },
+  {
+   "action": "mcp__stock__credit",
+   "source": "mcp",
+   "approval": "mcp__stock__approve_credit",
+   "by": "mcp",
+   "interrupt": "",
+   "bind": "input.credit.order = input.credit.order"
+  }
+ ]
+}

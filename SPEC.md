@@ -1421,7 +1421,7 @@ The cases [`conformance/trace/answer_key/`](conformance/trace/answer_key/) (a ma
 
 An app can stop for an approval before an action, for example before a refund. The `Approvals` section of the app spec names each action that needs an approval, and what gives the approval. The trace finds each action with no approval before it in its turn. The check uses no model. It is a deterministic check, so it can fail a verdict (section 7.14).
 
-**The declaration.** The section `Approvals` of the app spec files (section 7.1, key `spec`) declares the rows. The section and its table follow the rules of the `Trace points` section (section 8.6). The header row must have the columns `Action`, `Source`, `Approval` and `By`. It can have the column `Interrupt`, and more columns. The reader removes each backtick and the white space at the start and the end of a cell.
+**The declaration.** The section `Approvals` of the app spec files (section 7.1, key `spec`) declares the rows. The section and its table follow the rules of the `Trace points` section (section 8.6). The header row must have the columns `Action`, `Source`, `Approval` and `By`. It can have the columns `Interrupt` and `Bind`, and more columns. The reader removes each backtick and the white space at the start and the end of a cell.
 
 | Column | Value |
 |---|---|
@@ -1430,6 +1430,7 @@ An app can stop for an approval before an action, for example before a refund. T
 | `Approval` | The name of the approval, with the name rule of its `By`. |
 | `By` | `elicitation`, `message`, `session`, `backend`, `otel` or `mcp`, in any case. |
 | `Interrupt` | Only for the `By` `message`, which needs it: the dot path of the interrupt in the JSON of a reply, with the JSON rule of `reply_not_from_model` (section 8.6). Each part of the path has at least 1 character. |
+| `Bind` | Optional, only for the `By` `session`, `backend`, `otel` or `mcp`: 2 dot paths with `=` between them, `<approval path> = <action path>`. The first path is in the approval, and the second path is in the action. Each part of a path has at least 1 character. With a `Bind`, an approval covers only an action with the same value (the rule below). |
 
 The toy shop rows:
 
@@ -1440,6 +1441,14 @@ The toy shop rows:
 |---|---|---|---|---|
 | `shop POST /refund` | backend | `payments` | elicitation | |
 | `shop POST /orders/cancel` | backend | `yes` | message | `interrupt.action` |
+```
+
+A row with a `Bind`: a call of the app to its approval service approves a credit only for the order of the call.
+
+```markdown
+| Action | Source | Approval | By | Bind |
+|---|---|---|---|---|
+| `shop POST /credit` | backend | `shop POST /approvals` | backend | `input.body.order = input.body.order` |
 ```
 
 **The names.** An item of the trace has a name for each source. For `session`, `backend`, `model_api` and `otel`, it is the name of an item of a trace point (section 8.6, `missing_trace_point`). For `mcp`, it is `mcp__<server>__<tool>` of a `tool_call` item of `mcp.jsonl`. An action of a row is each item with the `Source` and the name `Action` of the row, in any turn and in no turn. An action that failed is an action.
@@ -1469,24 +1478,32 @@ The toy shop rows:
 1. An approval of the row is in the same turn (section 8.3), and its `ts` is the `ts` of the action or less.
 2. The `By` is `elicitation`, the action is a `tool_call` item of `mcp.jsonl` of the server `Approval`, and an approval of the row in the same turn has the `line` and the tool name of the action in `during`.
 
-Each other action of a row gives one `action_without_approval` finding (section 8.6). An action in no turn has no approval. An item with no number `ts` or with no turn approves nothing. One approval covers each later action of its row in the turn.
+**The bind.** A row with a `Bind` adds a condition to each part of the rule: the value at the approval path in the approval item is equal to the value at the action path in the action item.
 
-**The record.** The key `approvals` of the manifest holds the rows: a list of objects with the strings `action`, `source`, `approval`, `by` and `interrupt`, with `source` and `by` in lowercase and `""` for no `Interrupt`. It holds 200 rows at most, and a test with no row has `[]`. `findings.json` of a test with at least 1 row has the key `approvals`: each row with `actions` (the count of its actions) and `without_approval` (the count of its findings).
+- A path is a dot path in the item, with the fields of a row of `trace.jsonl` (section 8.2), for example `input.body.order`. A part that is a number selects that index of a list. If the path gets to a string before its last part, the check reads the string as JSON, with the JSON rule of `reply_not_from_model` (section 8.6), and goes on in that JSON.
+- Only a string or a finite number has a value. 2 strings are equal byte for byte. 2 numbers are equal if they have the same value. The check reads each number with all the digits of its JSON text: a number of the item as its record line has it, and a number of a JSON text in the item. Thus `1.0000000000000001` is not equal to `1`, `9007199254740993.0` is not equal to `9007199254740992.0`, and `1e400` is not equal to `2e400`. `trace.jsonl` shows a number of an item as a float, so 2 numbers that are not equal can have the same text there. A number with no JSON text, which the trace makes itself, has the value of its shortest decimal text. A number that is not finite, such as `NaN`, has no value. A number with an exponent out of the range of a decimal value, such as `1e-9999999999999999999`, has no value too. A string is not equal to a number, and `true` and `false` are not numbers.
+- A path with no value in the item, `null`, a list or an object gives no value. An action with no value at its path has no approval. Its `detail` is `<action> (<source>): the action has no value at <action path>, so it has no approval. Approval: <approval> (<by>)`.
+- An action with a value and no approval of the same value has the `detail` `<action> (<source>): no approval of the same <action path> before it in this turn. Approval: <approval> (<by>)`.
+
+Each other action of a row gives one `action_without_approval` finding (section 8.6). An action in no turn has no approval. An item with no number `ts` or with no turn approves nothing. With no `Bind`, one approval covers each later action of its row in the turn.
+
+**The record.** The key `approvals` of the manifest holds the rows: a list of objects with the strings `action`, `source`, `approval`, `by`, `interrupt` and `bind`, with `source` and `by` in lowercase, `""` for no `Interrupt` and `""` for no `Bind`. `bind` holds the 2 paths as `<approval path> = <action path>`, with 1 space at each side of `=`. A row with no key `bind`, from a test of Nookku 0.6.1 or older, has no `Bind`. It holds 200 rows at most, and a test with no row has `[]`. `findings.json` of a test with at least 1 row has the key `approvals`: each row with `actions` (the count of its actions) and `without_approval` (the count of its findings).
 
 **Fail closed.**
 
-- The test does not start if a part of an `Approvals` section is not valid: a section with no table, a table with no `Action`, `Source`, `Approval` or `By` column, a row with an empty `Action` or `Approval`, an unknown `Source` or `By`, a `By` `message` with no valid `Interrupt`, another `By` with an `Interrupt`, a second row for one `Action` and `Source`, or more than 200 rows. The error names the file and the line.
+- The test does not start if a part of an `Approvals` section is not valid: a section with no table, a table with no `Action`, `Source`, `Approval` or `By` column, a row with an empty `Action` or `Approval`, an unknown `Source` or `By`, a `By` `message` with no valid `Interrupt`, another `By` with an `Interrupt`, a second row for one `Action` and `Source`, a `Bind` with the `By` `elicitation` or `message`, a `Bind` with no `=` or with a path that is not valid, or more than 200 rows. The error names the file and the line.
 - If the manifest has a key `approvals` that is not in this form, the trace gives 1 `action_without_approval` finding with no turn and the `detail` `the approvals cannot be used: the key approvals of manifest.json is not valid`. `approvals` of `findings.json` is then `null`. The value `null` is not in this form: a manifest with `"approvals": null` has the key, so it gets this finding. A manifest with no key, from a test before the key, has no rows and no finding.
 
 **Limits.** The check reads what the records show:
 
 - The app answers an elicitation, because the app is the MCP client. The record shows that the server asked and that the app answered `accept`. It does not show that a person gave the answer. With the `By` `message`, the tester gives the approval, and the tap records it.
-- It does not compare the content of an approval with the action. An accepted elicitation for one order covers a later action for another order in the same turn.
+- With no `Bind`, it does not compare the approval with the action. An approval for one order covers a later action for another order in the same turn. To compare them, add a `Bind`, and name an item of the trace that holds the order as the approval.
+- An `elicitation` item and a `resume` item hold no field of the action, so a row with the `By` `elicitation` or `message` cannot have a `Bind`.
 - It reads the `action` of the answer of an elicitation, not its `content`. A form with a field that the user set to `false` still has the `action` `accept`.
 - An `accept` of the mode `url` says only that the user agreed to open a page, so it is not an approval. Only the mode `form` gives an approval. Name an item of the trace as the approval of an app with another mode.
 - An MCP proxy does not see when a server does its work. For the second part of the rule, the check accepts an approval that the app gave before the result of the tool call.
 
-The cases [`conformance/trace/approvals_elicitation/`](conformance/trace/approvals_elicitation/) (an accept before the action and after it, a decline, an approval during a tool call of an HTTP server, the mode `url`, a request with no answer and an action in no turn), [`conformance/trace/approvals_interrupt/`](conformance/trace/approvals_interrupt/) (an interrupt and its resume, a message that is not the approval, a message with no interrupt before it, an item of the trace as the approval, and a failed item) and [`conformance/trace/approvals_not_valid/`](conformance/trace/approvals_not_valid/) give the forms. The case [`conformance/trace/approvals_null/`](conformance/trace/approvals_null/) gives a manifest with `"approvals": null`. The case [`conformance/verdict/approval_limit/`](conformance/verdict/approval_limit/) gives a limit of the class.
+The cases [`conformance/trace/approvals_elicitation/`](conformance/trace/approvals_elicitation/) (an accept before the action and after it, a decline, an approval during a tool call of an HTTP server, the mode `url`, a request with no answer and an action in no turn), [`conformance/trace/approvals_interrupt/`](conformance/trace/approvals_interrupt/) (an interrupt and its resume, a message that is not the approval, a message with no interrupt before it, an item of the trace as the approval, and a failed item) and [`conformance/trace/approvals_not_valid/`](conformance/trace/approvals_not_valid/) give the forms. The case [`conformance/trace/approvals_null/`](conformance/trace/approvals_null/) gives a manifest with `"approvals": null`. The case [`conformance/trace/approvals_bind/`](conformance/trace/approvals_bind/) gives a `Bind`: an approval for order 4471 does not cover a refund of order 9999 in the same turn, an action with no value at its path, a number and a string, and a value in a list. The case [`conformance/trace/approvals_bind_numbers/`](conformance/trace/approvals_bind_numbers/) gives the numbers of a `Bind`: a number with more digits than a float holds, 2 numbers above the range of a float, and 2.50 and 2.5. The case [`conformance/trace/approvals_bind_mcp_numbers/`](conformance/trace/approvals_bind_mcp_numbers/) gives the same rule for a number of the item itself, in a direct and in a nested argument of an MCP tool call: 2^53 and 2^53 + 1 with and with no point, and 4471 and 4471.0. The case [`conformance/verdict/approval_limit/`](conformance/verdict/approval_limit/) gives a limit of the class.
 
 ## 8. Trace
 

@@ -1,0 +1,122 @@
+{
+ "v": "0.2",
+ "test": "20261125-090000-ap05",
+ "turns": 5,
+ "items": 12,
+ "sessions": [],
+ "otel": null,
+ "backend": {
+  "file": "backend.jsonl",
+  "rows": 12,
+  "items": 12,
+  "ignored": {}
+ },
+ "model_api": null,
+ "mcp": null,
+ "database": null,
+ "approvals": [
+  {
+   "action": "shop POST /refund",
+   "source": "backend",
+   "approval": "shop POST /approvals",
+   "by": "backend",
+   "interrupt": "",
+   "bind": "input.body.order = input.body.order",
+   "actions": 4,
+   "without_approval": 3
+  },
+  {
+   "action": "shop POST /credit",
+   "source": "backend",
+   "approval": "shop POST /approvals",
+   "by": "backend",
+   "interrupt": "",
+   "bind": "input.body.orders.0 = input.body.order",
+   "actions": 3,
+   "without_approval": 1
+  }
+ ],
+ "egress": null,
+ "trace_points": null,
+ "counts": {
+  "agent_error": 0,
+  "repeated_reply": 0,
+  "reply_not_from_model": 0,
+  "citation_not_read": 0,
+  "answer_key_mismatch": 0,
+  "answer_key_missing": 0,
+  "tool_error": 0,
+  "command_failed": 0,
+  "span_error": 0,
+  "backend_error": 0,
+  "model_api_error": 0,
+  "questions_lost": 0,
+  "database_error": 0,
+  "proxy_call_without_span": 0,
+  "mcp_task_unfinished": 0,
+  "replay_changed": 0,
+  "replay_miss": 0,
+  "unseen_call": 0,
+  "driver_without_span": 0,
+  "other_without_span": 0,
+  "egress_not_in_discovery": 0,
+  "egress_denied": 0,
+  "model_error": 0,
+  "turn_without_model": 0,
+  "item_between_turns": 0,
+  "otel_tool_not_in_session": 0,
+  "server_not_from_app": 0,
+  "session_inferred": 0,
+  "version_untested": 0,
+  "missing_trace_point": 0,
+  "trace_points_unread": 0,
+  "action_without_approval": 4,
+  "call_cut": 0
+ },
+ "findings": [
+  {
+   "check": "action_without_approval",
+   "turn": 1,
+   "detail": "shop POST /refund (backend): no approval of the same input.body.order before it in this turn. Approval: shop POST /approvals (backend)",
+   "harness": "backend",
+   "session": "shop",
+   "source": {
+    "file": "backend.jsonl",
+    "line": 3
+   }
+  },
+  {
+   "check": "action_without_approval",
+   "turn": 2,
+   "detail": "shop POST /refund (backend): no approval of the same input.body.order before it in this turn. Approval: shop POST /approvals (backend)",
+   "harness": "backend",
+   "session": "shop",
+   "source": {
+    "file": "backend.jsonl",
+    "line": 5
+   }
+  },
+  {
+   "check": "action_without_approval",
+   "turn": 3,
+   "detail": "shop POST /refund (backend): the action has no value at input.body.order, so it has no approval. Approval: shop POST /approvals (backend)",
+   "harness": "backend",
+   "session": "shop",
+   "source": {
+    "file": "backend.jsonl",
+    "line": 7
+   }
+  },
+  {
+   "check": "action_without_approval",
+   "turn": 4,
+   "detail": "shop POST /credit (backend): no approval of the same input.body.order before it in this turn. Approval: shop POST /approvals (backend)",
+   "harness": "backend",
+   "session": "shop",
+   "source": {
+    "file": "backend.jsonl",
+    "line": 10
+   }
+  }
+ ]
+}

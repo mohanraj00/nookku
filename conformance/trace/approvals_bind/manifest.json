@@ -1,0 +1,22 @@
+{
+ "test": "20261125-090000-ap05",
+ "model_sessions": [],
+ "approvals": [
+  {
+   "action": "shop POST /refund",
+   "source": "backend",
+   "approval": "shop POST /approvals",
+   "by": "backend",
+   "interrupt": "",
+   "bind": "input.body.order = input.body.order"
+  },
+  {
+   "action": "shop POST /credit",
+   "source": "backend",
+   "approval": "shop POST /approvals",
+   "by": "backend",
+   "interrupt": "",
+   "bind": "input.body.orders.0 = input.body.order"
+  }
+ ]
+}

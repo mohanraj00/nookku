@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +12,7 @@ import pytest
 
 from nookku import approvals, bridge, trace
 from nookku.config import ConfigError
+from nookku.structured import Exact
 
 SECTION = """# Toy shop
 
@@ -27,17 +30,26 @@ def _read(rows: str) -> list[dict[str, str]]:
     return approvals.read([("APP_SPEC.md", SECTION.format(rows=rows))])
 
 
-def _row(action: str, source: str, approval: str, by: str, interrupt: str = "") -> dict[str, str]:
+def _read_bind(rows: str) -> list[dict[str, str]]:
+    head = "| Action | Source | Approval | By | Interrupt | Bind |\n|---|---|---|---|---|---|"
+    return approvals.read([("APP_SPEC.md", f"## Approvals\n\n{head}\n{rows}\n")])
+
+
+def _row(
+    action: str, source: str, approval: str, by: str, interrupt: str = "", bind: str = ""
+) -> dict[str, str]:
     return {
         "action": action,
         "source": source,
         "approval": approval,
         "by": by,
         "interrupt": interrupt,
+        "bind": bind,
     }
 
 
 REFUND_ROW = _row("shop POST /refund", "backend", "payments", "elicitation")
+CREDIT_ROW = _row("shop POST /credit", "backend", "shop POST /approvals", "backend")
 CANCEL_ROW = _row("shop POST /orders/cancel", "backend", "yes", "message", "interrupt.action")
 
 
@@ -57,6 +69,15 @@ def test_the_interrupt_column_is_optional() -> None:
     ]
 
 
+def test_the_bind_column_gives_2_paths_with_one_space_at_each_side() -> None:
+    rows = "| `shop POST /credit` | backend | `shop POST /approvals` | backend | | "
+    rows += "`input.body.order`=  `input.body.order` |"
+    bind = "input.body.order = input.body.order"
+    assert _read_bind(rows) == [
+        _row("shop POST /credit", "backend", "shop POST /approvals", "backend", bind=bind)
+    ]
+
+
 @pytest.mark.parametrize(
     ("rows", "error"),
     [
@@ -68,12 +89,18 @@ def test_the_interrupt_column_is_optional() -> None:
         ("| `a` | backend | yes | message | `a..b` |", "line 7: the By message needs an Interrupt"),
         ("| `a` | backend | `p` | elicitation | `x` |", "only the By message takes an Interrupt"),
         (REFUND + "\n" + REFUND, "line 8: the action has an earlier Approvals row"),
+        ("| `a` | backend | `p` | elicitation | | `x = y` |", "the By elicitation cannot take"),
+        ("| `a` | backend | yes | message | `i` | `x = y` |", "the By message cannot take a Bind"),
+        ("| `a` | backend | `p` | backend | | `x` |", "the Bind must be 2 dot paths"),
+        ("| `a` | backend | `p` | backend | | `x = ` |", "the Bind must be 2 dot paths"),
+        ("| `a` | backend | `p` | backend | | `x..y = z` |", "the Bind must be 2 dot paths"),
+        ("| `a` | backend | `p` | backend | | `x = y = z` |", "the Bind must be 2 dot paths"),
         ("| `a` | backend | `payments` |", "line 7: "),
     ],
 )
 def test_a_section_that_is_not_valid_stops_the_start(rows: str, error: str) -> None:
     with pytest.raises(ConfigError) as e:
-        _read(rows)
+        _read_bind(rows) if rows.count("|") == 7 else _read(rows)
     assert str(e.value).startswith("APP_SPEC.md ") and error in str(e.value)
 
 
@@ -113,11 +140,22 @@ def test_the_bridge_records_the_rows_and_refuses_a_bad_section(tmp_path: Path) -
         [{**REFUND_ROW, "by": 1}],
         [{**REFUND_ROW, "source": "Backend"}],
         [{**CANCEL_ROW, "interrupt": ""}],
+        [{**REFUND_ROW, "bind": "x = y"}],
+        [{**CANCEL_ROW, "bind": "x = y"}],
+        [{**CREDIT_ROW, "bind": "x"}],
+        [{**CREDIT_ROW, "bind": "x=y"}],
+        [{**CREDIT_ROW, "bind": None}],
         [REFUND_ROW] * (approvals.MAX_ROWS + 1),
     ],
 )
 def test_a_manifest_key_that_is_not_valid_has_no_rows(rows: Any) -> None:
     assert approvals.valid(rows) is None
+
+
+def test_a_row_of_an_older_test_with_no_key_bind_is_valid() -> None:
+    old = {k: v for k, v in REFUND_ROW.items() if k != "bind"}
+    assert approvals.valid([old]) == [old]
+    assert _found([old], [_accept(1, 5.0), _refund(1, 6.0)]) == []
 
 
 def test_a_manifest_with_no_key_has_no_rows_and_no_finding() -> None:
@@ -304,3 +342,114 @@ def test_approvals_that_are_not_valid_give_one_finding() -> None:
     assert [(f["check"], f["turn"], f["detail"]) for f in found] == [
         ("action_without_approval", None, trace.APPROVALS_UNUSABLE)
     ]
+
+
+def _call(ts: float, name: str, given: Any) -> dict[str, Any]:
+    """A tool call of a session: `refund` of the MCP server `shop`, or the tool `ask_approval`."""
+    server = "shop" if name == "refund" else None
+    return _item(
+        "tool_call", "claude-code", 1, ts, session="s1", name=name, server=server, input=given
+    )
+
+
+def test_a_bind_reads_a_dict_and_the_json_of_a_text_in_a_code_fence() -> None:
+    row = _row(
+        "mcp__shop__refund", "session", "ask_approval", "session", bind="output.order = input.order"
+    )
+    ask = {**_call(4.0, "ask_approval", {}), "output": 'Approved:\n```json\n{"order": "4471"}\n```'}
+    assert _found([row], [ask, _call(5.0, "refund", {"order": "4471"})]) == []
+    detail = "mcp__shop__refund (session): no approval of the same input.order before it in this "
+    detail += "turn. Approval: ask_approval (session)"
+    assert _found([row], [ask, _call(5.0, "refund", {"order": "9999"})]) == [(1, detail)]
+
+
+@pytest.mark.parametrize(
+    ("approved", "action"),
+    [(True, 1), (1, True), ("1", 1), (None, None), ([1], [1]), ({"a": 1}, {"a": 1})],
+)
+def test_a_bind_matches_only_2_equal_strings_or_2_equal_numbers(approved: Any, action: Any) -> None:
+    row = _row("mcp__shop__refund", "session", "ask_approval", "session", bind="input.o = input.o")
+    items = [_call(4.0, "ask_approval", {"o": approved}), _call(5.0, "refund", {"o": action})]
+    assert len(_found([row], items)) == 1
+    items = [_call(4.0, "ask_approval", {"o": 2.0}), _call(5.0, "refund", {"o": 2})]
+    assert _found([row], items) == []
+
+
+@pytest.mark.parametrize(
+    ("approved", "action", "found"),
+    [
+        ('{"order": 1.0000000000000001}', '{"order": 1}', 1),
+        ('{"order": 1e400}', '{"order": 2e400}', 1),
+        ('{"order": 1e400}', '{"order": 1e400}', 0),
+        ('{"order": 2.50}', '{"order": 2.5}', 0),
+        ('{"order": 10}', '{"order": 1e1}', 0),
+    ],
+)
+def test_a_bind_reads_each_number_of_a_json_text_with_all_its_digits(
+    approved: str, action: str, found: int
+) -> None:
+    row = _row(
+        "mcp__shop__refund", "session", "ask_approval", "session", bind="output.order = input.order"
+    )
+    ask = {**_call(4.0, "ask_approval", {}), "output": approved}
+    refund = {**_call(5.0, "refund", {}), "input": action}
+    assert len(_found([row], [ask, refund])) == found
+
+
+def test_a_float_of_the_item_matches_the_same_number_of_a_json_text() -> None:
+    row = _row(
+        "mcp__shop__refund", "session", "ask_approval", "session", bind="output.order = input.order"
+    )
+    ask = {**_call(4.0, "ask_approval", {}), "output": '{"order": 0.1}'}
+    assert _found([row], [ask, _call(5.0, "refund", {"order": 0.1})]) == []
+    items = [ask, _call(5.0, "refund", {"order": float("inf")})]
+    assert len(_found([row], items)) == 1
+
+
+def test_a_bind_compares_an_exact_number_and_a_plain_float_by_text() -> None:
+    # A plain float has no record text, for example a number that the trace makes itself.
+    exact, plain = Exact("9007199254740993.0"), 9007199254740992.0
+    assert exact == plain
+    assert approvals._bound({"n": exact}, "n") == Decimal("9007199254740993.0")
+    assert approvals._bound({"n": plain}, "n") == Decimal("9007199254740992.0")
+    row = _row(
+        "mcp__shop__refund", "session", "ask_approval", "session", bind="input.order = input.order"
+    )
+    for ask, act in [(plain, exact), (exact, plain)]:
+        items = [_call(4.0, "ask_approval", {"order": ask}), _call(5.0, "refund", {"order": act})]
+        assert len(_found([row], items)) == 1
+    same = [
+        _call(4.0, "ask_approval", {"order": Exact("9007199254740992.0")}),
+        _call(5.0, "refund", {"order": plain}),
+    ]
+    assert _found([row], same) == []
+
+
+def test_a_bind_reads_each_number_of_a_record_line_with_all_its_digits(tmp_path: Path) -> None:
+    # The security review of #695: a direct field of an item kept only the digits of a float.
+    line = '{"order": 9007199254740993.0, "price": 1.50, "big": 1e400}'
+    path = tmp_path / "rows.jsonl"
+    path.write_text(line + "\n", encoding="utf-8")
+    [(_, value)] = list(trace._lines(path, Counter()))
+    assert value["order"] == 9007199254740992.0
+    assert json.dumps(value) == '{"order": 9007199254740992.0, "price": 1.5, "big": Infinity}'
+    row = _row(
+        "mcp__shop__refund", "session", "ask_approval", "session", bind="input.order = input.order"
+    )
+    ask = _call(4.0, "ask_approval", {"order": trace._json('{"n": 9007199254740992.0}')["n"]})
+    assert len(_found([row], [ask, _call(5.0, "refund", value)])) == 1
+    big = _call(4.0, "ask_approval", {"order": value["big"]})
+    assert _found([row], [big, _call(5.0, "refund", {"order": trace._json("1e400")})]) == []
+    assert len(_found([row], [big, _call(5.0, "refund", {"order": trace._json("2e400")})])) == 1
+
+
+def test_a_bind_number_out_of_the_range_of_decimal_has_no_value() -> None:
+    # Code review 3 of #695: Decimal of this text raised InvalidOperation and stopped the trace.
+    huge = Exact("1e9999999999999999999")
+    assert approvals._bound({"n": huge}, "n") is None
+    row = _row(
+        "mcp__shop__refund", "session", "ask_approval", "session", bind="input.order = input.order"
+    )
+    for ask, act in [(huge, huge), (Exact("4471.0"), huge), (huge, Exact("4471.0"))]:
+        items = [_call(4.0, "ask_approval", {"order": ask}), _call(5.0, "refund", {"order": act})]
+        assert len(_found([row], items)) == 1

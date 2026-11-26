@@ -8024,6 +8024,293 @@ APPROVALS_NULL_CASE = {
 }
 
 
+# A Bind of the approvals (SPEC.md section 7.18). Each expected row and each finding is
+# hand-written. The approval is a call of the app to /approvals, and it covers only an action
+# with the same order. Turn 1: the approval for order 4471 covers the refund of order 4471, not
+# the refund of order 9999. Turn 2: the order 4471 of the approval is a number, and the order of
+# the refund is a string, so they are not equal. Turn 3: the refund has no order. Turn 4: the
+# path of the approval selects the first order of a list. Turn 5: the numbers 5121.0 and 5121
+# have the same value.
+BIND_REFUND_ROW = {
+    **approval_row("shop POST /refund", "backend", "shop POST /approvals", "backend"),
+    "bind": "input.body.order = input.body.order",
+}
+BIND_CREDIT_ROW = {
+    **approval_row("shop POST /credit", "backend", "shop POST /approvals", "backend"),
+    "bind": "input.body.orders.0 = input.body.order",
+}
+APPROVE_4471 = '{"order": "4471"}'
+APPROVE_4471_NUMBER = '{"order": 4471}'
+REFUND_4471 = '{"order": "4471", "amount_eur": 20}'
+REFUND_9999 = '{"order": "9999", "amount_eur": 20}'
+REFUND_NO_ORDER = '{"amount_eur": 20}'
+APPROVE_LIST = '{"orders": ["5120", 5121]}'
+APPROVE_NUMBER = '{"orders": [5121.0]}'
+CREDIT_5120 = '{"order": "5120"}'
+CREDIT_5121 = '{"order": 5121}'
+SAME = "no approval of the same input.body.order before it in this turn. "
+
+
+def bind_finding(turn: int, row: dict, line: int, text: str) -> dict:
+    """An expected action_without_approval finding of a row with a Bind."""
+    detail = f"{row['action']} ({row['source']}): {text}Approval: {row['approval']} ({row['by']})"
+    out = {"check": "action_without_approval", "turn": turn, "detail": detail}
+    source = {"file": "backend.jsonl", "line": line}
+    return {**out, "harness": "backend", "session": "shop", "source": source}
+
+
+APPROVALS_BIND_CASE = {
+    "tap": [window(10, 20), window(30, 40), window(50, 60), window(70, 80), window(90, 100)],
+    "manifest": {
+        "test": "20261125-090000-ap05",
+        "model_sessions": [],
+        "approvals": [BIND_REFUND_ROW, BIND_CREDIT_ROW],
+    },
+    "sessions": {},
+    "backend": [
+        shop_call(12, "/approvals", APPROVE_4471),
+        shop_call(14, "/refund", REFUND_4471),
+        shop_call(16, "/refund", REFUND_9999),
+        shop_call(32, "/approvals", APPROVE_4471_NUMBER),
+        shop_call(34, "/refund", REFUND_4471),
+        shop_call(52, "/approvals", APPROVE_4471),
+        shop_call(54, "/refund", REFUND_NO_ORDER),
+        shop_call(72, "/approvals", APPROVE_LIST),
+        shop_call(74, "/credit", CREDIT_5120),
+        shop_call(76, "/credit", CREDIT_5121),
+        shop_call(92, "/approvals", APPROVE_NUMBER),
+        shop_call(94, "/credit", CREDIT_5121),
+    ],
+    "trace": [
+        shop_item(1, 12, 1, "/approvals", APPROVE_4471),
+        shop_item(1, 14, 2, "/refund", REFUND_4471),
+        shop_item(1, 16, 3, "/refund", REFUND_9999),
+        shop_item(2, 32, 4, "/approvals", APPROVE_4471_NUMBER),
+        shop_item(2, 34, 5, "/refund", REFUND_4471),
+        shop_item(3, 52, 6, "/approvals", APPROVE_4471),
+        shop_item(3, 54, 7, "/refund", REFUND_NO_ORDER),
+        shop_item(4, 72, 8, "/approvals", APPROVE_LIST),
+        shop_item(4, 74, 9, "/credit", CREDIT_5120),
+        shop_item(4, 76, 10, "/credit", CREDIT_5121),
+        shop_item(5, 92, 11, "/approvals", APPROVE_NUMBER),
+        shop_item(5, 94, 12, "/credit", CREDIT_5121),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261125-090000-ap05",
+        "turns": 5,
+        "items": 12,
+        "sessions": [],
+        "otel": None,
+        "backend": {"file": "backend.jsonl", "rows": 12, "items": 12, "ignored": {}},
+        "model_api": None,
+        "mcp": None,
+        "database": None,
+        "counts": counts(action_without_approval=4),
+        "findings": [
+            bind_finding(1, BIND_REFUND_ROW, 3, SAME),
+            bind_finding(2, BIND_REFUND_ROW, 5, SAME),
+            bind_finding(
+                3,
+                BIND_REFUND_ROW,
+                7,
+                "the action has no value at input.body.order, so it has no approval. ",
+            ),
+            bind_finding(4, BIND_CREDIT_ROW, 10, SAME),
+        ],
+        "approvals": [
+            {**BIND_REFUND_ROW, "actions": 4, "without_approval": 3},
+            {**BIND_CREDIT_ROW, "actions": 3, "without_approval": 1},
+        ],
+    },
+}
+
+# The numbers of a Bind (SPEC.md section 7.18, the review of #695). Each expected row and each
+# finding is hand-written. The check reads each number of a JSON text with all its digits.
+# Turn 1: 1.0000000000000001 is not equal to 1, as it would be for 2 floats. Turn 2: 1e400 is
+# not equal to 2e400, as it would be for 2 infinite floats. Turn 3: 2.50 and 2.5 have the same
+# value.
+APPROVE_LONG = '{"order": 1.0000000000000001}'
+REFUND_ONE = '{"order": 1}'
+APPROVE_HUGE = '{"order": 1e400}'
+REFUND_HUGE = '{"order": 2e400}'
+APPROVE_TWO_AND_A_HALF = '{"order": 2.50}'
+REFUND_TWO_AND_A_HALF = '{"order": 2.5}'
+APPROVALS_BIND_NUMBERS_CASE = {
+    "tap": [window(10, 20), window(30, 40), window(50, 60)],
+    "manifest": {
+        "test": "20261126-090000-ap06",
+        "model_sessions": [],
+        "approvals": [BIND_REFUND_ROW],
+    },
+    "sessions": {},
+    "backend": [
+        shop_call(12, "/approvals", APPROVE_LONG),
+        shop_call(14, "/refund", REFUND_ONE),
+        shop_call(32, "/approvals", APPROVE_HUGE),
+        shop_call(34, "/refund", REFUND_HUGE),
+        shop_call(52, "/approvals", APPROVE_TWO_AND_A_HALF),
+        shop_call(54, "/refund", REFUND_TWO_AND_A_HALF),
+    ],
+    "trace": [
+        shop_item(1, 12, 1, "/approvals", APPROVE_LONG),
+        shop_item(1, 14, 2, "/refund", REFUND_ONE),
+        shop_item(2, 32, 3, "/approvals", APPROVE_HUGE),
+        shop_item(2, 34, 4, "/refund", REFUND_HUGE),
+        shop_item(3, 52, 5, "/approvals", APPROVE_TWO_AND_A_HALF),
+        shop_item(3, 54, 6, "/refund", REFUND_TWO_AND_A_HALF),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261126-090000-ap06",
+        "turns": 3,
+        "items": 6,
+        "sessions": [],
+        "otel": None,
+        "backend": {"file": "backend.jsonl", "rows": 6, "items": 6, "ignored": {}},
+        "model_api": None,
+        "mcp": None,
+        "database": None,
+        "counts": counts(action_without_approval=2),
+        "findings": [
+            bind_finding(1, BIND_REFUND_ROW, 2, SAME),
+            bind_finding(2, BIND_REFUND_ROW, 4, SAME),
+        ],
+        "approvals": [{**BIND_REFUND_ROW, "actions": 3, "without_approval": 2}],
+    },
+}
+
+# The numbers of a Bind in the item itself (SPEC.md section 7.18, the security reviews of #695).
+# Each expected row and each finding is hand-written. The approvals and the actions are tool
+# calls of the MCP server stock, and each Bind compares an argument of 2 calls. The trace reads
+# each number of the record line with all its digits. trace.jsonl shows each number as a float.
+# Turn 1, a direct field: 9007199254740993.0 (2^53 + 1) is not equal to 9007199254740992.0
+# (2^53), as it would be for 2 floats. Turn 2, a direct field: the integers 2^53 + 1 and 2^53
+# are not equal. Turn 3, a nested field: 2^53 + 1 and 2^53 with a point are not equal. Turn 4:
+# 4471 and 4471.0 have the same value. Turns 5 and 6 (code review 3 of #695): the exponent of
+# 1e-9999999999999999999 is out of the range of Decimal, so the number has no value, and the Bind
+# fails closed. Its float is 0.0, as the float of 0 is. Turn 5 has the number in the action, and
+# turn 6 has it in the approval.
+BIND_TOOL_ROW = {
+    **approval_row("mcp__stock__refund", "mcp", "mcp__stock__approve", "mcp"),
+    "bind": "input.order = input.order",
+}
+BIND_NESTED_ROW = {
+    **approval_row("mcp__stock__credit", "mcp", "mcp__stock__approve_credit", "mcp"),
+    "bind": "input.credit.order = input.credit.order",
+}
+TWO_53 = "9007199254740992"
+TWO_53_AND_1 = "9007199254740993"
+OUT_OF_RANGE = "1e-9999999999999999999"
+
+
+def mcp_text(t: float, direction: str, text: str) -> dict:
+    """A row of mcp.jsonl with the JSON-RPC message as written text, with each digit."""
+    row = {"v": 1, "type": "message", "server": "stock", "transport": "stdio", "ts": T0 + t}
+    return {**row, "direction": direction, "body": body(text + "\n")}
+
+
+def tool_text(t: float, n: int, tool: str, arguments: str) -> list[dict]:
+    """A tools/call request with the arguments as JSON text, and its result."""
+    call_text = (
+        f'{{"jsonrpc": "2.0", "id": {n}, "method": "tools/call", '
+        f'"params": {{"name": "{tool}", "arguments": {arguments}}}}}'
+    )
+    return [
+        mcp_text(t, "to_server", call_text),
+        mcp_message(t + 0.5, "from_server", rpc_result(n, "done")),
+    ]
+
+
+def bind_tool_finding(turn: int, row: dict, line: int, path: str) -> dict:
+    """An expected action_without_approval finding of a tool call of tool_text."""
+    detail = f"{row['action']} ({row['source']}): no approval of the same {path} before it in "
+    detail += f"this turn. Approval: {row['approval']} ({row['by']})"
+    out = {"check": "action_without_approval", "turn": turn, "detail": detail}
+    source = {"file": "mcp.jsonl", "line": line, "result_line": line + 1}
+    return {**out, "harness": "mcp", "session": "stock", "source": source}
+
+
+def tool_item(turn: int, ts: float, line: int, tool: str, arguments: dict) -> dict:
+    """An expected trace row of a tool call of tool_text."""
+    return mitem(
+        turn, "stock", ts, line, tool, input=arguments, output="done", result_line=line + 1
+    )
+
+
+APPROVALS_BIND_MCP_NUMBERS_CASE = {
+    "tap": [
+        window(10, 20),
+        window(30, 40),
+        window(50, 60),
+        window(70, 80),
+        window(90, 100),
+        window(110, 120),
+    ],
+    "manifest": {
+        "test": "20261126-100000-ap07",
+        "model_sessions": [],
+        "approvals": [BIND_TOOL_ROW, BIND_NESTED_ROW],
+    },
+    "sessions": {},
+    "mcp": [
+        *tool_text(12, 1, "approve", f'{{"order": {TWO_53}.0}}'),
+        *tool_text(14, 2, "refund", f'{{"order": {TWO_53_AND_1}.0}}'),
+        *tool_text(32, 3, "approve", f'{{"order": {TWO_53}}}'),
+        *tool_text(34, 4, "refund", f'{{"order": {TWO_53_AND_1}}}'),
+        *tool_text(52, 5, "approve_credit", f'{{"credit": {{"order": {TWO_53}.0}}}}'),
+        *tool_text(54, 6, "credit", f'{{"credit": {{"order": {TWO_53_AND_1}.0}}}}'),
+        *tool_text(72, 7, "approve", '{"order": 4471}'),
+        *tool_text(74, 8, "refund", '{"order": 4471.0}'),
+        *tool_text(92, 9, "approve", '{"order": 0}'),
+        *tool_text(94, 10, "refund", f'{{"order": {OUT_OF_RANGE}}}'),
+        *tool_text(112, 11, "approve", f'{{"order": {OUT_OF_RANGE}}}'),
+        *tool_text(114, 12, "refund", '{"order": 0.0}'),
+    ],
+    "trace": [
+        tool_item(1, 12, 1, "approve", {"order": 9007199254740992.0}),
+        tool_item(1, 14, 3, "refund", {"order": 9007199254740992.0}),
+        tool_item(2, 32, 5, "approve", {"order": 9007199254740992}),
+        tool_item(2, 34, 7, "refund", {"order": 9007199254740993}),
+        tool_item(3, 52, 9, "approve_credit", {"credit": {"order": 9007199254740992.0}}),
+        tool_item(3, 54, 11, "credit", {"credit": {"order": 9007199254740992.0}}),
+        tool_item(4, 72, 13, "approve", {"order": 4471}),
+        tool_item(4, 74, 15, "refund", {"order": 4471.0}),
+        tool_item(5, 92, 17, "approve", {"order": 0}),
+        tool_item(5, 94, 19, "refund", {"order": 0.0}),
+        tool_item(6, 112, 21, "approve", {"order": 0.0}),
+        tool_item(6, 114, 23, "refund", {"order": 0.0}),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261126-100000-ap07",
+        "turns": 6,
+        "items": 12,
+        "sessions": [],
+        "otel": None,
+        "backend": None,
+        "model_api": None,
+        "mcp": {"file": "mcp.jsonl", "rows": 24, "items": 12, "ignored": {}},
+        "database": None,
+        "counts": counts(action_without_approval=5),
+        "findings": [
+            bind_tool_finding(1, BIND_TOOL_ROW, 3, "input.order"),
+            bind_tool_finding(2, BIND_TOOL_ROW, 7, "input.order"),
+            bind_tool_finding(3, BIND_NESTED_ROW, 11, "input.credit.order"),
+            {
+                **bind_tool_finding(5, BIND_TOOL_ROW, 19, "input.order"),
+                "detail": "mcp__stock__refund (mcp): the action has no value at input.order, so it "
+                "has no approval. Approval: mcp__stock__approve (mcp)",
+            },
+            bind_tool_finding(6, BIND_TOOL_ROW, 23, "input.order"),
+        ],
+        "approvals": [
+            {**BIND_TOOL_ROW, "actions": 5, "without_approval": 4},
+            {**BIND_NESTED_ROW, "actions": 1, "without_approval": 1},
+        ],
+    },
+}
+
 # A second message during a turn (SPEC.md sections 4.2 and 8.3). Each expected row and each
 # finding is hand-written.
 #
@@ -8195,6 +8482,9 @@ TRACE_CASES = {
     "approvals_interrupt": APPROVALS_INTERRUPT_CASE,
     "approvals_not_valid": APPROVALS_NOT_VALID_CASE,
     "approvals_null": APPROVALS_NULL_CASE,
+    "approvals_bind": APPROVALS_BIND_CASE,
+    "approvals_bind_numbers": APPROVALS_BIND_NUMBERS_CASE,
+    "approvals_bind_mcp_numbers": APPROVALS_BIND_MCP_NUMBERS_CASE,
     "second_message": SECOND_MESSAGE_CASE,
     "answer_key_text": ANSWER_KEY_TEXT_CASE,
     "answer_key_changed": ANSWER_KEY_CHANGED_CASE,

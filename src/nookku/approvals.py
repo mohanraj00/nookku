@@ -5,10 +5,14 @@ The check uses no model."""
 from __future__ import annotations
 
 import json
+import math
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from . import app_spec
+from .adapters import AdapterError, pick
 from .config import ConfigError
+from .structured import Exact, structured
 
 SECTION = "approvals"
 # The key of the manifest with the rows (SPEC.md section 7.18).
@@ -22,7 +26,13 @@ ELICITATION, MESSAGE = "elicitation", "message"
 BY = (ELICITATION, MESSAGE, "session", "backend", "otel", "mcp")
 # The most rows of the section. This is a chosen value, as for the trace points.
 MAX_ROWS = 200
-KEYS = ("action", "source", "approval", "by", "interrupt")
+KEYS = ("action", "source", "approval", "by", "interrupt", "bind")
+# A row of a test of Nookku 0.6.1 or older has no key `bind`.
+OLD_KEYS = KEYS[:-1]
+# A Bind is 2 dot paths: `<approval path> = <action path>`.
+BIND_SPLIT = " = "
+# The By kinds with an item that can hold a field of the action.
+NO_BIND = (ELICITATION, MESSAGE)
 # The harness and the file of an interrupt or a resume item.
 TAP, TAP_FILE = "tap", "tap.jsonl"
 # The most characters of the value of an interrupt in its item.
@@ -57,6 +67,8 @@ def read(files: list[tuple[str, str]]) -> list[dict[str, str]]:
         where = f"{path} line {n}: "
         row = {k: _plain(cells.get(k, "")) for k in KEYS}
         row["source"], row["by"] = row["source"].lower(), row["by"].lower()
+        if row["bind"]:
+            row["bind"] = BIND_SPLIT.join(p.strip() for p in row["bind"].split("=", 1))
         if len(out) >= MAX_ROWS:
             raise ConfigError(where + f"the app spec has more than {MAX_ROWS} Approvals rows")
         problem = row_problem(row)
@@ -70,9 +82,9 @@ def read(files: list[tuple[str, str]]) -> list[dict[str, str]]:
 
 def row_problem(row: Any) -> str | None:
     """The reason that a value is not a row of the manifest key `approvals`, or None."""
-    if not isinstance(row, dict) or set(row) != set(KEYS):
+    if not isinstance(row, dict) or set(row) not in (set(KEYS), set(OLD_KEYS)):
         return "the row does not have the keys " + ", ".join(KEYS)
-    if not all(isinstance(row[k], str) for k in KEYS):
+    if not all(isinstance(row[k], str) for k in row):
         return "a value of the row is not a text"
     if not row["action"]:
         return "the Approvals row has no Action"
@@ -87,7 +99,57 @@ def row_problem(row: Any) -> str | None:
         return "the By message needs an Interrupt: a dot path such as interrupt"
     if row["by"] != MESSAGE and path:
         return "only the By message takes an Interrupt"
+    return _bind_problem(row["by"], row.get("bind", ""))
+
+
+def _bind_problem(by: str, bind: str) -> str | None:
+    if not bind:
+        return None
+    if by in NO_BIND:
+        return f"the By {by} cannot take a Bind: its item holds no field of the action"
+    paths = bind.split(BIND_SPLIT)
+    if len(paths) != 2 or not all(p and all(p.split(".")) for p in paths):
+        return "the Bind must be 2 dot paths with = between them, such as order = body.order"
     return None
+
+
+def _bound(it: dict[str, Any], path: str) -> str | int | Decimal | None:
+    """The value at a dot path of a Bind in an item of the trace, or None (SPEC.md section
+    7.18). If the path gets to a string before its last part, the walk reads the string as
+    JSON, with each number exact. A number of the item has the digits of its record line. Only a
+    string or a finite number is a value. A number out of the range of Decimal is not a value."""
+    data: Any = it
+    for key in path.split("."):
+        if isinstance(data, str):
+            data = structured(data, exact=True)
+        try:
+            data = pick(data, key)
+        except AdapterError:
+            return None
+    if isinstance(data, Exact):
+        # A number of the item itself, with the digits of its record line. An exponent out of
+        # the range of Decimal gives no value, so the Bind fails closed.
+        try:
+            data = Decimal(data.text)
+        except InvalidOperation:
+            return None
+    elif isinstance(data, float):
+        # A number that the trace makes itself. Its shortest text gives the same value as the
+        # text of the same number in a JSON body, so 0.1 matches 0.1.
+        return Decimal(repr(data)) if math.isfinite(data) else None
+    if isinstance(data, Decimal):
+        return data if data.is_finite() else None
+    if isinstance(data, bool) or not isinstance(data, (str, int)):
+        return None
+    return data
+
+
+def _same(a: str | int | Decimal, b: str | int | Decimal) -> bool:
+    """True if 2 values of a Bind are equal: 2 strings byte for byte, or 2 numbers as Decimal
+    values. _bound gives no float, so no compare uses the value of a float."""
+    if isinstance(a, str) or isinstance(b, str):
+        return isinstance(a, str) and isinstance(b, str) and a == b
+    return Decimal(a) == Decimal(b)
 
 
 def of_manifest(manifest: dict[str, Any]) -> list[dict[str, str]] | None:
@@ -196,6 +258,15 @@ def _in_call(it: dict[str, Any], server: str, asked: set[tuple[Any, ...]]) -> bo
     return (server, it["source"]["line"], it["name"], it["turn"]) in asked
 
 
+def _covers(approval: dict[str, Any], path: str, value: str | int | Decimal | None) -> bool:
+    """True if an approval item has the value of the action at the path of a Bind. With no
+    Bind, the value is None, and each approval covers the action."""
+    if value is None:
+        return True
+    other = _bound(approval, path)
+    return other is not None and _same(other, value)
+
+
 def _number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
@@ -209,14 +280,14 @@ def check(
     An action of a row has an approval if an approval of the row is in the same turn, with a
     `ts` that is the `ts` of the action or less. An action in no turn has no approval.
     `succeeded(item)` is False for a failed item of the trace."""
-    given: dict[tuple[Any, ...], list[float]] = {}
+    given: dict[tuple[Any, ...], list[tuple[float, dict[str, Any]]]] = {}
     # The tool calls that a server asked an approval for: server, line, tool and turn.
     asked: set[tuple[Any, ...]] = set()
     for it in items:
         if it["turn"] is None or not _number(it["ts"]):
             continue
         for key in _approval_keys(it, succeeded):
-            given.setdefault((*key, it["turn"]), []).append(it["ts"])
+            given.setdefault((*key, it["turn"]), []).append((it["ts"], it))
         if _accepted(it):
             asked.update((it["server"], line, tool, it["turn"]) for line, tool in _during(it))
     found: list[dict[str, Any]] = []
@@ -224,23 +295,30 @@ def check(
     for row in rows:
         want = (row["source"], row["action"])
         text = f"Approval: {row['approval']} ({row['by']})"
+        paths = row.get("bind", "").split(BIND_SPLIT) if row.get("bind") else []
         actions = without = 0
         for it in items:
             if want not in _keys(it):
                 continue
             actions += 1
             turn, ts = it["turn"], it["ts"]
+            name = f"{row['action']} ({row['source']}): "
+            value = _bound(it, paths[1]) if paths else None
             if turn is None:
-                detail = f"{row['action']} ({row['source']}): the action is in no turn, so it "
-                detail += f"has no approval. {text}"
+                detail = f"{name}the action is in no turn, so it has no approval. {text}"
+            elif paths and value is None:
+                detail = f"{name}the action has no value at {paths[1]}, so it has no approval. "
+                detail += text
             else:
                 times = given.get((row["by"], row["approval"], row["interrupt"], turn), [])
-                if _number(ts) and any(t <= ts for t in times):
+                path = paths[0] if paths else ""
+                if _number(ts) and any(t <= ts and _covers(by, path, value) for t, by in times):
                     continue
+                # A row with the By elicitation has no Bind (SPEC.md section 7.18).
                 if row["by"] == ELICITATION and _in_call(it, row["approval"], asked):
                     continue
-                detail = f"{row['action']} ({row['source']}): no approval before it in this "
-                detail += f"turn. {text}"
+                same = f"of the same {paths[1]} " if paths else ""
+                detail = f"{name}no approval {same}before it in this turn. {text}"
             without += 1
             found.append({"turn": turn, "detail": detail, "item": it})
         counts.append({**row, "actions": actions, "without_approval": without})
