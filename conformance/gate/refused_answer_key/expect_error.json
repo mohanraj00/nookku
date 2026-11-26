@@ -1,0 +1,3 @@
+{
+ "error": "test 2 has the key answer_key, which this version does not know. Declare the answer key in the Answer key section of the app spec (SPEC.md section 7.17)."
+}
