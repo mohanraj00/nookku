@@ -7,6 +7,7 @@ Each date is the day of the upload to PyPI, in UTC ([nookku](https://pypi.org/pr
 Not released yet.
 
 - **The test key `answer_key` of a gate file.** Nookku 0.6.1 and older accepted the key `answer_key` in a test of a gate file, and the test always failed with the check `answer_key`. `nookku gate run` now refuses such a gate file and exits with 2, and the error names the `Answer key` section of the app spec. The app spec declares the answer key, and a gate limit of `answer_key_mismatch` gives the most mismatches. `nookku gate verify` cannot use a gate folder of an older version with the key, and exits with 2 ([SPEC.md section 7.15](SPEC.md#715-gate-run), [gate-a-release.md](docs/how-to/gate-a-release.md#check-the-answers-with-an-answer-key), [#617](https://github.com/mohanraj00/nookku/issues/617)).
+- **The `Bind` column of the `Approvals` table.** A row can name a field of the approval and a field of the action, for example `input.body.order = input.body.order`. Then an approval covers only an action with the same value, so an approval for order 4471 does not cover a refund of order 9999 in the same turn. Only a row with the `By` `session`, `backend`, `otel` or `mcp` takes a `Bind`. A row with no `Bind` works as before. Each row of the manifest key `approvals` has the new key `bind`, and a row of an older test with no key is valid ([SPEC.md section 7.18](SPEC.md#718-approvals), [app-spec.md](docs/reference/app-spec.md#approvals), [#665](https://github.com/mohanraj00/nookku/issues/665)).
 
 ## 0.6.1
 

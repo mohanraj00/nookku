@@ -8024,6 +8024,107 @@ APPROVALS_NULL_CASE = {
 }
 
 
+# A Bind of the approvals (SPEC.md section 7.18). Each expected row and each finding is
+# hand-written. The approval is a call of the app to /approvals, and it covers only an action
+# with the same order. Turn 1: the approval for order 4471 covers the refund of order 4471, not
+# the refund of order 9999. Turn 2: the order 4471 of the approval is a number, and the order of
+# the refund is a string, so they are not equal. Turn 3: the refund has no order. Turn 4: the
+# path of the approval selects the first order of a list. Turn 5: the numbers 5121.0 and 5121
+# have the same value.
+BIND_REFUND_ROW = {
+    **approval_row("shop POST /refund", "backend", "shop POST /approvals", "backend"),
+    "bind": "input.body.order = input.body.order",
+}
+BIND_CREDIT_ROW = {
+    **approval_row("shop POST /credit", "backend", "shop POST /approvals", "backend"),
+    "bind": "input.body.orders.0 = input.body.order",
+}
+APPROVE_4471 = '{"order": "4471"}'
+APPROVE_4471_NUMBER = '{"order": 4471}'
+REFUND_4471 = '{"order": "4471", "amount_eur": 20}'
+REFUND_9999 = '{"order": "9999", "amount_eur": 20}'
+REFUND_NO_ORDER = '{"amount_eur": 20}'
+APPROVE_LIST = '{"orders": ["5120", 5121]}'
+APPROVE_NUMBER = '{"orders": [5121.0]}'
+CREDIT_5120 = '{"order": "5120"}'
+CREDIT_5121 = '{"order": 5121}'
+SAME = "no approval of the same input.body.order before it in this turn. "
+
+
+def bind_finding(turn: int, row: dict, line: int, text: str) -> dict:
+    """An expected action_without_approval finding of a row with a Bind."""
+    detail = f"{row['action']} ({row['source']}): {text}Approval: {row['approval']} ({row['by']})"
+    out = {"check": "action_without_approval", "turn": turn, "detail": detail}
+    source = {"file": "backend.jsonl", "line": line}
+    return {**out, "harness": "backend", "session": "shop", "source": source}
+
+
+APPROVALS_BIND_CASE = {
+    "tap": [window(10, 20), window(30, 40), window(50, 60), window(70, 80), window(90, 100)],
+    "manifest": {
+        "test": "20261125-090000-ap05",
+        "model_sessions": [],
+        "approvals": [BIND_REFUND_ROW, BIND_CREDIT_ROW],
+    },
+    "sessions": {},
+    "backend": [
+        shop_call(12, "/approvals", APPROVE_4471),
+        shop_call(14, "/refund", REFUND_4471),
+        shop_call(16, "/refund", REFUND_9999),
+        shop_call(32, "/approvals", APPROVE_4471_NUMBER),
+        shop_call(34, "/refund", REFUND_4471),
+        shop_call(52, "/approvals", APPROVE_4471),
+        shop_call(54, "/refund", REFUND_NO_ORDER),
+        shop_call(72, "/approvals", APPROVE_LIST),
+        shop_call(74, "/credit", CREDIT_5120),
+        shop_call(76, "/credit", CREDIT_5121),
+        shop_call(92, "/approvals", APPROVE_NUMBER),
+        shop_call(94, "/credit", CREDIT_5121),
+    ],
+    "trace": [
+        shop_item(1, 12, 1, "/approvals", APPROVE_4471),
+        shop_item(1, 14, 2, "/refund", REFUND_4471),
+        shop_item(1, 16, 3, "/refund", REFUND_9999),
+        shop_item(2, 32, 4, "/approvals", APPROVE_4471_NUMBER),
+        shop_item(2, 34, 5, "/refund", REFUND_4471),
+        shop_item(3, 52, 6, "/approvals", APPROVE_4471),
+        shop_item(3, 54, 7, "/refund", REFUND_NO_ORDER),
+        shop_item(4, 72, 8, "/approvals", APPROVE_LIST),
+        shop_item(4, 74, 9, "/credit", CREDIT_5120),
+        shop_item(4, 76, 10, "/credit", CREDIT_5121),
+        shop_item(5, 92, 11, "/approvals", APPROVE_NUMBER),
+        shop_item(5, 94, 12, "/credit", CREDIT_5121),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261125-090000-ap05",
+        "turns": 5,
+        "items": 12,
+        "sessions": [],
+        "otel": None,
+        "backend": {"file": "backend.jsonl", "rows": 12, "items": 12, "ignored": {}},
+        "model_api": None,
+        "mcp": None,
+        "database": None,
+        "counts": counts(action_without_approval=4),
+        "findings": [
+            bind_finding(1, BIND_REFUND_ROW, 3, SAME),
+            bind_finding(2, BIND_REFUND_ROW, 5, SAME),
+            bind_finding(
+                3,
+                BIND_REFUND_ROW,
+                7,
+                "the action has no value at input.body.order, so it has no approval. ",
+            ),
+            bind_finding(4, BIND_CREDIT_ROW, 10, SAME),
+        ],
+        "approvals": [
+            {**BIND_REFUND_ROW, "actions": 4, "without_approval": 3},
+            {**BIND_CREDIT_ROW, "actions": 3, "without_approval": 1},
+        ],
+    },
+}
+
 # A second message during a turn (SPEC.md sections 4.2 and 8.3). Each expected row and each
 # finding is hand-written.
 #
@@ -8195,6 +8296,7 @@ TRACE_CASES = {
     "approvals_interrupt": APPROVALS_INTERRUPT_CASE,
     "approvals_not_valid": APPROVALS_NOT_VALID_CASE,
     "approvals_null": APPROVALS_NULL_CASE,
+    "approvals_bind": APPROVALS_BIND_CASE,
     "second_message": SECOND_MESSAGE_CASE,
     "answer_key_text": ANSWER_KEY_TEXT_CASE,
     "answer_key_changed": ANSWER_KEY_CHANGED_CASE,

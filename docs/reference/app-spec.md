@@ -161,16 +161,17 @@ An app can stop for an approval before an action, for example before a refund. T
 | `Approval` | The name of the approval. |
 | `By` | What gives the approval: `elicitation`, `message`, `session`, `backend`, `otel` or `mcp`. |
 | `Interrupt` | Only for `message`: the dot path of the interrupt in the JSON of the reply, for example `interrupt.action`. |
+| `Bind` | Optional, not for `elicitation` or `message`: a dot path in the approval and a dot path in the action, with `=` between them. The approval covers only an action with the same value. |
 
 ```markdown
 ## Approvals
 
-| Action | Source | Approval | By | Interrupt |
-|---|---|---|---|---|
-| `shop POST /refund` | backend | `payments` | elicitation | |
-| `mcp__refunds__refund` | mcp | `refunds` | elicitation | |
-| `shop POST /orders/cancel` | backend | `yes` | message | `interrupt.action` |
-| `shop POST /credit` | backend | `shop POST /approvals` | backend | |
+| Action | Source | Approval | By | Interrupt | Bind |
+|---|---|---|---|---|---|
+| `shop POST /refund` | backend | `payments` | elicitation | | |
+| `mcp__refunds__refund` | mcp | `refunds` | elicitation | | |
+| `shop POST /orders/cancel` | backend | `yes` | message | `interrupt.action` | |
+| `shop POST /credit` | backend | `shop POST /approvals` | backend | | `input.body.order = input.body.order` |
 ```
 
 | `By` | `Approval` | What counts as the approval |
@@ -186,7 +187,9 @@ An app can stop for an approval before an action, for example before a refund. T
 - `findings.json` records each row in `approvals`, with the count of its actions and of its actions with no approval.
 - If the bridge cannot read a part of the section, the test does not start.
 - The app answers an elicitation of its MCP server. The record shows that the server asked and that the app answered `accept`, not that a person gave the answer. With `message`, you give the approval in the test, and the [tap](glossary.md#tap) keeps your message.
-- The check does not compare the content of an approval with the action. One approval covers each later action of its row in the turn.
+- With no `Bind`, the check does not compare the approval with the action. One approval covers each later action of its row in the turn, also an action for another order.
+- `Bind` is optional: `<approval path> = <action path>`, 2 dot paths in the items of the [trace](glossary.md#trace). Then an approval covers only an action with the same value at its path. In the toy shop row, a call to `/approvals` for order 4471 covers a credit of order 4471, not a credit of order 9999. A path reads the JSON in a text, for example the `body` of an HTTP call. Only 2 equal strings or 2 equal numbers match. An action with no value at its path has no approval.
+- Only the `By` `session`, `backend`, `otel` and `mcp` take a `Bind`. The item of an elicitation or of a message holds no field of the action, so the test does not start with such a row.
 - An `accept` of an elicitation of the mode `url` says only that the user agreed to open a page, so it is not an approval. Name a trace item as the approval of such an app.
 
 ## Example: the toy shop

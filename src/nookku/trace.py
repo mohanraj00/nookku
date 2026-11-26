@@ -13,7 +13,6 @@ import hashlib
 import json
 from collections import Counter
 from collections.abc import Iterator, Sequence
-from decimal import Decimal
 from pathlib import Path
 from typing import Any, Literal, NamedTuple
 from urllib.parse import urlsplit
@@ -36,6 +35,7 @@ from .adapters import AdapterError, pick
 from .config import MATCHES, is_host_list
 from .discovery import db_system, driver_address
 from .record import VERSION, json_text, read_manifest, read_rows
+from .structured import structured as _structured
 
 # The version of a trace row. 0.3 adds the kinds span and log, and the field service.
 TRACE_VERSION = "0.3"
@@ -1590,22 +1590,6 @@ def _normal(text: str) -> str:
     """A text for the match `normalized`: each run of white space is one space, with no space at
     the start or the end, and the case is folded."""
     return " ".join(text.split()).casefold()
-
-
-def _structured(text: str, exact: bool = False) -> Any:
-    """The JSON value of a model text: the full text, or else the part from its first `{` to its
-    last `}`, for a JSON object in a code fence. None if neither part is JSON. If `exact` is
-    True, a JSON number with a point or an exponent is a Decimal, so no digit is lost. A number
-    out of the range of Decimal makes the part not JSON."""
-    parts = [text]
-    if "{" in text:
-        parts.append(text[text.index("{") : text.rindex("}") + 1] if "}" in text else "")
-    for part in parts:
-        try:
-            return json.loads(part, parse_float=Decimal) if exact else json.loads(part)
-        except (ValueError, RecursionError, ArithmeticError):
-            continue
-    return None
 
 
 def _at(data: Any, path: str) -> Any:
