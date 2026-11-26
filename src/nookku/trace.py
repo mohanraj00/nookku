@@ -35,6 +35,7 @@ from .adapters import AdapterError, pick
 from .config import MATCHES, is_host_list
 from .discovery import db_system, driver_address
 from .record import VERSION, json_text, read_manifest, read_rows
+from .structured import loads as _loads
 from .structured import structured as _structured
 
 # The version of a trace row. 0.3 adds the kinds span and log, and the field service.
@@ -148,7 +149,7 @@ def _lines(path: Path, ignored: Counter[str]) -> Iterator[tuple[int, Any]]:
             ignored["blank"] += 1
             continue
         try:
-            yield n, json.loads(raw)
+            yield n, _loads(raw)
         except (ValueError, RecursionError):  # RecursionError: JSON that nests too deep
             yield n, None
 
@@ -430,7 +431,7 @@ def _json(text: Any) -> Any:
     if not isinstance(text, str):
         return None
     try:
-        return json.loads(text)
+        return _loads(text)
     except (ValueError, RecursionError):
         return None
 

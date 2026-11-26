@@ -1,0 +1,14 @@
+{
+ "test": "20261126-090000-ap06",
+ "model_sessions": [],
+ "approvals": [
+  {
+   "action": "shop POST /refund",
+   "source": "backend",
+   "approval": "shop POST /approvals",
+   "by": "backend",
+   "interrupt": "",
+   "bind": "input.body.order = input.body.order"
+  }
+ ]
+}

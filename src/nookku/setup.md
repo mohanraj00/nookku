@@ -93,6 +93,22 @@ serve(reply)
 
 `serve()` writes the contract lines and sends all other output to stderr.
 
+For a Node app in TypeScript or JavaScript, copy `helpers/contract.mjs` from the installed `nookku` package to `.nookku/contract.mjs`. Run this command with the Python interpreter of that installation to find the file:
+
+```bash
+python -c "from pathlib import Path; import nookku; print(Path(nookku.__file__).parent / 'helpers' / 'contract.mjs')"
+```
+
+Import the helper before you load the app. It sends console output to stderr from the time of import. In `.nookku/entry.mjs`, use the call that sends a message to the app:
+
+```js
+import { serve } from "./contract.mjs";
+
+await serve((message, history) => appSession.send(message));
+```
+
+The function can return a string or a promise of a string. If the app starts a child process, send its stdout to stderr.
+
 ### 4.2. Write the configuration
 
 Write the test keys into `.nookku/config.json`. Keep the other keys of the file. Use only the keys of this guide. An unknown key stops `check` and `start`.

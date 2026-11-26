@@ -8,6 +8,25 @@ from decimal import Decimal
 from typing import Any
 
 
+class Exact(float):
+    """A float of a JSON number that keeps the text of the number (SPEC.md section 7.18). Each
+    other check uses it as the float, and json.dumps writes it as the float. A Bind compares
+    its `text`, so no digit is lost."""
+
+    text: str
+
+    def __new__(cls, text: str) -> Exact:
+        value = super().__new__(cls, text)
+        value.text = text
+        return value
+
+
+def loads(text: str) -> Any:
+    """The JSON value of a text of a record, with an Exact for each number with a point or an
+    exponent."""
+    return json.loads(text, parse_float=Exact)
+
+
 def structured(text: str, exact: bool = False) -> Any:
     """The JSON value of a model text: the full text, or else the part from its first `{` to its
     last `}`, for a JSON object in a code fence. None if neither part is JSON. If `exact` is
