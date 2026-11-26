@@ -18,6 +18,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 | 8 | [Tests](#8-tests) | Review ([#62](https://github.com/mohanraj00/nookku/issues/62)). |
 | 9 | [Dependencies, types and lint](#9-dependencies-types-and-lint) | `test_no_runtime_dependencies`, mypy, ruff, `claude plugin validate`. |
 | 10 | [Docs and claims](#10-docs-and-claims) | The stealth gate. Review. |
+| 11 | [Module size](#11-module-size) | Review. |
 
 ## 1. Fail closed
 
@@ -194,3 +195,23 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 - `scripts/stealth.py check` in the CI job `lint`, and `tests/test_stealth.py::test_the_repo_has_no_banned_term`.
 - Numbers and language: review. The review item in AGENTS.md: "A number in a doc with no link to its data and its method."
+
+## 11. Module size
+
+**Rule.** The budget is 1,000 lines per module in [`src/nookku/`](../../src/nookku/). A module can stay above the budget. When a PR changes part of such a module, move that part into its own module in the same PR. Leave other parts for the PRs that change them.
+
+Keep the public API unchanged. It includes the names that other modules or the docs import, and the [CLI](../reference/cli.md). If you move one of these names, keep an import in the old module. Move tests with the code they cover only when necessary.
+
+**Reason.** Small modules are easier to read. A split of the changed part keeps the review small.
+
+**Example.** Run `wc -l src/nookku/*.py` from the repo root. This snapshot lists the modules above the budget at `65d0d8c9`.
+
+- `trace.py` has [2,535 lines](../../src/nookku/trace.py).
+- `bridge.py` has [1,726 lines](../../src/nookku/bridge.py).
+- `cli.py` has [1,714 lines](../../src/nookku/cli.py).
+- `kit.py` has [1,661 lines](../../src/nookku/kit.py).
+- `page.py` has [1,169 lines](../../src/nookku/page.py).
+- `commands.py` has [1,035 lines](../../src/nookku/commands.py).
+- `gate.py` has [1,013 lines](../../src/nookku/gate.py).
+
+**Check.** Review the line count, the code that moves, and the public API.
