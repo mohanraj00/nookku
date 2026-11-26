@@ -167,6 +167,8 @@ class TestConfig:
     approvals: list[dict[str, str]] = field(default_factory=list)
     # The match rules of a replay with the recorded backends (SPEC.md section 7.10).
     replay_ignore: dict[str, Any] = field(default_factory=dict)
+    # The runner of a simulated user (SPEC.md section 7.10, "Simulated user").
+    persona_runner: str | list[str] = "claude-code"
 
 
 def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
@@ -222,6 +224,7 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
         answer_key_data=key_data,
         approvals=approved,
         replay_ignore=data.get("replay_ignore", {}),
+        persona_runner=data.get("persona_runner", "claude-code"),
     )
 
 
@@ -1627,16 +1630,17 @@ def run_persona(
         persona = simulated_user.read(persona_path)[0]
     except simulated_user.PersonaError as e:
         raise BridgeError(str(e)) from None
+    runner = load_config(root, entry_name).persona_runner
     cur = start(root, entry_name=entry_name, persona_path=persona_path)
     folder = Path(cur["dir"])
     relay = folder / "relay.jsonl"
     turns: list[tuple[str, str | None]] = []
     ended, error = "limit", None
     try:
-        version = simulated_user.version()
+        version = simulated_user.version(runner)
         while len(turns) < persona["turns"]:
             try:
-                said = simulated_user.next_message(persona, turns)
+                said = simulated_user.next_message(persona, turns, runner)
             except (OSError, simulated_user.PersonaError) as e:
                 ended, error = "error", str(e)
                 break
@@ -1651,7 +1655,8 @@ def run_persona(
                 ended = "no_reply"
                 break
         result = {
-            "harness": "claude-code",
+            "harness": simulated_user.harness(runner),
+            "command": runner if isinstance(runner, list) else None,
             "version": version,
             "turns": len(turns),
             "limit": persona["turns"],
