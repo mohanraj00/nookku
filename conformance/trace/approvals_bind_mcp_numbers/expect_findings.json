@@ -1,16 +1,16 @@
 {
  "v": "0.2",
  "test": "20261126-100000-ap07",
- "turns": 4,
- "items": 8,
+ "turns": 6,
+ "items": 12,
  "sessions": [],
  "otel": null,
  "backend": null,
  "model_api": null,
  "mcp": {
   "file": "mcp.jsonl",
-  "rows": 16,
-  "items": 8,
+  "rows": 24,
+  "items": 12,
   "ignored": {}
  },
  "database": null,
@@ -22,8 +22,8 @@
    "by": "mcp",
    "interrupt": "",
    "bind": "input.order = input.order",
-   "actions": 3,
-   "without_approval": 2
+   "actions": 5,
+   "without_approval": 4
   },
   {
    "action": "mcp__stock__credit",
@@ -70,7 +70,7 @@
   "version_untested": 0,
   "missing_trace_point": 0,
   "trace_points_unread": 0,
-  "action_without_approval": 3,
+  "action_without_approval": 5,
   "call_cut": 0
  },
  "findings": [
@@ -108,6 +108,30 @@
     "file": "mcp.jsonl",
     "line": 11,
     "result_line": 12
+   }
+  },
+  {
+   "check": "action_without_approval",
+   "turn": 5,
+   "detail": "mcp__stock__refund (mcp): the action has no value at input.order, so it has no approval. Approval: mcp__stock__approve (mcp)",
+   "harness": "mcp",
+   "session": "stock",
+   "source": {
+    "file": "mcp.jsonl",
+    "line": 19,
+    "result_line": 20
+   }
+  },
+  {
+   "check": "action_without_approval",
+   "turn": 6,
+   "detail": "mcp__stock__refund (mcp): no approval of the same input.order before it in this turn. Approval: mcp__stock__approve (mcp)",
+   "harness": "mcp",
+   "session": "stock",
+   "source": {
+    "file": "mcp.jsonl",
+    "line": 23,
+    "result_line": 24
    }
   }
  ]

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 import math
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from . import app_spec
@@ -117,7 +117,7 @@ def _bound(it: dict[str, Any], path: str) -> str | int | Decimal | None:
     """The value at a dot path of a Bind in an item of the trace, or None (SPEC.md section
     7.18). If the path gets to a string before its last part, the walk reads the string as
     JSON, with each number exact. A number of the item has the digits of its record line. Only a
-    string or a finite number is a value."""
+    string or a finite number is a value. A number out of the range of Decimal is not a value."""
     data: Any = it
     for key in path.split("."):
         if isinstance(data, str):
@@ -127,8 +127,12 @@ def _bound(it: dict[str, Any], path: str) -> str | int | Decimal | None:
         except AdapterError:
             return None
     if isinstance(data, Exact):
-        # A number of the item itself, with the digits of its record line.
-        data = Decimal(data.text)
+        # A number of the item itself, with the digits of its record line. An exponent out of
+        # the range of Decimal gives no value, so the Bind fails closed.
+        try:
+            data = Decimal(data.text)
+        except InvalidOperation:
+            return None
     elif isinstance(data, float):
         # A number that the trace makes itself. Its shortest text gives the same value as the
         # text of the same number in a JSON body, so 0.1 matches 0.1.

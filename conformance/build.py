@@ -8187,7 +8187,10 @@ APPROVALS_BIND_NUMBERS_CASE = {
 # Turn 1, a direct field: 9007199254740993.0 (2^53 + 1) is not equal to 9007199254740992.0
 # (2^53), as it would be for 2 floats. Turn 2, a direct field: the integers 2^53 + 1 and 2^53
 # are not equal. Turn 3, a nested field: 2^53 + 1 and 2^53 with a point are not equal. Turn 4:
-# 4471 and 4471.0 have the same value.
+# 4471 and 4471.0 have the same value. Turns 5 and 6 (code review 3 of #695): the exponent of
+# 1e-9999999999999999999 is out of the range of Decimal, so the number has no value, and the Bind
+# fails closed. Its float is 0.0, as the float of 0 is. Turn 5 has the number in the action, and
+# turn 6 has it in the approval.
 BIND_TOOL_ROW = {
     **approval_row("mcp__stock__refund", "mcp", "mcp__stock__approve", "mcp"),
     "bind": "input.order = input.order",
@@ -8198,6 +8201,7 @@ BIND_NESTED_ROW = {
 }
 TWO_53 = "9007199254740992"
 TWO_53_AND_1 = "9007199254740993"
+OUT_OF_RANGE = "1e-9999999999999999999"
 
 
 def mcp_text(t: float, direction: str, text: str) -> dict:
@@ -8235,7 +8239,14 @@ def tool_item(turn: int, ts: float, line: int, tool: str, arguments: dict) -> di
 
 
 APPROVALS_BIND_MCP_NUMBERS_CASE = {
-    "tap": [window(10, 20), window(30, 40), window(50, 60), window(70, 80)],
+    "tap": [
+        window(10, 20),
+        window(30, 40),
+        window(50, 60),
+        window(70, 80),
+        window(90, 100),
+        window(110, 120),
+    ],
     "manifest": {
         "test": "20261126-100000-ap07",
         "model_sessions": [],
@@ -8251,6 +8262,10 @@ APPROVALS_BIND_MCP_NUMBERS_CASE = {
         *tool_text(54, 6, "credit", f'{{"credit": {{"order": {TWO_53_AND_1}.0}}}}'),
         *tool_text(72, 7, "approve", '{"order": 4471}'),
         *tool_text(74, 8, "refund", '{"order": 4471.0}'),
+        *tool_text(92, 9, "approve", '{"order": 0}'),
+        *tool_text(94, 10, "refund", f'{{"order": {OUT_OF_RANGE}}}'),
+        *tool_text(112, 11, "approve", f'{{"order": {OUT_OF_RANGE}}}'),
+        *tool_text(114, 12, "refund", '{"order": 0.0}'),
     ],
     "trace": [
         tool_item(1, 12, 1, "approve", {"order": 9007199254740992.0}),
@@ -8261,26 +8276,36 @@ APPROVALS_BIND_MCP_NUMBERS_CASE = {
         tool_item(3, 54, 11, "credit", {"credit": {"order": 9007199254740992.0}}),
         tool_item(4, 72, 13, "approve", {"order": 4471}),
         tool_item(4, 74, 15, "refund", {"order": 4471.0}),
+        tool_item(5, 92, 17, "approve", {"order": 0}),
+        tool_item(5, 94, 19, "refund", {"order": 0.0}),
+        tool_item(6, 112, 21, "approve", {"order": 0.0}),
+        tool_item(6, 114, 23, "refund", {"order": 0.0}),
     ],
     "findings": {
         "v": "0.2",
         "test": "20261126-100000-ap07",
-        "turns": 4,
-        "items": 8,
+        "turns": 6,
+        "items": 12,
         "sessions": [],
         "otel": None,
         "backend": None,
         "model_api": None,
-        "mcp": {"file": "mcp.jsonl", "rows": 16, "items": 8, "ignored": {}},
+        "mcp": {"file": "mcp.jsonl", "rows": 24, "items": 12, "ignored": {}},
         "database": None,
-        "counts": counts(action_without_approval=3),
+        "counts": counts(action_without_approval=5),
         "findings": [
             bind_tool_finding(1, BIND_TOOL_ROW, 3, "input.order"),
             bind_tool_finding(2, BIND_TOOL_ROW, 7, "input.order"),
             bind_tool_finding(3, BIND_NESTED_ROW, 11, "input.credit.order"),
+            {
+                **bind_tool_finding(5, BIND_TOOL_ROW, 19, "input.order"),
+                "detail": "mcp__stock__refund (mcp): the action has no value at input.order, so it "
+                "has no approval. Approval: mcp__stock__approve (mcp)",
+            },
+            bind_tool_finding(6, BIND_TOOL_ROW, 23, "input.order"),
         ],
         "approvals": [
-            {**BIND_TOOL_ROW, "actions": 3, "without_approval": 2},
+            {**BIND_TOOL_ROW, "actions": 5, "without_approval": 4},
             {**BIND_NESTED_ROW, "actions": 1, "without_approval": 1},
         ],
     },

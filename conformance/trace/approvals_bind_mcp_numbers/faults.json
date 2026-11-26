@@ -11,6 +11,14 @@
   {
    "check": "action_without_approval",
    "turn": 3
+  },
+  {
+   "check": "action_without_approval",
+   "turn": 5
+  },
+  {
+   "check": "action_without_approval",
+   "turn": 6
   }
  ]
 }

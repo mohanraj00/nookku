@@ -441,3 +441,15 @@ def test_a_bind_reads_each_number_of_a_record_line_with_all_its_digits(tmp_path:
     big = _call(4.0, "ask_approval", {"order": value["big"]})
     assert _found([row], [big, _call(5.0, "refund", {"order": trace._json("1e400")})]) == []
     assert len(_found([row], [big, _call(5.0, "refund", {"order": trace._json("2e400")})])) == 1
+
+
+def test_a_bind_number_out_of_the_range_of_decimal_has_no_value() -> None:
+    # Code review 3 of #695: Decimal of this text raised InvalidOperation and stopped the trace.
+    huge = Exact("1e9999999999999999999")
+    assert approvals._bound({"n": huge}, "n") is None
+    row = _row(
+        "mcp__shop__refund", "session", "ask_approval", "session", bind="input.order = input.order"
+    )
+    for ask, act in [(huge, huge), (Exact("4471.0"), huge), (huge, Exact("4471.0"))]:
+        items = [_call(4.0, "ask_approval", {"order": ask}), _call(5.0, "refund", {"order": act})]
+        assert len(_found([row], items)) == 1
