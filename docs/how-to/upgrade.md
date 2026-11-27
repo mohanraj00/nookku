@@ -46,7 +46,7 @@ nookku --version
 nookku 0.4.0
 ```
 
-The hooks of the kit run the Python of the CLI install, for example `.../nookku/bin/python -m nookku hook ...`. Thus the hooks use the new version, and the hook file does not change. If you install the CLI in a new place, run `nookku init` again, so that the hooks name the new Python.
+The hooks of the kit use the Python and library folder of the CLI install in isolated mode. If you install the CLI in a new place or the hook command changes in a release, run `nookku init` again.
 
 If your [entry](../reference/glossary.md#entry) imports `nookku`, for example to use `serve()`, upgrade the package in your app's environment too ([connect-your-agent.md](connect-your-agent.md#in-python-use-serve)). With uv, run:
 
@@ -112,6 +112,19 @@ PASS
 `check` runs a short test with one message through the new version, and exits with 0 if it passes ([reference/cli.md](../reference/cli.md#nookku-check)). If it fails, each FAIL line gives the cause and the fix ([troubleshooting.md](../troubleshooting.md#end-a-test)).
 
 ## Releases with a special step
+
+### 0.6.2
+
+No record changes its version. This change needs a step:
+
+- **The command of a project hook.** A [project hook](../reference/glossary.md#project-hooks) of `nookku init` now starts the Python of the install in isolated mode, with the library folder of the install. Python omits the project folder and the user site from its import path ([#704](https://github.com/mohanraj00/nookku/issues/704)). `nookku start` refuses a test if a project hook has the command of an older version. Run `nookku init` again for each [harness](../reference/glossary.md#harness) that has project hooks:
+
+  ```sh
+  nookku init claude-code
+  nookku init codex
+  ```
+
+  If you use Codex, trust the hooks again ([step 4](#4-trust-the-codex-hooks-again)). If you use only the plugin, no step is necessary.
 
 ### 0.6.1
 

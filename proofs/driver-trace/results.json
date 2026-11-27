@@ -1,7 +1,7 @@
 {
- "date": "2026-11-25",
+ "date": "2026-11-27",
  "versions": {
-  "nookku": "0.6.1",
+  "nookku": "0.6.2",
   "python": "3.13.12",
   "os": "Darwin",
   "app_packages": [

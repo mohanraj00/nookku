@@ -26,7 +26,7 @@ from typing import Any
 from urllib.parse import urlsplit
 from urllib.request import parse_http_list
 
-from nookku import backend
+from nookku import backend, child
 from nookku.record import json_text
 
 FILE = "mcp.jsonl"
@@ -131,8 +131,10 @@ def stdio_environment(parts: list[dict[str, Any]], folder: Path) -> dict[str, st
     for p in parts:
         if p["transport"] != "stdio" or p["env"] is None:
             continue
-        argv = [sys.executable, "-m", "nookku", "mcp-stdio", "--folder", str(folder.resolve())]
-        out[p["env"]] = shlex.join([*argv, "--name", p["name"], "--", *p["command"]])
+        argv = child.argv(
+            "mcp-stdio", "--folder", str(folder.resolve()), "--name", p["name"], "--", *p["command"]
+        )
+        out[p["env"]] = shlex.join(argv)
     return out
 
 

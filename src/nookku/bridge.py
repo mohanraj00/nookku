@@ -45,6 +45,7 @@ from nookku import (
     verdict,
 )
 from nookku.audit import audit
+from nookku.child import argv as child_argv
 from nookku.config import CHECK_MESSAGE as CHECK_MESSAGE
 from nookku.config import FILE as CONFIG_FILE
 from nookku.config import HARNESSES as HARNESSES
@@ -410,7 +411,7 @@ def start(
     # The bridge puts the result in the manifest, and removes this file.
     _write_json(folder / GATE_FILE, gate)
     _write_json(folder / EGRESS_FILE, egress)
-    argv = [sys.executable, "-m", "nookku", "bridge", "--root", str(root), "--test", test]
+    argv = child_argv("bridge", "--root", str(root), "--test", test)
     if tester_session:
         argv += ["--tester-session", tester_session]
     if entry_name is not None:

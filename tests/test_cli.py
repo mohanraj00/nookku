@@ -821,7 +821,7 @@ def test_init_remove_puts_the_hooks_back_if_relay_mode_starts(
 
     def remove_then_mode_on(root: Path, harness: str) -> kit.Removed:
         done = remove(root, harness)
-        assert "nookku hook" not in target.read_text()
+        assert json.loads(target.read_text()) == {}
         kit.set_mode(root, True)
         return done
 

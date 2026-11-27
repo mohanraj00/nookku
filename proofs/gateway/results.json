@@ -1,10 +1,10 @@
 {
- "date": "2026-11-25",
- "nookku": "0.6.1",
+ "date": "2026-11-27",
+ "nookku": "0.6.2",
  "harness": null,
  "litellm_image": "ghcr.io/berriai/litellm-database:v1.104.2",
  "litellm_version": "1.104.2",
- "clock_skew_seconds": 0.079,
+ "clock_skew_seconds": 0.05,
  "aliases": {
   "agent": "kd-<uuid4>",
   "workspace": "ws-shop-toy-<hash8>"
