@@ -2,7 +2,7 @@
 
 I ran the proofs of the 0.6.2 release candidate on 2026-11-27, on macOS, in the worktree of the branch `claude/release-0.6.2`. The base is the tag `v0.6.1` at 65d0d8c9, plus the commits of [#704](https://github.com/mohanraj00/nookku/issues/704) and [#431](https://github.com/mohanraj00/nookku/issues/431) and the commit that sets the version to 0.6.2. The tools were Claude Code 2.1.319, codex-cli 0.169.0, Python 3.13.12 and Docker 29.6.1 (client). These are the harness versions of [0.6.1](claude-code-0.6.1.md), and CI still pins Claude Code 2.1.319. Each result file records its tested versions.
 
-This release ran the proofs with no model, with and without the network, and some proofs with the model and with kind in slots that the owner gave. Each other proof carries its record. [The carried records](#the-carried-records) give each record and the reason.
+This release ran the proofs with no model, with and without the network, and some proofs with the model, with Codex and with kind in slots that the owner gave. Each other proof carries its record. [The carried records](#the-carried-records) give each record and the reason.
 
 ## Runs with no model
 
@@ -69,6 +69,22 @@ The owner gave Codex slot 3, and did the 3 person steps of [run-the-proofs.md](.
 
 In the `hooks-codex` run, the prompt `nookku start` did not start a test. The proof wrote the project hooks of 0.6.2 in `.proof/codex/` of this worktree. Then `hooks/list` of codex-cli 0.169.0, with this folder as its `cwds`, gave the hooks of `.proof/codex/` in the main checkout of the repo. That file is from 2026-11-20 and has the hook command of an older version (`python3 -m nookku hook`). So the gate of 0.6.2 found each project hook `modified` and refused the test, as it must. I think that Codex finds the project of a git worktree through the main checkout, but I did not prove it. This is a problem of the proof setup in a worktree, not a fault of Nookku. I did not run it again. A new run needs the main checkout or a project folder outside the repo, and a new trust step.
 
+## Runs with kind
+
+The owner gave kind slot 2 two times. These runs use no model. Before each run, I checked the load, `kind get clusters` and the free space of the Docker VM, with the `df` command of the proof.
+
+| Proof | Command | Result | Data |
+|---|---|---|---|
+| HTTP tap at a cluster Service URL | `uv run python scripts/proof_cluster_tap.py` | pass, run 2 | [results](../cluster-tap/results.json) |
+| Koodam TestKey on kind | `uv run python scripts/kind_testkey.py --out proofs/testkey/kind.json` | pass, run 2 | [results](../testkey/kind.json) |
+
+Run 1 started at 19:54 UTC, with a 1-minute load of 5.74. `kind get clusters` gave 1 cluster of another project.
+
+- `proof_cluster_tap.py` stopped before it made a cluster: "Docker has 899 MB free, below 1200 MB. Stop; do not prune." I did not prune.
+- `kind_testkey.py` made its cluster, and the Koodam Workspace `shop` was not running after the wait of 600 seconds. The script deleted its cluster, so I have no pod events of this run.
+
+Then the owner freed space in the Docker VM. Run 2 started at 20:19 UTC, with a 1-minute load of 2.87 and no kind cluster. The VM had 5167 MB free before the cluster tap proof and 5149 MB before the TestKey proof. Each form of the cluster tap proof passed with nookku 0.6.2 in each pod. The TestKey proof passed. Run 2 of the TestKey proof passed with more free space, so the likely cause of run 1 is the low free space. Each script deleted its cluster.
+
 ## The tutorial change
 
 The hook check of `nookku start` compares the command of each project hook with `kit.hook_command`, word for word ([claude_gate.py](../../src/nookku/claude_gate.py)). The first word is `sys.executable` of the process that runs the check. In a uv virtual environment, `.venv/bin/python` and `.venv/bin/python3` are 2 links to the same Python, but the check reads them as 2 different words.
@@ -102,10 +118,7 @@ The 2 versions give the same result. Thus [#704](https://github.com/mohanraj00/n
 ## The failed runs
 
 Run 1 of `proof_sdk_bundles.py` exited with 1. My shell loop gave the 6 versions to the script as 1 argument, so uv could not install the release. Run 2 gave each version as its own argument and passed. 
-The owner gave kind slot 2 on 2026-11-27. Before the runs, at 19:54 UTC, the 1-minute load was 5.74, and `kind get clusters` gave 1 cluster of another project. Both runs failed for a cause outside Nookku, and each kept its 0.6.1 record:
-
-- `proof_cluster_tap.py` stopped before it made a cluster: "Docker has 899 MB free, below 1200 MB. Stop; do not prune." I did not prune.
-- `kind_testkey.py` made its cluster, and the Koodam Workspace `shop` was not running after the wait of 600 seconds. The script deleted its cluster. The cause is probably the low free space of Docker, but the cluster is gone, so I have no pod events.
+Run 1 of `proof_cluster_tap.py` and run 1 of `kind_testkey.py` failed for a cause outside Nookku ([Runs with kind](#runs-with-kind)).
 
 The `hooks-codex` relay run did not complete, for a setup problem of the worktree ([Runs with Codex](#runs-with-codex)).
 
@@ -127,5 +140,4 @@ These proofs did not run for 0.6.2, and each keeps its last record:
 | `proof_trace.py` | It needs the model. | 0.6.1, [run notes](claude-code-0.6.1.md#runs-of-both-harnesses) |
 | `proof_codex_hook_keys.py` | It runs a Codex job. | 0.6.1, [run notes](claude-code-0.6.1.md#runs-with-no-model) |
 | Each other proof with the model | It needs the model. | 0.6.0, [carried records of 0.6.1](claude-code-0.6.1.md#the-carried-records) |
-| `proof_cluster_tap.py`, `kind_testkey.py` | It needs a kind cluster. | 0.6.1, [run notes](claude-code-0.6.1.md#runs-with-docker-and-kind) |
 
