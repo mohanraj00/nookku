@@ -2,7 +2,7 @@
 
 I ran the proofs of the 0.6.2 release candidate on 2026-11-27, on macOS, in the worktree of the branch `claude/release-0.6.2`. The base is the tag `v0.6.1` at 65d0d8c9, plus the commits of [#704](https://github.com/mohanraj00/nookku/issues/704) and [#431](https://github.com/mohanraj00/nookku/issues/431) and the commit that sets the version to 0.6.2. The tools were Claude Code 2.1.319, codex-cli 0.169.0, Python 3.13.12 and Docker 29.6.1 (client). These are the harness versions of [0.6.1](claude-code-0.6.1.md), and CI still pins Claude Code 2.1.319. Each result file records its tested versions.
 
-This release ran the proofs with no model, no kind cluster and no Codex job, with and without the network. Each other proof carries its record. [The carried records](#the-carried-records) give each record and the reason.
+This release ran the proofs with no model, with and without the network, and some proofs with the model in slots that the owner gave. Each other proof carries its record. [The carried records](#the-carried-records) give each record and the reason.
 
 ## Runs with no model
 
@@ -41,6 +41,20 @@ These runs use no model. They install packages, download the Koodam samples or s
 | LiteLLM gateway logs | `uv run python scripts/proof_gateway.py` | pass, run 1 | [results](../gateway/results.json) |
 
 `proof_sdk_bundles.py` found the same 6 rows as in 0.6.1. Only the date and the version changed. `release_samples.py` read the samples of the Koodam tag `v0.4.0`, the pin of 0.6.1.
+
+## Runs with the model
+
+The owner gave a model slot for Claude Code. At the start of the slot, the weekly usage of the Claude account was 92% for all models. The runs started at 2026-11-27 19:48 UTC, at 690e41f6, one at a time. A run that fails with HTTP 429 or a quota error counts as inconclusive, not failed. No run had such an error.
+
+| Proof | Setup | Command | Result | Data |
+|---|---|---|---|---|
+| P1 to P4 | plugin-claude-code | `uv run python scripts/proofs_relay.py plugin-claude-code` | pass, run 1 | [results](../plugin-claude-code/results.json) |
+| P1 to P4 | hooks-claude-code | `uv run python scripts/proofs_relay.py hooks-claude-code` | pass, run 1 | [results](../hooks-claude-code/results.json) |
+| Plugin load, both harnesses |  | `uv run python scripts/proof_plugin_load.py` | 18 of 18 checks pass, run 1 | [results](../plugin/load.json) |
+| Key guard | plugin-claude-code | `uv run python scripts/proof_key_guard.py plugin-claude-code` | K1 to K5 pass, run 1 | [results](../key-guard/plugin-claude-code.json) |
+| Key guard | hooks-claude-code | `uv run python scripts/proof_key_guard.py hooks-claude-code` | K1 to K5 pass, run 1 | [results](../key-guard/hooks-claude-code.json) |
+
+The relay proofs and the plugin load proof start the bridge and the hooks with the child argv of [#704](https://github.com/mohanraj00/nookku/issues/704). Each of the 10 turns of each relay proof passed P1 and P2, and P3b blocked the model call. The plugin load proof also runs Codex 0.169.0 for its 9 Codex checks.
 
 ## The tutorial change
 
@@ -87,10 +101,9 @@ These proofs did not run for 0.6.2, and each keeps its last record:
 
 | Proof | Why it did not run | Last record |
 |---|---|---|
-| P1 to P4 of `proofs_relay.py`, all setups | It needs the model. | 0.6.0, [Claude Code run notes of 0.6.0](claude-code-0.6.0.md#runs-with-the-model) |
-| `proof_plugin_load.py`, `proof_trace.py` | It needs the model. | 0.6.1, [run notes](claude-code-0.6.1.md#runs-of-both-harnesses) |
+| P1 to P4 of `proofs_relay.py`, the Codex setups, the streamed forms and the chat page | It needs the model. | 0.6.0, [Claude Code run notes of 0.6.0](claude-code-0.6.0.md#runs-with-the-model) |
+| `proof_trace.py` | It needs the model. | 0.6.1, [run notes](claude-code-0.6.1.md#runs-of-both-harnesses) |
 | `proof_codex_gate.py`, `proof_codex_hook_keys.py` | It runs a Codex job. | 0.6.1, [Codex run notes](codex-0.6.1.md), [run notes](claude-code-0.6.1.md#runs-with-no-model) |
 | Each other proof with the model | It needs the model. | 0.6.0, [carried records of 0.6.1](claude-code-0.6.1.md#the-carried-records) |
 | `proof_cluster_tap.py`, `kind_testkey.py` | It needs a kind cluster. | 0.6.1, [run notes](claude-code-0.6.1.md#runs-with-docker-and-kind) |
 
-The relay proofs P1 to P4 and the plugin load proof start the bridge and the project hooks, which #704 changes. [CONSTITUTION.md](../../CONSTITUTION.md#evidence) asks for the proofs after a change to a relay. These runs need a model slot.

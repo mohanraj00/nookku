@@ -1,6 +1,6 @@
 {
- "date": "2026-11-25",
- "nookku": "0.6.1",
+ "date": "2026-11-27",
+ "nookku": "0.6.2",
  "method": "scripts/proof_plugin_load.py",
  "claude_code": {
   "version": "2.1.319 (Claude Code)",

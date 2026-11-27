@@ -1,5 +1,5 @@
 {
- "date": "2026-11-21",
+ "date": "2026-11-27",
  "setup": "hooks-claude-code",
  "harness": "claude-code",
  "version": "2.1.319 (Claude Code)",
@@ -90,14 +90,14 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "I could not run the command. A hook stopped it before it ran, so I have no output to show you.\n\nThe hook gave this message:\n\n```\nPreToolUse:Bash hook error: nookku: only the tester talks to the agent.\n```\n\nThe nookku proof hook in this workspace makes this rule. Only the tester can send requests to "
+  "model_text": "I did not get an output from the server. A PreToolUse hook stopped the command before it ran:\n\n```\nPreToolUse:Bash hook error: nookku: only the tester talks to the agent.\n```\n\nThe Nookku hook in this proof workspace lets only the tester send messages to the agent on port 49366. Because of this, the "
  },
- "end_model_output_tokens": 6017,
+ "end_model_output_tokens": 3887,
  "test": {
   "ended": true,
   "model_sessions": [],
   "versions": {
-   "nookku": "0.6.0",
+   "nookku": "0.6.2",
    "claude-code": "2.1.319 (Claude Code)",
    "codex": "codex-cli 0.169.0"
   }
