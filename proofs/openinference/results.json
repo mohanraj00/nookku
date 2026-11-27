@@ -1,7 +1,7 @@
 {
-  "date": "2026-11-25",
+  "date": "2026-11-27",
   "versions": {
-    "nookku": "0.6.1",
+    "nookku": "0.6.2",
     "claude_code": "2.1.319 (Claude Code)",
     "codex": "codex-cli 0.169.0"
   },

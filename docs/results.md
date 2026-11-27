@@ -167,7 +167,7 @@ The 0.6.0 and 0.6.1 runs with Claude Code 2.1.301 and codex-cli 0.169.0 have the
 | GET /stock | 0 bytes | 2,059 bytes | yes | [results](../proofs/backend/results.json) |
 | POST /import | 2,320,000 bytes, cut in the record | 2,059 bytes | yes | [results](../proofs/backend/results.json) |
 
-The record cuts the third request body at 1 MiB, but the stock service got all of its bytes. The [seal](reference/glossary.md#seal) of the [test folder](reference/glossary.md#test-folder) was intact. The run used nookku 0.6.1 on 2026-11-25 (the keys `versions` and `date` of the results file).
+The record cuts the third request body at 1 MiB, but the stock service got all of its bytes. The [seal](reference/glossary.md#seal) of the [test folder](reference/glossary.md#test-folder) was intact. The run used nookku 0.6.2 on 2026-11-27 (the keys `versions` and `date` of the results file).
 
 ### Database calls from the driver trace
 
@@ -205,7 +205,7 @@ The record cuts the third request body at 1 MiB, but the stock service got all o
 | OpenAI Decisions, the toy shop app | 435 bytes | yes | not a stream | yes | [results](../proofs/model-api/results.json) |
 | OpenAI Decisions, request body cut | 435 bytes | yes | not a stream | yes | [results](../proofs/model-api/results.json) |
 
-The API key was not in the record. The seal of the test folder was intact. The run used nookku 0.6.1 on 2026-11-25 (the keys `versions` and `date` of the results file).
+The API key was not in the record. The seal of the test folder was intact. The run used nookku 0.6.2 on 2026-11-27 (the keys `versions` and `date` of the results file).
 
 ### Codex and the OpenTelemetry variables
 
@@ -475,7 +475,7 @@ This is 1 run of 3 prompts for each setup. Each prompt names the tool to use, so
 
 ### A replay with the recorded backends
 
-I replayed the toy shop script 10 times with `nookku replay --recorded --verdict` on 2026-11-25, with nookku 0.6.1 and no model ([data](../proofs/replay/results.json), [method](../scripts/proof_replay.py)). The toy entry asks a toy stock service and a toy model API for each of the 3 messages. The toy model puts a call counter in each answer, and the stock service answers 1 call of each turn with status 503. Thus the base test has 3 `backend_error` findings.
+I replayed the toy shop script 10 times with `nookku replay --recorded --verdict` on 2026-11-27, with nookku 0.6.2 and no model ([data](../proofs/replay/results.json), [method](../scripts/proof_replay.py)). The toy entry asks a toy stock service and a toy model API for each of the 3 messages. The toy model puts a call counter in each answer, and the stock service answers 1 call of each turn with status 503. Thus the base test has 3 `backend_error` findings.
 
 - R1: a live replay, as a control, changed 3 of 3 turns, because the toy model gave new answers.
 - R2: after the 2 toy servers stopped, 10 of 10 recorded replays had no changed turn, no miss, exit code 0, an intact seal and the findings of the base test. The servers got 0 calls in these replays.
@@ -485,7 +485,7 @@ This proof uses 1 script and HTTP parts only. A stdio MCP server and a Postgres 
 
 ### An action with no approval
 
-[scripts/proof_approvals.py](../scripts/proof_approvals.py) runs a test of a toy shop app with a backend `shop` and a stdio MCP server `payments`, with no model. The server asks for the approval of a refund with an MCP elicitation. The [app spec](reference/app-spec.md#approvals) says that a refund needs an accepted elicitation of `payments`, and that the cancel of an order needs the message `yes` after an interrupt. The proof plants 1 defect: in turn 2, the app calls the refund backend and asks nobody. In the run of 2026-11-25 on nookku 0.6.1, which has the code of [#521](https://github.com/mohanraj00/nookku/issues/521) ([data](../proofs/approvals/results.json)):
+[scripts/proof_approvals.py](../scripts/proof_approvals.py) runs a test of a toy shop app with a backend `shop` and a stdio MCP server `payments`, with no model. The server asks for the approval of a refund with an MCP elicitation. The [app spec](reference/app-spec.md#approvals) says that a refund needs an accepted elicitation of `payments`, and that the cancel of an order needs the message `yes` after an interrupt. The proof plants 1 defect: in turn 2, the app calls the refund backend and asks nobody. In the run of 2026-11-27 on nookku 0.6.2, which has the code of [#521](https://github.com/mohanraj00/nookku/issues/521) ([data](../proofs/approvals/results.json)):
 
 - The [trace](reference/glossary.md#trace) has 2 `elicitation` items from the record of the MCP proxy: an `accept` in turn 1 and a `decline` in turn 3. It has 1 `interrupt` item in turn 4 and 1 `resume` item in turn 5 from the tap record.
 - The refund of turn 1 follows the `accept`, and the cancel of turn 5 follows the message `yes`. They give no [finding](reference/glossary.md#findings).
@@ -496,9 +496,9 @@ This is 1 run of 5 turns, with 1 planted defect and 2 rows of the `Approvals` ta
 
 ### A second message during a slow turn
 
-[scripts/proof_second_message.py](../scripts/proof_second_message.py) runs 2 [scripted tests](reference/glossary.md#scripted-test) of a toy shop app with a stdio MCP server `payments`, with no model. The tool `refund` of the server takes 1.5 seconds. The app reads its stdin during a turn, and a message during a refund stops the refund: the app sends `notifications/cancelled`, and the server sends no result. The 2 tests have the same 3 messages. In the test `second`, the row of message 2 has `"during": 0.5`. In the test `control`, no row has it. In the run of 2026-11-25 on nookku 0.6.1, which has the code of [#522](https://github.com/mohanraj00/nookku/issues/522) and [#656](https://github.com/mohanraj00/nookku/issues/656) ([data](../proofs/second-message/results.json)):
+[scripts/proof_second_message.py](../scripts/proof_second_message.py) runs 2 [scripted tests](reference/glossary.md#scripted-test) of a toy shop app with a stdio MCP server `payments`, with no model. The tool `refund` of the server takes 1.5 seconds. The app reads its stdin during a turn, and a message during a refund stops the refund: the app sends `notifications/cancelled`, and the server sends no result. The 2 tests have the same 3 messages. In the test `second`, the row of message 2 has `"during": 0.5`. In the test `control`, no row has it. In the run of 2026-11-27 on nookku 0.6.2, which has the code of [#522](https://github.com/mohanraj00/nookku/issues/522) and [#656](https://github.com/mohanraj00/nookku/issues/656) ([data](../proofs/second-message/results.json)):
 
-- In the test `second`, the [tap](reference/glossary.md#tap) gave message 2 to the [entry](reference/glossary.md#entry) 0.498 seconds after message 1, and the reply of turn 1 came at 0.518 seconds. `findings.json` has 1 row in `second_messages`: turn 2 during turn 1, with `reply_first` `false`.
+- In the test `second`, the [tap](reference/glossary.md#tap) gave message 2 to the [entry](reference/glossary.md#entry) 0.493 seconds after message 1, and the reply of turn 1 came at 0.512 seconds. `findings.json` has 1 row in `second_messages`: turn 2 during turn 1, with `reply_first` `false`.
 - The app stopped the refund. The `refund` tool call of turn 1 has no result in the record of the MCP proxy, and it gives 1 `call_cut` [finding](reference/glossary.md#findings). The `Verdict` table permits 0, so the verdict is `fail`.
 - In the test `control`, turn 2 started after the reply of turn 1, at 1.51 seconds. The tool call has its result, the test has no second message and no finding, and the verdict is `pass`.
 - The audit of each test exits with 0, and each [seal](reference/glossary.md#seal) is intact.
@@ -507,7 +507,7 @@ This is 1 run of each test, with 1 app that stops its first turn. It does not sh
 
 ### A rollout gate
 
-I ran a gate run for each of 2 versions of a toy shop agent on 2026-11-25, with nookku 0.6.1 and no model
+I ran a gate run for each of 2 versions of a toy shop agent on 2026-11-27, with nookku 0.6.2 and no model
  ([data](../proofs/rollout-gate/results.json), [method](../scripts/proof_rollout_gate.py)). The toy rollout controller of [examples/rollout-gate/](../examples/rollout-gate/) read `result.json` and the copy of the seal of each gate run ([gate-a-rollout.md](how-to/gate-a-rollout.md)). Version 2 has a planted defect: 1 backend call with status 503 in each of its 3 turns. Its replies are the same as the replies of version 1. The gate file permits 0 `backend_error` findings.
 
 - R1: version 1 passed the gate, `nookku gate verify` gave exit code 0, and the controller promoted it.

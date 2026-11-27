@@ -1,14 +1,14 @@
 {
- "date": "2026-11-25",
+ "date": "2026-11-27",
  "versions": {
-  "nookku": "0.6.1",
+  "nookku": "0.6.2",
   "python": "3.13.12",
   "os": "Darwin"
  },
  "script": "examples/toy-shop/script.jsonl",
  "turns": 3,
  "base": {
-  "test": "20261125-135520-62ba",
+  "test": "20261127-112016-64a9",
   "passed": true,
   "findings": 3,
   "server_calls": 18
@@ -21,7 +21,7 @@
  "runs": [
   {
    "run": 1,
-   "test": "20261125-135527-984e",
+   "test": "20261127-112023-d6a2",
    "exit": 0,
    "changed": 0,
    "replay_changed": 0,
@@ -38,7 +38,7 @@
   },
   {
    "run": 2,
-   "test": "20261125-135531-edf2",
+   "test": "20261127-112026-cb95",
    "exit": 0,
    "changed": 0,
    "replay_changed": 0,
@@ -55,7 +55,7 @@
   },
   {
    "run": 3,
-   "test": "20261125-135534-24e6",
+   "test": "20261127-112030-6949",
    "exit": 0,
    "changed": 0,
    "replay_changed": 0,
@@ -72,7 +72,7 @@
   },
   {
    "run": 4,
-   "test": "20261125-135538-6897",
+   "test": "20261127-112033-d264",
    "exit": 0,
    "changed": 0,
    "replay_changed": 0,
@@ -89,7 +89,7 @@
   },
   {
    "run": 5,
-   "test": "20261125-135543-2ebd",
+   "test": "20261127-112036-5f18",
    "exit": 0,
    "changed": 0,
    "replay_changed": 0,
@@ -106,7 +106,7 @@
   },
   {
    "run": 6,
-   "test": "20261125-135547-83a7",
+   "test": "20261127-112039-4977",
    "exit": 0,
    "changed": 0,
    "replay_changed": 0,
@@ -123,7 +123,7 @@
   },
   {
    "run": 7,
-   "test": "20261125-135550-ccf3",
+   "test": "20261127-112043-6e6c",
    "exit": 0,
    "changed": 0,
    "replay_changed": 0,
@@ -140,7 +140,7 @@
   },
   {
    "run": 8,
-   "test": "20261125-135555-fed3",
+   "test": "20261127-112046-3ede",
    "exit": 0,
    "changed": 0,
    "replay_changed": 0,
@@ -157,7 +157,7 @@
   },
   {
    "run": 9,
-   "test": "20261125-135600-7645",
+   "test": "20261127-112050-b4fc",
    "exit": 0,
    "changed": 0,
    "replay_changed": 0,
@@ -174,7 +174,7 @@
   },
   {
    "run": 10,
-   "test": "20261125-135603-68df",
+   "test": "20261127-112052-c875",
    "exit": 0,
    "changed": 0,
    "replay_changed": 0,
