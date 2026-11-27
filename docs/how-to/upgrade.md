@@ -46,7 +46,7 @@ nookku --version
 nookku 0.4.0
 ```
 
-The hooks of the kit run the Python of the CLI install, for example `.../nookku/bin/python -m nookku hook ...`. Thus the hooks use the new version, and the hook file does not change. If you install the CLI in a new place, run `nookku init` again, so that the hooks name the new Python.
+The hooks of the kit use the Python and library folder of the CLI install in isolated mode. If you install the CLI in a new place or the hook command changes in a release, run `nookku init` again.
 
 If your [entry](../reference/glossary.md#entry) imports `nookku`, for example to use `serve()`, upgrade the package in your app's environment too ([connect-your-agent.md](connect-your-agent.md#in-python-use-serve)). With uv, run:
 

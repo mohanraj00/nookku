@@ -22,7 +22,7 @@ from typing import Any
 import pytest
 from test_page import cookie_only, make_folder, request, session_headers, write_current
 
-from nookku import bridge, kit, page, page_auto, state
+from nookku import bridge, child, kit, page, page_auto, state
 from nookku.cli import main
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -825,7 +825,9 @@ def test_the_stop_sends_no_signal_to_a_pid_that_does_not_hold_the_lock(
             proc.wait()
 
 
-@pytest.mark.parametrize("command", ["module", "script", "other", "space", "unknown"])
+@pytest.mark.parametrize(
+    "command", ["child", "module", "script", "other", "other_library", "space", "unknown"]
+)
 def test_chat_stop_names_the_true_holder_and_stops_only_a_page_server(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -839,10 +841,13 @@ def test_chat_stop_names_the_true_holder_and_stops_only_a_page_server(
     monkeypatch.setattr(state, "process_start", lambda pid: f"start:{pid}")
     holder = locker(root, "t-1")
     script = str(Path(sys.executable).with_name("nookku"))
+    isolated = child.argv("chat", "--root", str(root))
     commands = {
+        "child": isolated,
         "module": [sys.executable, "-m", "nookku", "chat", "--root", str(root)],
         "script": [sys.executable, script, "chat", "--root", str(root)],
         "other": [sys.executable, "-c", "nookku chat"],
+        "other_library": [*isolated[:4], str(tmp_path), *isolated[5:]],
         "space": [sys.executable, script + " chat", "--root", str(root)],
         "unknown": None,
     }
@@ -855,7 +860,7 @@ def test_chat_stop_names_the_true_holder_and_stops_only_a_page_server(
         shown = capsys.readouterr()
         assert f"pid {holder.pid}" in shown.out + shown.err
         assert other.poll() is None
-        if command not in ("module", "script"):
+        if command not in ("child", "module", "script"):
             assert code == 1 and "sent no signal" in shown.err
             assert holder.poll() is None
         else:

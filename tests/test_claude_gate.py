@@ -181,9 +181,9 @@ def _hook(data: dict[str, Any], event: str) -> dict[str, Any]:
         lambda d: _hook(d, "PreToolUse").update(type="prompt"),
         # Claude Code does not wait for an async hook, so the hook cannot block the prompt.
         lambda d: _hook(d, "UserPromptSubmit").update({"async": True}),
-        # The shell runs the Python with no arguments, then -m as a second command.
+        # The shell runs the Python with no arguments, then -I as a second command.
         lambda d: _hook(d, "UserPromptSubmit").update(
-            command=_hook(d, "UserPromptSubmit")["command"].replace(" -m ", "\n-m ", 1)
+            command=_hook(d, "UserPromptSubmit")["command"].replace(" -I ", "\n-I ", 1)
         ),
     ],
 )

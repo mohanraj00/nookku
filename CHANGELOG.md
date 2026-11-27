@@ -11,6 +11,12 @@ Not released yet.
 - **Match rules of a recorded replay.** The new config key `replay_ignore` gives match rules for each proxy of a replay with `--recorded`: dot paths in the JSON of the request body and names of query parameters. The match ignores these values, so a request with a new request ID gets the recorded response. With no rule, the match stays exact. The manifest key `replay` records the rules as `ignore`. Each row of a player has the new list `replay.ignored`, and `nookku replay` prints a line for each call whose match ignored a value ([SPEC.md section 7.10](SPEC.md#710-scripted-tests), [cli.md](docs/reference/cli.md#nookku-replay), [#666](https://github.com/mohanraj00/nookku/issues/666)).
 - **The runner of a simulated user.** The new config key `persona_runner` selects the runner of `nookku run --persona`: `claude-code` (the default, as before) or a declared command that gets the prompt on stdin and writes the message on stdout. A declared command must have no tools, because the prompt holds the replies of the agent. Nookku has no built-in `codex` runner, because `codex exec` has no flag that removes each tool. `simulated_user.json` has the new key `command`, and its `harness` names the runner. A gate run still never starts a simulated user. A proof with each real runner is not done yet ([SPEC.md section 7.10](SPEC.md#710-scripted-tests), [cli.md](docs/reference/cli.md#nookku-run), [#667](https://github.com/mohanraj00/nookku/issues/667)).
 
+## 0.6.2
+
+Not released yet.
+
+- **Isolated child commands.** The bridge, the MCP stdio proxy, the chat page and the project hooks use the Nookku library of the install. Python omits the project folder and the user site from its import path. Run `nookku init` again for each harness that uses project hooks ([#704](https://github.com/mohanraj00/nookku/issues/704)).
+
 ## 0.6.1
 
 Released 2026-11-26.

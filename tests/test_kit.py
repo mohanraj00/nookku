@@ -133,10 +133,11 @@ def test_init_writes_hooks_once_and_keeps_other_hooks(tmp_path):
     assert not kit.is_on(tmp_path)
 
 
-def test_init_keeps_another_hook_in_the_group_of_the_kit(tmp_path):
+@pytest.mark.parametrize("old", ["python -m nookku hook", "python -m verbatim_relay hook"])
+def test_init_replaces_an_old_hook_and_keeps_the_other_hook_in_its_group(tmp_path, old):
     target = tmp_path / ".codex" / "hooks.json"
     target.parent.mkdir()
-    ours = {"type": "command", "command": "python -m nookku hook --harness codex"}
+    ours = {"type": "command", "command": f"{old} --harness codex"}
     other = {"type": "command", "command": "echo hi"}
     stop = [{"hooks": [other]}]
     hooks = {"UserPromptSubmit": [{"hooks": [ours, other]}], "Stop": stop}
@@ -145,20 +146,10 @@ def test_init_keeps_another_hook_in_the_group_of_the_kit(tmp_path):
     settings = json.loads(target.read_text())
     groups = settings["hooks"]["UserPromptSubmit"]
     assert groups[0] == {"hooks": [other]}
-    assert [h["command"] for h in groups[1]["hooks"]] == [kit.hook_command(tmp_path, "codex")]
-    assert settings["hooks"]["Stop"] == stop
-
-
-def test_init_replaces_the_hooks_of_verbatim_relay(tmp_path):
-    target = tmp_path / ".codex" / "hooks.json"
-    target.parent.mkdir()
-    old = {"type": "command", "command": "python -m verbatim_relay hook --harness codex"}
-    target.write_text(json.dumps({"hooks": {"UserPromptSubmit": [{"hooks": [old]}]}}))
-    kit.init(tmp_path, "codex", {})
-    groups = json.loads(target.read_text())["hooks"]["UserPromptSubmit"]
-    assert [h["command"] for g in groups for h in g["hooks"]] == [
+    assert [h["command"] for g in groups[1:] for h in g["hooks"]] == [
         kit.hook_command(tmp_path, "codex")
     ]
+    assert settings["hooks"]["Stop"] == stop
 
 
 @pytest.mark.parametrize("harness", ["claude-code", "codex"])
