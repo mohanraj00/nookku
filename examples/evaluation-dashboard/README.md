@@ -24,7 +24,7 @@ The page lists the gate runs and the runs. Each gate run shows its aggregate ver
 
 ## The pin of the kit
 
-[mugham.json](mugham.json) gives the repository, the tag `v0.4.0`, the commit and the copied paths of the kit. [checksums.json](checksums.json) gives the SHA-256 of each copied file. The build stops and writes no output folder if:
+[mugham.json](mugham.json) gives the repository, the tag `v0.7.0`, the commit and the copied paths of the kit. [checksums.json](checksums.json) gives the SHA-256 of each copied file. The build stops and writes no output folder if:
 
 - the tag does not point to the pinned commit;
 - the checkout is not at the pinned commit;
