@@ -416,18 +416,17 @@ Limits of this proof:
 
 ### Claude Code in a Koodam Workspace
 
-[scripts/proof_cluster.py](../scripts/proof_cluster.py) runs a test from Claude Code in a Koodam 0.3.0 Workspace in a kind cluster, with the toy shop agent behind a Service ([getting-started-cluster.md](getting-started-cluster.md)). The run of 2026-11-05 used nookku 0.5.7 and passed W1 to W4 ([results](../proofs/cluster/plugin-claude-code.json), [test folder](../proofs/cluster/plugin-claude-code/)).
+[scripts/proof_cluster.py](../scripts/proof_cluster.py) runs a test from Claude Code in a Koodam v0.5.0 Workspace with the Nookku preset, in a kind cluster, with the toy shop agent behind a Service ([getting-started-cluster.md](getting-started-cluster.md)). The run of 2026-11-27 used the mock model of the bundled gateway and no login, with Claude Code 2.1.319 and the pinned Nookku 0.6.0 of the preset. It passed W1 to W3, and it has no W4 ([results](../proofs/cluster/plugin-claude-code-no-evaluation.json), [test folder](../proofs/cluster/plugin-claude-code-no-evaluation/)).
 
-- **W1:** the Workspace runs with traced egress, and Claude Code in the pod loads the plugin of the manual install.
-- **W2:** 3 of 3 messages and 3 of 3 replies are the same in the relay, tap and backend records, and the audit found no break.
-- **W3:** `egress.jsonl` has the bytes of a real `koodam trace` export of 24 rows. The trace gives 1 `egress_not_in_discovery` finding and 1 `egress_denied` finding.
-- **W4:** the model writes the report, and `nookku verify` finds the seal intact.
+- **W1:** the Workspace runs with traced egress and the harness. The 2 init containers of the preset ended with exit code 0. Before the profile step of the guide, `nookku` was not on the PATH ([koodam#476](https://github.com/mohanraj00/koodam/issues/476)), and `python3` could not import `nookku` ([koodam#478](https://github.com/mohanraj00/koodam/issues/478)). After it, `nookku` is the launcher of the preset with version 0.6.0. The test folder is on the home volume with mode 700, the preset files are read-only, and the 10 plugin files are the files of the tag `v0.6.0`. Claude Code loads the plugin from `/koodam/nookku/plugin`.
+- **W2:** 3 of 3 messages and 3 of 3 replies are the same in the relay, tap and backend records, and the audit found no break. The tap sent each message to the Service URL.
+- **W3:** `egress.jsonl` has the bytes of a real `koodam trace` export of 12 rows. The trace gives 1 `egress_not_in_discovery` finding and 1 `egress_denied` finding.
 
-The login of Claude Code in the Workspace is a person step. 2 earlier runs stopped at this step and wrote no results file ([proofs/release/claude-code-0.5.7.md](../proofs/release/claude-code-0.5.7.md#the-proof-in-a-koodam-workspace)). The `versions` field of the results gives each tested version. This proof did not run for 0.6.0 ([run notes](../proofs/release/claude-code-0.6.0.md#the-proof-in-a-koodam-workspace)).
+The last run with W4 used Koodam 0.3.0 and Nookku 0.5.7, on 2026-11-05. It passed W1 to W4 ([results](../proofs/cluster/plugin-claude-code.json), [test folder](../proofs/cluster/plugin-claude-code/), [method of that run](https://github.com/mohanraj00/nookku/blob/3d4d6945/scripts/proof_cluster.py)). The login of Claude Code in the Workspace is a person step. The `versions` field of the results gives each tested version.
 
 ### Codex in a Koodam Workspace
 
-Nookku 0.5.7 does not support a full test from Codex in a Koodam Workspace. The proof ran on 2026-11-06 with codex-cli 0.162.1 and failed ([data](../proofs/cluster/plugin-codex.json), [method](../scripts/proof_cluster.py), [#461](https://github.com/mohanraj00/nookku/issues/461)):
+Nookku 0.5.7 does not support a full test from Codex in a Koodam Workspace. The proof ran on 2026-11-06 with Koodam 0.3.0 and codex-cli 0.162.1, and failed ([data](../proofs/cluster/plugin-codex.json), [method of that run](https://github.com/mohanraj00/nookku/blob/3d4d6945/scripts/proof_cluster.py), [#461](https://github.com/mohanraj00/nookku/issues/461)):
 
 - **W1 to W3 passed.** The 3 records agree on each message and reply, the audit found 0 breaks, and the trace gave both planted egress findings.
 - **W4 failed.** The Codex shell sandbox could not start in the restricted pod ([Koodam sandbox test](https://github.com/mohanraj00/koodam/blob/v0.3.0/docs/codex-sandbox.md)). The transcript tool could not find the test. Codex wrote no report, and the seal stayed intact.

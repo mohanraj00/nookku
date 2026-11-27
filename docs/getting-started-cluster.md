@@ -1,18 +1,21 @@
 # Get started in a cluster
 
-In this tutorial, you test the toy shop agent in a Kubernetes cluster. The agent runs behind a Service. Claude Code runs in a [Koodam](https://github.com/mohanraj00/koodam) Workspace with traced egress. You install Nookku and the [plugin](reference/glossary.md#plugin) in the Workspace, run a test with 3 messages, give the egress spans of the test to the [trace](reference/glossary.md#trace), and start the [evaluation](reference/glossary.md#evaluation).
+In this tutorial, you test the toy shop agent in a Kubernetes cluster. The agent runs behind a Service. Claude Code runs in a [Koodam](https://github.com/mohanraj00/koodam) Workspace with traced egress and the Nookku preset. You run a test with 3 messages, give the egress spans of the test to the [trace](reference/glossary.md#trace), and start the [evaluation](reference/glossary.md#evaluation).
 
-Nookku v0.5.7 supports a full test in a Koodam Workspace with Claude Code. Codex in a Workspace gives no full evaluation in this release. The Codex proof passed W1 to W3, but W4 failed and Codex wrote no report. Full support for Codex depends on the Koodam update and a pass from W1 to W4. [Proof](../proofs/cluster/plugin-codex.json), [method](../scripts/proof_cluster.py), [koodam#243](https://github.com/mohanraj00/koodam/issues/243).
+The Nookku preset of Koodam v0.5.0 gives the Workspace pod the pinned Nookku 0.6.0, the [plugin](reference/glossary.md#plugin) files and a [test folder](reference/glossary.md#test-folder) on the home volume. It does not load the plugin in the [harness](reference/glossary.md#harness). It has 2 gaps, and step 4 of this page closes them ([koodam#476](https://github.com/mohanraj00/koodam/issues/476), [koodam#478](https://github.com/mohanraj00/koodam/issues/478)).
 
-The values on this page come from one run of [scripts/proof_cluster.py](../scripts/proof_cluster.py) on 2026-10-30, on macOS, in a kind cluster, with Koodam 0.3.0, nookku 0.5.6 from this checkout and Claude Code 2.1.302 ([data](../proofs/cluster/plugin-claude-code-no-evaluation.json), [records](../proofs/cluster/plugin-claude-code-no-evaluation/)). That run did steps 1 to 8 and no login, so it has no evaluation. The script does each step of this page with `kubectl exec`, and gives each prompt to `claude -p` in the pod. The test id and the times are different on your cluster.
+The values on this page come from one run of [scripts/proof_cluster.py](../scripts/proof_cluster.py) on 2026-11-27, on macOS, in a kind cluster, with Koodam v0.5.0 and Claude Code 2.1.319 ([data](../proofs/cluster/plugin-claude-code-no-evaluation.json), [records](../proofs/cluster/plugin-claude-code-no-evaluation/)). That run did steps 1 to 8 with the mock model of the bundled gateway and no login, so it has no evaluation. The script does each step of this page with `kubectl exec`, and gives each prompt to `claude -p` in the pod. The test id and the times are different on your cluster.
+
+This page does not cover Codex in a Workspace. The last Codex proof used Koodam 0.3.0 and wrote no report ([Limits](#limits)).
 
 If you do not know Nookku, do [Get started](getting-started.md) first. It explains the [audit](reference/glossary.md#audit), the [findings](reference/glossary.md#findings) and the report.
 
 ## What you need
 
 - A Kubernetes cluster. The proof used kind ([versions](../proofs/cluster/plugin-claude-code-no-evaluation.json)).
-- `kubectl`, `helm` and the `koodam` CLI 0.3.0 ([release](https://github.com/mohanraj00/koodam/releases/tag/v0.3.0)).
-- A Claude subscription for `claude setup-token`.
+- `kubectl`, `helm` and the `koodam` CLI 0.5.0 ([release](https://github.com/mohanraj00/koodam/releases/tag/v0.5.0)).
+- A Workspace image with `python3` 3.11 or later. The default Workspace image of Koodam has no Python, and the preset needs it. Step 3 builds one.
+- For the evaluation only: a Claude subscription for `claude setup-token`.
 - A clone of this repo, for the toy shop agent and its [entry](reference/glossary.md#entry):
 
   ```bash
@@ -22,9 +25,7 @@ If you do not know Nookku, do [Get started](getting-started.md) first. It explai
 
 If you use kind on Docker Desktop, keep 1.2 GB free on the disk of Docker after the install. A full disk stops each container of Docker, also the containers of other projects. The proof stops if the node has less than 1200 MB free ([method](../scripts/proof_cluster.py)).
 
-## 1. Install Koodam with the egress proxy
-
-Koodam 0.3.0 has no Nookku preset ([koodam#83](https://github.com/mohanraj00/koodam/issues/83)). This page installs Nookku in the Workspace by hand (step 4).
+## 1. Install Koodam with the egress proxy and the Nookku image
 
 Find the address and the port of the API server. The NetworkPolicy of the proxy needs them:
 
@@ -33,9 +34,24 @@ kubectl get endpointslices -n default -l kubernetes.io/service-name=kubernetes \
   -o jsonpath='{.items[0].endpoints[0].addresses[0]} {.items[0].ports[0].port}'
 ```
 
-Write `values.yaml`. Put the address and the port of the API server in `apiServer`. The `extraEgress` rule lets the Workspace pods call the toy shop Service directly, with no proxy:
+Write `values.yaml`. Put the address and the port of the API server in `apiServer`. The `extraEgress` rule lets the Workspace pods call the toy shop Service directly, with no proxy. `nookku.image` is the Nookku data image of the Koodam release `v0.5.0`. The chart needs a digest in this reference:
 
 ```yaml
+nookku:
+  image: ghcr.io/mohanraj00/koodam-nookku@sha256:be6c674c2699532e3d2b94a89a96b3ad7ea9b92ac0e694459987e1fe2e9d2a2e
+gateway:
+  mode: bundled
+  masterKeySecret:
+    name: koodam-gateway
+    key: master-key
+  bundled:
+    mock:
+      enabled: true
+      modelName: mock-1
+      response: "mock answer"
+    postgres:
+      persistence:
+        enabled: false
 egressProxy:
   enabled: true
   clusterIP: 10.96.100.100
@@ -66,7 +82,9 @@ workspace:
 
 `10.96.100.100` is a free address in the Service range of kind (`10.96.0.0/16`). On another cluster, use a free address in its Service range.
 
-Install the chart:
+The bundled gateway with its mock model gives the harness a model route with no model key and no login. The mock model cannot evaluate a test. For the evaluation, use the login of step 5.
+
+Install the chart. The reference has the version and the digest of the chart:
 
 ```bash
 kubectl create namespace koodam-system
@@ -74,12 +92,12 @@ kubectl create namespace shop
 kubectl create namespace dev-shop
 kubectl -n koodam-system create secret generic koodam-gateway \
   --from-literal=master-key="sk-$(openssl rand -hex 32)"
-helm install koodam oci://ghcr.io/mohanraj00/charts/koodam --version 0.3.0 \
-  -n koodam-system -f values.yaml --wait --timeout 10m \
-  --set gateway.mode=existing --set gateway.url=http://gateway.invalid:4000
+helm install koodam \
+  oci://ghcr.io/mohanraj00/charts/koodam:0.5.0@sha256:746593cfa80ee90bf4a4244d64aba072ce5cd1c8bc3ae720a0d2f1357e6032f2 \
+  -n koodam-system -f values.yaml --wait --timeout 10m
 ```
 
-The Workspace of this page uses a subscription login, so it calls no gateway. The chart 0.3.0 needs a gateway mode and a URL. Thus this page gives the mode `existing` and a URL that nothing uses.
+The chart gives `--nookku-image` to the controller from `nookku.image`.
 
 ## 2. Run the toy shop agent behind a Service
 
@@ -135,9 +153,30 @@ EOF
 kubectl -n shop rollout status deployment/toy-shop
 ```
 
-## 3. Make the Workspace
+## 3. Make the Workspace with the Nookku preset
 
-The Workspace keeps the [test folders](reference/glossary.md#test-folder) on a separate volume at `/tests`, so that you can read them from another pod:
+Build a Workspace image with `python3` 3.11 or later. This `Dockerfile` adds the `python3` of Debian to the Workspace image of the release:
+
+```dockerfile
+FROM ghcr.io/mohanraj00/koodam-workspace:0.5.0@sha256:b4f428400d0bda4e8698b92bcc12111e1f25213ea6ce4c6a804c787ec566180a
+USER 0:0
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 \
+ && rm -rf /var/lib/apt/lists/* \
+ && python3 -c 'import sys; sys.exit(sys.version_info < (3, 11))'
+USER 1000:1000
+```
+
+Build the image and give it to the nodes. On kind:
+
+```bash
+docker build -t nookku-proof/workspace-python:0.5.0 .
+kind load docker-image nookku-proof/workspace-python:0.5.0 --name <cluster>
+```
+
+On another cluster, push the image to a registry that the cluster can read.
+
+Then make the Workspace. `plugins: [nookku]` selects the preset for the harness:
 
 ```bash
 kubectl label namespace dev-shop koodam.dev/profile=nookku-proof
@@ -149,17 +188,6 @@ metadata:
 spec:
   namespaces: [dev-shop]
 ---
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: shop-nookku-tests
-  namespace: dev-shop
-spec:
-  accessModes: [ReadWriteOnce]
-  resources:
-    requests:
-      storage: 1Gi
----
 apiVersion: core.koodam.dev/v1alpha1
 kind: Workspace
 metadata:
@@ -167,32 +195,23 @@ metadata:
   namespace: dev-shop
 spec:
   storage: 5Gi
+  image: nookku-proof/workspace-python:0.5.0
+  gateway:
+    model: mock-1
+    budgetPerDay: "1"
   harnesses:
     - name: claude-code
-      version: 2.1.302
-  podTemplate:
-    spec:
-      containers:
-        - name: workspace
-          volumeMounts:
-            - name: nookku-tests
-              mountPath: /tests
-      volumes:
-        - name: nookku-tests
-          persistentVolumeClaim:
-            claimName: shop-nookku-tests
+      version: 2.1.319
+      plugins: [nookku]
 EOF
 kubectl -n dev-shop wait workspace/shop --for=jsonpath='{.status.phase}'=Running --timeout=600s
-kubectl -n dev-shop get workspace shop -o jsonpath='{.status.conditions[?(@.type=="TracedEgress")].status}'
+kubectl -n dev-shop get workspace shop \
+  -o jsonpath='{range .status.conditions[*]}{.type}={.status} {end}'
 ```
 
-```text
-True
-```
+In the proof, the Workspace was `Running`, with `TracedEgress=True` and `Harnesses=True`. The init containers `koodam-nookku-python` and `koodam-nookku-files` of the preset ended with exit code 0 ([data](../proofs/cluster/plugin-claude-code-no-evaluation.json), W1).
 
-In the proof, the Workspace was `Running` and `TracedEgress` was `True` ([data](../proofs/cluster/plugin-claude-code-no-evaluation.json), W1).
-
-## 4. Install Nookku and the plugin in the Workspace
+## 4. Put Nookku on the PATH in the Workspace
 
 Open a login shell in the Workspace pod. Do the next commands of this step in that shell:
 
@@ -200,29 +219,47 @@ Open a login shell in the Workspace pod. Do the next commands of this step in th
 kubectl -n dev-shop exec -it shop-0 -c workspace -- bash -l
 ```
 
-The Workspace image has no Python and no curl. Get the `uv` binary for Linux outside the pod, from its [release](https://github.com/astral-sh/uv/releases), and copy it to `~/.local/bin/uv` in the pod with `kubectl cp`. The proof used uv 0.10.8, and checked its sha256. Then install Nookku. `uv` gets Python through the egress proxy:
+The preset gives these files. They are read-only:
+
+- `/koodam/bin/nookku`: the launcher of the pinned Nookku.
+- `/koodam/nookku/lib`: the pinned Nookku 0.6.0.
+- `/koodam/nookku/plugin`: the plugin files of the Nookku tag `v0.6.0`.
+
+A login shell exports `NOOKKU_TESTS_DIR=/home/dev/nookku-tests`. This folder is on the home volume, with mode 0700, so the tests stay after the pod stops. You do not set the test folder. To use another folder, give `--tests-dir PATH` to the command, or set `NOOKKU_TESTS_DIR` ([reference/cli.md](reference/cli.md)).
+
+Koodam v0.5.0 has 2 gaps:
+
+- A login shell does not have `/koodam/bin` on the PATH ([koodam#476](https://github.com/mohanraj00/koodam/issues/476)).
+- The launcher gives the pinned lib only to its own process. Nookku starts its [bridge](reference/glossary.md#bridge) in a new Python process, so `nookku start` fails with `No module named nookku` ([koodam#478](https://github.com/mohanraj00/koodam/issues/478)).
+
+Add 2 lines to `~/.profile` to close the gaps. The second line is the fix form of koodam#478:
 
 ```bash
-uv tool install nookku
+cat >> ~/.profile <<'EOF'
+export PATH=/koodam/bin:$PATH
+export PYTHONPATH=/koodam/nookku/lib PYTHONSAFEPATH=1 PYTHONNOUSERSITE=1
+EOF
+```
+
+These variables apply to each Python program of the login shell. `PYTHONSAFEPATH=1` stops Python from putting the folder of a script first on its path. `PYTHONNOUSERSITE=1` stops Python from reading the packages in `~/.local`. Thus a file in the project cannot replace a module of the pinned lib. The fix on the Nookku side is [#704](https://github.com/mohanraj00/nookku/issues/704). When a Koodam release closes the 2 issues, remove these lines.
+
+**CAUTION:** Use Python 3.11 or later in the Workspace image. On Python 3.10, `PYTHONSAFEPATH` has no effect, so a `nookku/` folder in the project folder can replace the pinned package.
+
+Open a new login shell, and check Nookku:
+
+```bash
 nookku --version
 ```
 
-Add the marketplace and install the plugin:
-
-```bash
-claude plugin marketplace add mohanraj00/nookku
-claude plugin install nookku@nookku
+```text
+nookku 0.6.0
 ```
 
-The proof installed the wheel and the plugin of this checkout from local copies. In the proof, Claude Code in the pod loaded the plugin `nookku@nookku`, and the only MCP server was `plugin:nookku:nookku` ([data](../proofs/cluster/plugin-claude-code-no-evaluation.json), W1).
-
-Put the tests folder on the volume of step 3:
-
-```bash
-echo 'export NOOKKU_TESTS_DIR=/tests' >> ~/.profile
-```
+In the proof, before this step, `command -v nookku` found nothing, and `python3` could not import `nookku`. After this step, `nookku` was `/koodam/bin/nookku`, with version 0.6.0. `python3` was 3.13.5, with the 2 flags on. The test folder was `/home/dev/nookku-tests`, with mode 700, on the home volume. A write to `/koodam/nookku` failed. Each plugin file in the pod had the SHA-256 of the same file at the Nookku tag `v0.6.0` ([data](../proofs/cluster/plugin-claude-code-no-evaluation.json), W1).
 
 ## 5. Log in to Claude Code
+
+Do this step only for the evaluation in step 9. The prompts of steps 6 to 8 go to the plugin, not to the model.
 
 Do this step outside the pod. A person must make a token and store it in the namespace of the Workspace:
 
@@ -231,7 +268,7 @@ claude setup-token
 koodam login claude-code -n dev-shop
 ```
 
-Kubernetes updates a mounted Secret after a short time ([Kubernetes docs](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-files-from-a-pod)). A new login shell in the pod then has `CLAUDE_CODE_OAUTH_TOKEN`. The prompts of steps 6 to 8 go to the plugin, not to the model. Only the evaluation in step 9 needs the login.
+Kubernetes updates a mounted Secret after a short time ([Kubernetes docs](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-files-from-a-pod)). A new login shell in the pod then has `CLAUDE_CODE_OAUTH_TOKEN`. The login shell also has the env of the gateway, and Claude Code uses the gateway env first. Thus step 9 removes the gateway env before it starts `claude`.
 
 ## 6. Make the project
 
@@ -245,13 +282,13 @@ Copy [examples/toy-shop/service_entry.py](../examples/toy-shop/service_entry.py)
 
 ```json
 {
- "entry": ["uv", "run", "--with", "nookku", "python3", "service_entry.py"],
+ "entry": ["python3", "service_entry.py"],
  "agent_url": "http://toy-shop.shop.svc:8080/",
- "egress_ignore": ["api.anthropic.com"]
+ "egress_ignore": ["api.anthropic.com", "koodam-litellm.koodam-system.svc:4000"]
 }
 ```
 
-`agent_url` lets the guard deny a direct call from the model to the agent ([how-to/http-tap.md](how-to/http-tap.md#an-agent-in-a-cluster)). `egress_ignore` keeps the hosts of the [harness](reference/glossary.md#harness) out of the egress findings ([reference/config.md](reference/config.md#test-keys)). Each start of `claude` calls `api.anthropic.com`, also for a prompt that the plugin blocks. The proof measured the hosts of the harness with 1 blocked prompt before the test, and found only `api.anthropic.com` ([data](../proofs/cluster/plugin-claude-code-no-evaluation.json), `harness_hosts_ignored`).
+The entry imports `nookku`. It gets the pinned lib from the `PYTHONPATH` of step 4. `agent_url` lets the guard deny a direct call from the model to the agent ([how-to/http-tap.md](how-to/http-tap.md#an-agent-in-a-cluster)). `egress_ignore` keeps the hosts of the harness out of the egress findings ([reference/config.md](reference/config.md#test-keys)). The proof measured the hosts of the harness with 1 blocked prompt before the test, and found 2 hosts: `api.anthropic.com` and the gateway Service `koodam-litellm.koodam-system.svc:4000` ([data](../proofs/cluster/plugin-claude-code-no-evaluation.json), `harness_hosts_ignored`).
 
 Register the egress answer, with the toy shop Service as a backend:
 
@@ -267,7 +304,11 @@ At the start, the test gives `TOY_SHOP_URL` the URL of a recording proxy. Thus `
 
 ## 7. Run the test
 
-In the pod, start `claude` in `~/toy-shop`.
+In the pod, start `claude` in `~/toy-shop` with the plugin folder of the preset. Koodam v0.5.0 does not load the plugin:
+
+```bash
+claude --plugin-dir /koodam/nookku/plugin
+```
 
 Type each prompt:
 
@@ -284,7 +325,7 @@ Each reply shows as the reason of the blocked prompt. Then end the test in a she
 nookku end
 ```
 
-In the proof, each message reached the agent at the Service, and each reply reached the [relay](reference/glossary.md#relay), byte for byte. The [relay record](reference/glossary.md#relay-record), the [tap record](reference/glossary.md#tap-record) and the backend record agreed for each of the 3 turns, and the audit found 0 [breaks](reference/glossary.md#break). The model wrote 0 output tokens for each message ([data](../proofs/cluster/plugin-claude-code-no-evaluation.json), W2).
+In the proof, Claude Code loaded the plugin `nookku@inline` from `/koodam/nookku/plugin`, and the only MCP server of a plugin was `plugin:nookku:nookku`. The test folder was in `/home/dev/nookku-tests`. Each message went through the [tap](reference/glossary.md#tap) to the agent at the Service URL, and each reply reached the [relay](reference/glossary.md#relay), byte for byte. The [relay record](reference/glossary.md#relay-record), the [tap record](reference/glossary.md#tap-record) and the backend record agreed for each of the 3 turns, and the audit found 0 [breaks](reference/glossary.md#break). The model wrote 0 output tokens for each message ([data](../proofs/cluster/plugin-claude-code-no-evaluation.json), W1 and W2).
 
 ## 8. Give the egress spans to the trace
 
@@ -292,7 +333,7 @@ The egress spans are in the logs of the proxy pods. Export them outside the pod,
 
 ```bash
 koodam -n dev-shop trace workspace/shop --json \
-  --since 2026-10-30T18:15:06Z --until 2026-10-30T18:15:12Z > spans.jsonl
+  --since 2026-11-27T12:39:51Z --until 2026-11-27T12:40:04Z > spans.jsonl
 kubectl cp spans.jsonl dev-shop/shop-0:/home/dev/spans.jsonl -c workspace
 ```
 
@@ -312,9 +353,18 @@ To show the 2 findings, the proof made 2 calls from the pod after turn 2, around
 
 In the proof, `egress.jsonl` had the bytes of the export, and the seal covered it. The trace gave 1 `egress_not_in_discovery` and 1 `egress_denied`, and no span named the Service ([data](../proofs/cluster/plugin-claude-code-no-evaluation.json), W3). The calls to the Service go directly through `extraEgress`, so they have no span.
 
+If the app gets its model key from the LiteLLM gateway of Koodam, `nookku trace --gateway SOURCE --key-alias ALIAS` reads the spend logs of that key into `gateway.jsonl` ([SPEC.md section 8.9](../SPEC.md#89-gateway-logs)). The toy shop agent of this page calls no model, so the proof does not use it. The CI job `kind-testkey` reads the logs of a test key from the bundled gateway ([The Koodam tag of the CI job](#the-koodam-tag-of-the-ci-job)).
+
 ## 9. Evaluate the test
 
-In `claude` in the pod, type the prompt `nookku end`. The test already ended, so the plugin starts the evaluation of the ended test. The model reads the records and the findings, and writes `report.md` in the test folder. The model needs the login of step 5.
+The evaluation needs a real model, and the mock model of the bundled gateway cannot write a report. Do the login of step 5. In the pod, remove the gateway env, and start `claude` again in `~/toy-shop`:
+
+```bash
+unset ${!ANTHROPIC_@} CLAUDE_CODE_SUBAGENT_MODEL
+claude --plugin-dir /koodam/nookku/plugin --add-dir /home/dev/nookku-tests
+```
+
+Type the prompt `nookku end`. The test already ended, so the plugin starts the evaluation of the ended test. The model reads the records and the findings, and writes `report.md` in the test folder.
 
 Then check the seal:
 
@@ -322,7 +372,7 @@ Then check the seal:
 nookku verify
 ```
 
-The proof run on this page did no login, so it has no evaluation. The Claude Code proof with login writes `proofs/cluster/plugin-claude-code.json` ([method](../scripts/proof_cluster.py), W4).
+The proof run on this page did no login, so it has no evaluation. With no `--no-evaluation`, the proof waits for the login of a person, and writes `proofs/cluster/plugin-claude-code.json` ([method](../scripts/proof_cluster.py), W4). The last run with an evaluation used Koodam 0.3.0 ([Limits](#limits)).
 
 ## 10. Clean up
 
@@ -333,6 +383,25 @@ kubectl delete namespace koodam-system
 ```
 
 If you made a kind cluster for this tutorial, delete it with `kind delete cluster --name <name>`.
+
+## The Koodam release of the proof
+
+[scripts/proof_cluster.py](../scripts/proof_cluster.py) pins these values of the Koodam release `v0.5.0`:
+
+| Value | Where |
+|---|---|
+| The git tag `v0.5.0` and its commit `a08e48c52915b01609d5e50ae660495232328432` | `KOODAM_TAG` and `KOODAM_COMMIT` |
+| The chart `oci://ghcr.io/mohanraj00/charts/koodam` version `0.5.0`, digest `sha256:746593cfa80ee90bf4a4244d64aba072ce5cd1c8bc3ae720a0d2f1357e6032f2` | `CHART`, `KOODAM` and `CHART_DIGEST` |
+| The Nookku data image `ghcr.io/mohanraj00/koodam-nookku@sha256:be6c674c2699532e3d2b94a89a96b3ad7ea9b92ac0e694459987e1fe2e9d2a2e` of the tag `0.5.0` | `NOOKKU_IMAGE`, the chart value `nookku.image` |
+| The Workspace image `ghcr.io/mohanraj00/koodam-workspace:0.5.0@sha256:b4f428400d0bda4e8698b92bcc12111e1f25213ea6ce4c6a804c787ec566180a`, the base of the local image with `python3` | `WORKSPACE_BASE` |
+| Nookku 0.6.0, the pin of the data image | `PRESET_NOOKKU`. W1 compares the plugin files with the files of the git tag `v0.6.0`. |
+
+To change the release:
+
+1. Use only a tag of a Koodam release.
+2. Set the commit, the chart digest and the image digests of the new tag.
+3. Change the values in this section and in steps 1 and 3.
+4. Run `python scripts/proof_cluster.py plugin-claude-code --no-evaluation`, and commit the result in `proofs/cluster/`.
 
 ## The Koodam tag of the CI job
 
@@ -395,7 +464,11 @@ If S1 fails for a tag that did not change, do not change the pin. A release does
 
 ## Limits
 
-- Koodam 0.3.0 has no Nookku preset, so you install Nookku and the plugin by hand in each Workspace ([koodam#83](https://github.com/mohanraj00/koodam/issues/83)).
+- Koodam v0.5.0 does not put `/koodam/bin` on the PATH of a login shell ([koodam#476](https://github.com/mohanraj00/koodam/issues/476)). The launcher does not give the pinned lib to the child processes of Nookku ([koodam#478](https://github.com/mohanraj00/koodam/issues/478), [#704](https://github.com/mohanraj00/nookku/issues/704)). Step 4 closes both gaps with 2 lines in `~/.profile`.
+- Koodam v0.5.0 does not load the plugin in the harness. Give `--plugin-dir /koodam/nookku/plugin` to `claude` each time.
+- The default Workspace image has no Python. You build an image with `python3` 3.11 or later and give it to the cluster.
+- The proof of this page ran with the mock model and no login, so it has no evaluation. The last run with an evaluation (W4) used Koodam 0.3.0 and Nookku 0.5.7 ([data](../proofs/cluster/plugin-claude-code.json)).
+- This page does not cover Codex. The last Codex proof used Koodam 0.3.0. It passed W1 to W3, and Codex wrote no report ([data](../proofs/cluster/plugin-codex.json), [method of that run](https://github.com/mohanraj00/nookku/blob/3d4d6945/scripts/proof_cluster.py), [koodam#243](https://github.com/mohanraj00/koodam/issues/243)).
 - The egress spans show the hosts of the connections, not each call ([limits.md](limits.md)). The calls to the Service and the calls inside the pod have no span.
 - The export of the spans runs outside the pod, because the Workspace has no access to the logs of the proxy pods.
 - The proof uses a kind cluster.
