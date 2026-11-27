@@ -1,7 +1,7 @@
 {
- "date": "2026-11-25",
+ "date": "2026-11-27",
  "versions": {
-  "nookku": "0.6.1",
+  "nookku": "0.6.2",
   "python": "3.13.12",
   "os": "Darwin",
   "phoenix": "arize-phoenix==21.0.0",
@@ -25,8 +25,8 @@
    "name": "read stock",
    "span_kind": "CHAIN",
    "attributes": {
-    "url.full": "http://127.0.0.1:56208/stock",
-    "http.request.method": "GET"
+    "http.request.method": "GET",
+    "url.full": "http://127.0.0.1:62763/stock"
    }
   }
  ],

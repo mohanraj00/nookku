@@ -2,7 +2,7 @@
 
 I ran the proofs of the 0.6.2 release candidate on 2026-11-27, on macOS, in the worktree of the branch `claude/release-0.6.2`. The base is the tag `v0.6.1` at 65d0d8c9, plus the commits of [#704](https://github.com/mohanraj00/nookku/issues/704) and [#431](https://github.com/mohanraj00/nookku/issues/431) and the commit that sets the version to 0.6.2. The tools were Claude Code 2.1.319, codex-cli 0.169.0, Python 3.13.12 and Docker 29.6.1 (client). These are the harness versions of [0.6.1](claude-code-0.6.1.md), and CI still pins Claude Code 2.1.319. Each result file records its tested versions.
 
-This release ran only the proofs with no model, no kind cluster, no network and no Codex job. Each other proof carries its record. [The carried records](#the-carried-records) give each record and the reason.
+This release ran the proofs with no model, no kind cluster and no Codex job, with and without the network. Each other proof carries its record. [The carried records](#the-carried-records) give each record and the reason.
 
 ## Runs with no model
 
@@ -25,7 +25,48 @@ Each command ran from the root of the worktree.
 
 The approvals proof and the second message proof start the MCP stdio proxy, which now starts its child with the argv of [#704](https://github.com/mohanraj00/nookku/issues/704). Both passed. In the second message proof, the tap gave message 2 to the entry 0.493 seconds after message 1, and the reply of turn 1 came at 0.512 seconds. In 0.6.1, these times were 0.498 and 0.518 seconds. The checks of the proof did not change.
 
-`proof_tutorial.py` with no model writes `proofs/tutorial/`, and replaces the record of the `--model` run of 0.6.0. So I moved the 2 files of this run to [tutorial-0.6.2/](tutorial-0.6.2/), as in 0.6.1, and `proofs/tutorial/` keeps the record of 0.6.0. In the 0.6.1 output, `nookku start` refused the test, because it found the project hooks `modified`, and the test had 1 turn ([output](tutorial-0.6.1/output.txt)). In the 0.6.2 output, `nookku start` started the test, and the test had 3 turns.
+`proof_tutorial.py` with no model writes `proofs/tutorial/`, and replaces the record of the `--model` run of 0.6.0. So I moved the 2 files of this run to [tutorial-0.6.2/](tutorial-0.6.2/), as in 0.6.1, and `proofs/tutorial/` keeps the record of 0.6.0. In the 0.6.1 output, `nookku start` refused the test, because it found the project hooks `modified`, and the test had 1 turn ([output](tutorial-0.6.1/output.txt)). In the 0.6.2 output, `nookku start` started the test, and the test had 3 turns. [The tutorial change](#the-tutorial-change) gives the cause.
+
+## Runs with the network
+
+These runs use no model. They install packages, download the Koodam samples or start Docker images.
+
+| Proof | Command | Result | Data |
+|---|---|---|---|
+| Driver trace of a database | `uv run python scripts/proof_driver_trace.py` | pass, run 1 | [results](../driver-trace/results.json) |
+| Call that the in-app trace does not show | `uv run python scripts/proof_inapp_trace.py` | pass, run 1 | [results](../inapp-trace/results.json) |
+| Claude Code of each Agent SDK release | `uv run python scripts/proof_sdk_bundles.py 0.2.163 0.2.164 0.2.165 0.2.166 0.2.167 0.2.168` | pass, run 2 | [results](../trace/sdk-bundles.json) |
+| Koodam release samples | `uv run python scripts/release_samples.py` | pass, run 1 | [results](../release-samples/results.json) |
+| Client trace of a queue | `uv run python scripts/proof_queue_trace.py` | pass, run 1 | [results](../queue-trace/results.json) |
+| LiteLLM gateway logs | `uv run python scripts/proof_gateway.py` | pass, run 1 | [results](../gateway/results.json) |
+
+`proof_sdk_bundles.py` found the same 6 rows as in 0.6.1. Only the date and the version changed. `release_samples.py` read the samples of the Koodam tag `v0.4.0`, the pin of 0.6.1.
+
+## The tutorial change
+
+The hook check of `nookku start` compares the command of each project hook with `kit.hook_command`, word for word ([claude_gate.py](../../src/nookku/claude_gate.py)). The first word is `sys.executable` of the process that runs the check. In a uv virtual environment, `.venv/bin/python` and `.venv/bin/python3` are 2 links to the same Python, but the check reads them as 2 different words.
+
+The proof does 2 steps with 2 Python paths:
+
+- `nookku init claude-code` runs from the console script `.venv/bin/nookku`. The interpreter of that script writes the hook command.
+- The prompt `nookku start` runs `[sys.executable, "-m", "nookku", "hook", ...]` with the Python of the proof script, `uv run python` ([proof_tutorial.py](../../scripts/proof_tutorial.py)). That Python checks the hook command.
+
+In the 0.6.1 run, the hook command had `.venv/bin/python` ([output](tutorial-0.6.1/output.txt)), so the console script started `.venv/bin/python`. On this computer, `uv run python` gives the `sys.executable` `.venv/bin/python3`. So the 2 paths were different, and the check refused the test. The 0.6.1 worktree is gone, so I cannot read its console script now. In the 0.6.2 run, the console script starts `.venv/bin/python3` (its first line), and `uv run python` gives the same path. So the check passed.
+
+I tested the check with no proof script, on v0.6.1 and on this branch. I ran `nookku init claude-code` with one Python path and `claude_gate.hook_problems` with the other path:
+
+| Version | `init` | Check | Problems |
+|---|---|---|---|
+| 0.6.1 | `.venv/bin/python` | `.venv/bin/python` | 0 |
+| 0.6.1 | `.venv/bin/python` | `.venv/bin/python3` | 2 |
+| 0.6.1 | `.venv/bin/python3` | `.venv/bin/python` | 2 |
+| 0.6.1 | `.venv/bin/python3` | `.venv/bin/python3` | 0 |
+| 0.6.2 | `.venv/bin/python` | `.venv/bin/python` | 0 |
+| 0.6.2 | `.venv/bin/python` | `.venv/bin/python3` | 2 |
+| 0.6.2 | `.venv/bin/python3` | `.venv/bin/python` | 2 |
+| 0.6.2 | `.venv/bin/python3` | `.venv/bin/python3` | 0 |
+
+The 2 versions give the same result. Thus [#704](https://github.com/mohanraj00/nookku/issues/704) did not cause the change. The 0.6.1 refusal was a false refusal of the proof setup, and the 0.6.2 pass is correct. In a real test, Claude Code runs the hook command that `nookku init` wrote, so the check runs with the same Python path and passes. The proof does not run that command. If a person runs `nookku init` and `nookku start` with 2 different Python paths, the check also refuses the test, and its message says to run `nookku init` again. A follow-up can make the proof run the hook command from `settings.local.json`.
 
 ## The seeded faults
 
@@ -33,7 +74,7 @@ The approvals proof and the second message proof start the MCP stdio proxy, whic
 
 ## The failed runs
 
-No run failed.
+Run 1 of `proof_sdk_bundles.py` exited with 1. My shell loop gave the 6 versions to the script as 1 argument, so uv could not install the release. Run 2 gave each version as its own argument and passed. No other run failed.
 
 ## The carried records
 
@@ -50,9 +91,6 @@ These proofs did not run for 0.6.2, and each keeps its last record:
 | `proof_plugin_load.py`, `proof_trace.py` | It needs the model. | 0.6.1, [run notes](claude-code-0.6.1.md#runs-of-both-harnesses) |
 | `proof_codex_gate.py`, `proof_codex_hook_keys.py` | It runs a Codex job. | 0.6.1, [Codex run notes](codex-0.6.1.md), [run notes](claude-code-0.6.1.md#runs-with-no-model) |
 | Each other proof with the model | It needs the model. | 0.6.0, [carried records of 0.6.1](claude-code-0.6.1.md#the-carried-records) |
-| `proof_driver_trace.py`, `proof_inapp_trace.py`, `proof_sdk_bundles.py` | It installs packages from the network. | 0.6.1, [run notes](claude-code-0.6.1.md#runs-with-no-model) |
-| `release_samples.py` | It downloads the Koodam samples from the network. | 0.6.1, [run notes](claude-code-0.6.1.md#runs-with-no-model) |
-| `proof_queue_trace.py`, `proof_gateway.py` | It uses Docker images and installs packages. | 0.6.1, [run notes](claude-code-0.6.1.md#runs-with-docker-and-kind) |
 | `proof_cluster_tap.py`, `kind_testkey.py` | It needs a kind cluster. | 0.6.1, [run notes](claude-code-0.6.1.md#runs-with-docker-and-kind) |
 
 The relay proofs P1 to P4 and the plugin load proof start the bridge and the project hooks, which #704 changes. [CONSTITUTION.md](../../CONSTITUTION.md#evidence) asks for the proofs after a change to a relay. These runs need a model slot.
