@@ -646,6 +646,28 @@ Run each check of the [trace](glossary.md#trace) on its seeded faults, with no m
 | 1 | A check missed a fault, or a check has no fault. |
 | 2 | The folder has no case with `faults.json`, or a `faults.json` is not valid. |
 
+### `nookku verifier`
+
+```text
+nookku verifier run CLAIMS --entry NAME [--out FILE] [--root PATH] [--timeout SECONDS]
+```
+
+Measure a verifier on a declared claim set. The report records each verdict and gives the fraction of seeded false claims refuted and the fraction of true claims refuted. Each fraction has a numerator and a denominator. Errors have their own count and stay in the group totals. The measurement applies to this claim set and verifier version. A model verifier can give different replies across runs. See the [method and toy shop example](../how-to/measure-a-verifier.md) and the [file formats](../../SPEC.md#11-verifier-measurement).
+
+| Argument | Default | Meaning |
+|---|---|---|
+| `COMMAND` | required | `run`. |
+
+`run` takes these arguments.
+
+- `CLAIMS` gives the declared JSON claim set. It is required.
+- `--entry NAME` selects a name in the config key `entries`. It is required.
+- `--out FILE` gives the report path. The default is `verifier.json` beside `CLAIMS`.
+- `--root PATH` gives the project folder with `.nookku/config.json`. The default is the current folder.
+- `--timeout SECONDS` gives the maximum time for each claim. The default is [240 seconds](../../src/nookku/stdio.py#L27).
+
+The command exits with [0](../../src/nookku/cli.py) when it writes the report, even if some claims gave errors. It exits with [2](../../src/nookku/cli.py) if it cannot use the claim set or config, or cannot write the report.
+
 ### `nookku export`
 
 ```text

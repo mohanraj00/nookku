@@ -196,6 +196,7 @@ The how-to rows are in the order of the tasks of a test: choose, connect, run, r
 | How-to: run a test | [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code project hooks](docs/how-to/claude-code-project-hooks.md), [Codex](docs/how-to/codex.md) |
 | How-to: gate a release | [Gate a CI job on a verdict](docs/how-to/gate-a-ci-job.md), [Gate a release with a set of tests](docs/how-to/gate-a-release.md), [Gate a rollout on a gate result](docs/how-to/gate-a-rollout.md) |
 | How-to: read the results | [Read the results of a test](docs/how-to/read-the-results.md), [Import a finding record into another test suite](docs/how-to/import-a-finding-record.md) |
+| How-to: measure a verifier | [Measure a verifier on seeded false claims](docs/how-to/measure-a-verifier.md) |
 | How-to: evaluate against a spec | [Evaluate your app against its spec](docs/how-to/evaluate-against-your-spec.md) |
 | How-to: fix | [Troubleshooting](docs/troubleshooting.md), [Recover a stuck test](docs/how-to/recover-a-stuck-test.md) |
 | How-to: maintain | [Upgrade](docs/how-to/upgrade.md), [Remove](docs/how-to/remove.md) |

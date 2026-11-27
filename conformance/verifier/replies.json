@@ -1,0 +1,7 @@
+{
+ "mug": "{\"verdict\": \"supported\"}",
+ "kite": "{\"verdict\": \"refuted\"}",
+ "train": "{\"verdict\": \"refuted\"}",
+ "bear": "{\"verdict\": \"unknown\"}",
+ "puzzle": "{\"verdict\": \"supported\"}"
+}

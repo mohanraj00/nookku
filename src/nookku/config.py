@@ -123,7 +123,7 @@ class Config:
     transcript_compact: bool = False
     # False: start does not start the chat page with the test (SPEC.md section 5, #328).
     page: bool = True
-    # More entries of a scripted test, by name (SPEC.md section 7.10). entry stays the default.
+    # Named entries for scripted tests and verifier measurements. entry stays the default.
     entries: dict[str, list[str]] = field(default_factory=dict)
     # The most bytes of a body that a backend or model API proxy keeps in the record (SPEC.md
     # section 7.6). The app always gets all of the bytes.
@@ -472,6 +472,16 @@ def read_config(root: Path) -> dict[str, Any]:
     """The keys of config.json as the file gives them. Raise ConfigError if the file cannot be
     read or breaks the rule for its keys."""
     return check(_load(root))
+
+
+def named_entry(data: dict[str, Any], name: str) -> list[str]:
+    """Select an entry by name from a checked config."""
+    entries = data.get("entries", {})
+    if name not in entries:
+        names = ", ".join(sorted(entries)) or "none"
+        raise ConfigError(f"{FILE} has no entry {name!r} in 'entries'. The names: {names}.")
+    argv: list[str] = entries[name]
+    return argv
 
 
 def entry_command(relay: str = "<relay>", command: str = "<command>") -> str:

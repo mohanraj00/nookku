@@ -501,7 +501,7 @@ Thus a mounted volume can keep the tests when the project folder is removed, for
 | `models` | list of strings | The harnesses that the app uses for its model sessions: `claude-code`, `codex`, both or none. |
 | `evaluate` | boolean | Optional. `false` stops the evaluation at the end of a test (section 9). The default is `true`. |
 | `otel` | boolean | Optional. `false` stops the OTLP receiver of a test (section 7.5). The default is `true`. |
-| `entries` | object | Optional. More entries for a scripted test: an object from a name to an entry argument vector (section 7.10). A name has letters, digits, `_`, `.` and `-`, and starts with a letter or a digit. `entry` stays the default entry. |
+| `entries` | object | Optional. Named entry argument vectors for a scripted test ([section 7.10](#710-scripted-tests)) or a verifier ([section 11](#11-verifier-measurement)). A name has letters, digits, `_`, `.` and `-`, and starts with a letter or a digit. `entry` stays the default entry for a test. |
 | `check_message` | string | Optional. The one message of `nookku check`. It must have a character that is not white space, and no lone surrogate. The default is `Hello from nookku check. What can you help me with?`. |
 | `repeated_reply` | integer | Optional. The count of consecutive turns with the same reply that gives a `repeated_reply` finding (section 8.6). It must be 0 or 2 or more. `0` turns the check off. The default is 2. |
 | `model_reply_field` | string | Optional. The dot path of the client text in the JSON of a structured model output, for the `reply_not_from_model` check (section 8.6). Each part of the path has at least 1 character. The default is empty: the check uses the full text of each model output. |
@@ -2252,3 +2252,42 @@ The `version` of a record is `<major>.<minor>`: 2 whole numbers with no leading 
 A writer of major version 1 always writes each field of section 10.1. Nookku writes the lowest minor version that has each field of the record.
 
 The cases in [`conformance/finding/`](conformance/finding/) give a record and the problem that the reader gives, or `null`: a valid record of each kind, a model row, a record of a gate run, an unknown field, a later minor version, a missing field, a missing key of an object, another major version, a seal digest that does not match, a file that the seal text does not cover, a turn that is not in the script and a mismatch with a model author. [docs/how-to/import-a-finding-record.md](docs/how-to/import-a-finding-record.md) shows how another tool imports a record.
+
+## 11. Verifier measurement
+
+`nookku verifier run CLAIMS --entry NAME [--out FILE] [--root PATH] [--timeout SECONDS]` measures refutations of a declared set. `NAME` selects a command from `entries`. `--root` selects the project folder and defaults to the current folder. The entry owns all model calls. The report is a measurement outside the gate verdict.
+
+### 11.1 Claim set
+
+`CLAIMS` is a UTF-8 JSON object with the following fields. All fields are required.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `source` | string | Where the claims came from. |
+| `version` | string | The version of the claim set. |
+| `claims` | list of objects | Claims in the order to send them. Each has `id` and `text` strings and a `seeded` boolean. The `id` is unique in the list. `true` marks a seeded false claim. `false` marks a true claim. |
+
+The reader ignores extra fields and refuses duplicate JSON field names. The declared strings contain only Unicode scalar values. Nookku checks the full file before it starts the verifier. An invalid file gives an error and exit code [2](src/nookku/cli.py).
+
+### 11.2 Entry protocol
+
+For each claim, Nookku starts a fresh process in the project folder. It sends a UTF-8 JSON line with `id` and `text` to stdin and closes stdin. Nookku keeps `seeded` for scoring. The process writes `{"verdict": "supported"}` or `{"verdict": "refuted"}` as a single JSON line on stdout and exits successfully. The final line end is optional. Nookku discards stderr.
+
+A start failure, a nonzero exit, a timeout or any other stdout gives `error` for that claim. Nookku then runs the next claim. `--timeout` gives the limit for each process in seconds. It must be positive and finite. The default uses the [stdio entry timeout](src/nookku/stdio.py).
+
+### 11.3 Report
+
+Nookku writes a UTF-8 JSON object to `verifier.json` beside `CLAIMS`, or to the path in `--out`. Relative claim and report paths start from the current folder. The report path must differ from the claim set path.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `claim_set` | object | `source` and `version` from the claim set, and `sha256`, the SHA-256 of the exact input file bytes in lowercase hex. |
+| `entry` | string | The name from `--entry`. |
+| `claims` | list of objects | One result for each claim, in input order. Each has `id`, `seeded`, `verdict` and `error`. The verdict is `supported`, `refuted` or `error`. The `error` field gives the reason for an error and is `null` for the other verdicts. |
+| `errors` | integer | The total number of claims with verdict `error`. |
+| `refutation_rate` | object | `numerator` is the number of seeded false claims refuted. `denominator` is the total number of seeded false claims. |
+| `false_refutation_rate` | object | `numerator` is the number of true claims refuted. `denominator` is the total number of true claims. |
+
+Each rate object has `rate`, the numerator divided by the denominator, or `null` if the group is empty. Error claims count toward their group totals. Only `refuted` counts toward the numerator. A written report gives exit code [0](src/nookku/cli.py), including a report with claim errors. A config error or a report write failure gives exit code [2](src/nookku/cli.py).
+
+The rates apply to the declared claim set and the version of the verifier used for the run. A model verifier can give different replies across runs. The [conformance case](conformance/verifier/expect.json) gives the expected report for the [declared claims](conformance/verifier/claims.json) and [verifier replies](conformance/verifier/replies.json).

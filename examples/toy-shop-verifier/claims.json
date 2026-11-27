@@ -1,0 +1,14 @@
+{
+  "source": "Toy shop stock list",
+  "version": "spring",
+  "claims": [
+    {"id": "mug", "text": "The blue mug has 4 in stock.", "seeded": false},
+    {"id": "bear", "text": "The teddy bear has 8 in stock.", "seeded": false},
+    {"id": "kite", "text": "The kite has 3 in stock.", "seeded": false},
+    {"id": "train", "text": "The train has 6 in stock.", "seeded": false},
+    {"id": "puzzle", "text": "The puzzle has 5 in stock.", "seeded": false},
+    {"id": "mug-seed", "text": "The blue mug has 1 in stock.", "seeded": true},
+    {"id": "kite-seed", "text": "The kite has 2 in stock.", "seeded": true},
+    {"id": "train-seed", "text": "The train has 7 in stock.", "seeded": true}
+  ]
+}

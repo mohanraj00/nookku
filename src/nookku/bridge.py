@@ -46,11 +46,18 @@ from nookku import (
 )
 from nookku.audit import audit
 from nookku.config import CHECK_MESSAGE as CHECK_MESSAGE
-from nookku.config import FILE as CONFIG_FILE
+from nookku.config import (
+    FILE,
+    BodyLimit,
+    ConfigError,
+    named_entry,
+    read_config,
+    spec_contents,
+    spec_copy,
+)
 from nookku.config import HARNESSES as HARNESSES
 from nookku.config import NO_ENTRY as NO_ENTRY
 from nookku.config import STATE_DIR as STATE_DIR
-from nookku.config import BodyLimit, ConfigError, read_config, spec_contents, spec_copy
 from nookku.config import has_entry as has_entry
 from nookku.record import RecordError, Writer, loads, read_rows, turns
 from nookku.state import (
@@ -80,6 +87,8 @@ from nookku.state import state as state
 from nookku.stdio import STRAY_HINT, Agent, StdioTap, start_in_thread
 from nookku.stdio import TIMEOUT as AGENT_TIMEOUT
 
+# Keep the old import name of the config path.
+CONFIG_FILE = FILE
 # The harness session that ends a test, for the bridge (SPEC.md section 7.2).
 ENDING = "ending.json"
 # The folder of the run files in the state folder: one file for each test, `<test-id>.json`,
@@ -187,17 +196,9 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
         limits = verdict.read(files)
         key, key_data = answer_key.read(root, files)
         approved = approvals.read(files)
+        entry = (data.get("entry") or []) if entry_name is None else named_entry(data, entry_name)
     except (ConfigError, policy.PolicyError) as e:
         raise BridgeError(str(e)) from None
-    entry, models = data.get("entry") or [], data.get("models") or []
-    if entry_name is not None:
-        entries = data.get("entries") or {}
-        if entry_name not in entries:
-            names = ", ".join(sorted(entries)) or "none"
-            raise BridgeError(
-                f"{CONFIG_FILE} has no entry {entry_name!r} in 'entries'. The names: {names}."
-            )
-        entry = entries[entry_name]
     if not (isinstance(entry, list) and entry and all(isinstance(a, str) for a in entry)):
         raise BridgeError(NO_ENTRY)
     otel = data.get("otel", True) is not False
@@ -207,7 +208,7 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
     copies = [b for _, b in contents]
     return TestConfig(
         entry,
-        models,
+        data.get("models") or [],
         otel,
         rules,
         message,

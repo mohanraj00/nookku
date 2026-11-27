@@ -37,6 +37,21 @@ TOKEN_ENV = "NOOKKU_TAP_TOKEN"
 TOKEN_MIN = 43
 
 
+def start_entry(
+    argv: Sequence[str], cwd: Path, stderr: int, env: dict[str, str] | None = None
+) -> subprocess.Popen[bytes]:
+    """Start an entry with stdin and stdout pipes in its own process group."""
+    return subprocess.Popen(
+        argv,
+        cwd=cwd,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=stderr,
+        start_new_session=True,
+        env={**os.environ, **env} if env else None,
+    )
+
+
 class Agent:
     """The agent process. One line in and one line out for each request. The tap reads the
     reply of one request at a time. It can write the line of a second request during the turn
@@ -69,15 +84,7 @@ class Agent:
 
     def start(self) -> None:
         with self.log.open("ab") as err:
-            self.proc = subprocess.Popen(
-                self.argv,
-                cwd=self.cwd,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=err,
-                start_new_session=True,
-                env={**os.environ, **self.env} if self.env else None,
-            )
+            self.proc = start_entry(self.argv, self.cwd, err.fileno(), self.env)
         self._reader = threading.Thread(target=self._read, daemon=True)
         self._reader.start()
 
