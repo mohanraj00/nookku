@@ -113,6 +113,19 @@ PASS
 
 ## Releases with a special step
 
+### 0.6.2
+
+No record changes its version. This change needs a step:
+
+- **The command of a project hook.** A [project hook](../reference/glossary.md#project-hooks) of `nookku init` now starts the Python of the install in isolated mode, with the library folder of the install. Python omits the project folder and the user site from its import path ([#704](https://github.com/mohanraj00/nookku/issues/704)). `nookku start` refuses a test if a project hook has the command of an older version. Run `nookku init` again for each [harness](../reference/glossary.md#harness) that has project hooks:
+
+  ```sh
+  nookku init claude-code
+  nookku init codex
+  ```
+
+  If you use Codex, trust the hooks again ([step 4](#4-trust-the-codex-hooks-again)). If you use only the plugin, no step is necessary.
+
 ### 0.6.1
 
 No record changes its version. A 0.6.0 [audit](../reference/glossary.md#audit) reads a [tap record](../reference/glossary.md#tap-record) of 0.6.1. These changes need a step or change what you see:
