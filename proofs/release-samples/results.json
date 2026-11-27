@@ -1,7 +1,7 @@
 {
  "proof": "release-samples",
- "koodam_commit": "1a8c3a133c4155e1120268109e7436d07cbcb095",
- "koodam": "v0.4.0",
+ "koodam_commit": "a08e48c52915b01609d5e50ae660495232328432",
+ "koodam": "v0.5.0",
  "nookku": "0.6.1",
  "contract_versions": [
   1,
@@ -12,26 +12,26 @@
  ],
  "files": {
   "app-ingress-spans.jsonl": {
-   "sha256": "1282eb24a1010ceddadd445e838964b1c131653297d73c6daf7a07d2c62bed80",
-   "bytes": 62447
+   "sha256": "241339e5a4b7c96ac290bf9968aa24529499416a33caac0ce14948d6e2d38227",
+   "bytes": 62438
   },
   "egress-spans.jsonl": {
-   "sha256": "016cac2cdb7468973cc275c8efe1fce80e73feca46b7c35fcb7470415a1e7a63",
-   "bytes": 2436
+   "sha256": "d21892b1b19f344d262e1d040e38b72a128dcc2ed0c0a9ba7c176a70e9b0eb4d",
+   "bytes": 3603
   },
   "gateway-log.jsonl": {
-   "sha256": "191ba84384df90e41bcaafd07d07bc737ea75bcc565311253e9d7362e0db0f8b",
+   "sha256": "5968807b7d89ddf09d3b80df1452d0d726bbaaa7de4bf663ac3ab0ad95578b03",
    "bytes": 9052
   }
  },
  "spans": {
-  "rows": 7,
-  "spans": 6,
+  "rows": 10,
+  "spans": 7,
   "ignored": {
-   "llm": 1
+   "llm": 3
   },
   "versions": {
-   "2": 6
+   "2": 7
   },
   "hosts": 4
  },

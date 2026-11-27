@@ -342,17 +342,20 @@ The job pins these values:
 
 | Value | Where |
 |---|---|
-| The git tag `v0.4.0-alpha.1` | `KOODAM_TAG` in [scripts/kind_testkey.py](../scripts/kind_testkey.py) |
-| The commit `74920bed1d5c4575dbe3dc60c33ba6e07b73d44c` of the tag | `KOODAM_COMMIT` in the same file |
-| The chart `oci://ghcr.io/mohanraj00/charts/koodam` version `0.4.0-alpha.1` | The script removes the `v` of the tag. |
-| The images `ghcr.io/mohanraj00/koodam:0.4.0-alpha.1` and `ghcr.io/mohanraj00/koodam-workspace:0.4.0-alpha.1` | The chart uses its own version as the image tag. |
+| The git tag `v0.5.0` | `KOODAM_TAG` in [scripts/kind_testkey.py](../scripts/kind_testkey.py) |
+| The commit `a08e48c52915b01609d5e50ae660495232328432` of the tag | `KOODAM_COMMIT` in the same file |
+| The chart `oci://ghcr.io/mohanraj00/charts/koodam` version `0.5.0` | The script removes the `v` of the tag. |
+| The SHA-256 `173f6f6db313ebc5eb0d8daecedd852785d1070b92fd71374d6df06ec3432b57` of the chart file, the digest of the chart layer in the registry | `CHART_SHA256` in the same file. The script pulls the chart and stops if the file has a different SHA-256. |
+| The image `ghcr.io/mohanraj00/koodam:0.5.0@sha256:293cd93fddfde61b9724c2a66f4e5e80ad7da63ffa122e1281b2d508ca6041ee` | `IMAGE_DIGEST` in the same file. The chart value `image.tag` has the version and the digest. |
+| The image `ghcr.io/mohanraj00/koodam-workspace@sha256:b4f428400d0bda4e8698b92bcc12111e1f25213ea6ce4c6a804c787ec566180a`, the index of the tag `0.5.0` | `WORKSPACE_DIGEST` in the same file. The chart value `workspace.image.tag` has the digest. |
 
 To change the tag:
 
 1. Use only a tag of a Koodam release. Do not use a branch or a commit with no tag.
 2. Set `KOODAM_TAG` to the new tag, and `KOODAM_COMMIT` to its commit (`git rev-parse <tag>^{commit}` in a Koodam checkout).
-3. Change the tag in this section and in [SPEC.md section 7.16](../SPEC.md#716-gateway-key-of-a-test).
-4. Run `python scripts/kind_testkey.py` on a computer with Docker, kind, kubectl, helm and uv. Then open a PR. The CI job runs the script again.
+3. Set `CHART_SHA256` to the digest that `helm pull` gives for the chart layer, and `IMAGE_DIGEST` and `WORKSPACE_DIGEST` to the digests of the 2 image indexes (`docker buildx imagetools inspect <image>:<version>`).
+4. Change the tag in this section and in [SPEC.md section 7.16](../SPEC.md#716-gateway-key-of-a-test).
+5. Run `python scripts/kind_testkey.py` on a computer with Docker, kind, kubectl, helm and uv. Then open a PR. The CI job runs the script again.
 
 The job writes its result to the artifact `kind-testkey`. The result has no key value.
 
@@ -371,11 +374,11 @@ The job pins these values:
 
 | Value | Where |
 |---|---|
-| The git tag `v0.4.0` | `KOODAM_TAG` in [scripts/release_samples.py](../scripts/release_samples.py) |
-| The commit `1a8c3a133c4155e1120268109e7436d07cbcb095` of the tag | `KOODAM_COMMIT` in the same file |
+| The git tag `v0.5.0` | `KOODAM_TAG` in [scripts/release_samples.py](../scripts/release_samples.py) |
+| The commit `a08e48c52915b01609d5e50ae660495232328432` of the tag | `KOODAM_COMMIT` in the same file |
 | The SHA-256 of `egress-spans.jsonl`, of `gateway-log.jsonl` and of `app-ingress-spans.jsonl` | `SAMPLES` in the same file |
 
-With the tag `v0.4.0`, the span sample has 7 lines: 6 spans of contract version 2 that the reader keeps, and 1 span of the kind `llm` that the reader counts and does not keep. The log sample has 1 log, and it is a model call. The ingress sample has 305 spans of version 1: 295 with the outcome `ok`, 5 with `syntax` and 5 with `signature` ([data](../proofs/release-samples/results.json)).
+With the tag `v0.5.0`, the span sample has 10 lines: 7 spans of contract version 2 that the reader keeps, and 3 spans of the kind `llm` that the reader counts and does not keep. The log sample has 1 log, and it is a model call. The ingress sample has 305 spans of version 1: 295 with the outcome `ok`, 5 with `syntax` and 5 with `signature` ([data](../proofs/release-samples/results.json)).
 
 If a span of a new tag has a version that this Nookku does not read, its reader stops, and the job fails with the message of the reader. The message names the line and the version. Then add the version to the reader before you change the pin.
 

@@ -4,7 +4,8 @@ The CI job `kind-testkey` runs this script. It needs Docker, kind, kubectl, helm
 model: the bundled LiteLLM gateway of Koodam answers with its mock model.
 
 1. The script makes a kind cluster and installs the Koodam chart of the pinned tag with the
-   bundled gateway and its mock model. A Workspace permits TestKeys.
+   bundled gateway and its mock model. The chart file and the 2 Koodam images have pinned
+   digests. A Workspace permits TestKeys.
 2. It installs the nookku wheel of this checkout in the Workspace pod. The project has the entry
    examples/toy-shop/gateway_agent.py and an egress answer with the OpenAI model API.
 3. For each of 2 tests, it makes a TestKey, waits for the key files in the pod, and runs a
@@ -30,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import json
 import platform
 import secrets
@@ -50,11 +52,18 @@ from proof_cluster_tap import Cluster, run, tool
 
 ROOT = Path(__file__).resolve().parent.parent
 # The pinned Koodam tag (docs/getting-started-cluster.md#the-koodam-tag-of-the-ci-job). The git
-# tag is v0.4.0-alpha.1. The chart and the images have no "v".
-KOODAM_TAG = "v0.4.0-alpha.1"
-KOODAM_COMMIT = "74920bed1d5c4575dbe3dc60c33ba6e07b73d44c"
+# tag is v0.5.0. The chart and the images have no "v".
+KOODAM_TAG = "v0.5.0"
+KOODAM_COMMIT = "a08e48c52915b01609d5e50ae660495232328432"
 KOODAM = KOODAM_TAG.removeprefix("v")
 CHART = "oci://ghcr.io/mohanraj00/charts/koodam"
+# The SHA-256 of the chart file of the pinned version. It is the digest of the chart layer of the
+# OCI manifest in the registry. The script installs only a chart file with this SHA-256.
+CHART_SHA256 = "173f6f6db313ebc5eb0d8daecedd852785d1070b92fd71374d6df06ec3432b57"
+# The digests of the image indexes ghcr.io/mohanraj00/koodam:0.5.0 and
+# ghcr.io/mohanraj00/koodam-workspace:0.5.0 in the registry. The chart values pin them.
+IMAGE_DIGEST = "sha256:293cd93fddfde61b9724c2a66f4e5e80ad7da63ffa122e1281b2d508ca6041ee"
+WORKSPACE_DIGEST = "sha256:b4f428400d0bda4e8698b92bcc12111e1f25213ea6ce4c6a804c787ec566180a"
 MODEL = "mock-1"
 MOCK_ANSWER = "mock answer"
 NS, WORKSPACE, PROFILE = "dev-shop", "shop", "nookku-testkey"
@@ -73,6 +82,11 @@ ANSWER = {
     "other": [],
 }
 VALUES = f"""
+image:
+  tag: "{KOODAM}@{IMAGE_DIGEST}"
+workspace:
+  image:
+    tag: "{WORKSPACE_DIGEST}"
 gateway:
   mode: bundled
   masterKeySecret:
@@ -161,15 +175,28 @@ def wait(what: str, check: Any, timeout: float, every: float = 3) -> Any:
         time.sleep(every)
 
 
-def install(c: Cluster) -> Pod:
+def pull_chart(work: Path) -> Path:
+    """Pull the chart of the pinned version. Stop if the file does not have CHART_SHA256."""
+    dest = work / "chart"
+    dest.mkdir()
+    run([tool("helm"), "pull", CHART, "--version", KOODAM, "-d", str(dest)], timeout=300)
+    chart = dest / f"koodam-{KOODAM}.tgz"
+    digest = hashlib.sha256(chart.read_bytes()).hexdigest()
+    if digest != CHART_SHA256:
+        raise SystemExit(f"the chart {KOODAM} has the SHA-256 {digest}, not {CHART_SHA256}")
+    return chart
+
+
+def install(c: Cluster, work: Path) -> Pod:
     """Install Koodam with the bundled gateway, the Profile and the Workspace."""
+    chart = pull_chart(work)
     for ns in ("koodam-system", NS):
         c.k("create", "namespace", ns)
     master = f"sk-{secrets.token_hex(32)}".encode()
     secret = ["create", "secret", "generic", "koodam-gateway", "--from-file=master-key=/dev/stdin"]
     c.k("-n", "koodam-system", *secret, data=master)
-    helm = [tool("helm"), "--kube-context", f"kind-{c.name}", "install", "koodam", CHART]
-    helm += ["--version", KOODAM, "-n", "koodam-system", "-f", "-", "--wait", "--timeout", "10m"]
+    helm = [tool("helm"), "--kube-context", f"kind-{c.name}", "install", "koodam", str(chart)]
+    helm += ["-n", "koodam-system", "-f", "-", "--wait", "--timeout", "10m"]
     run(helm, data=VALUES.encode(), timeout=900)
     c.k("label", "namespace", NS, f"koodam.dev/profile={PROFILE}")
     c.k("apply", "-f", "-", data=OBJECTS.encode())
@@ -305,7 +332,7 @@ def run_test(c: Cluster, pod: Pod, key: dict[str, str], logs_wait: float = 90) -
 
 
 def prove(c: Cluster, work: Path) -> dict[str, Any]:
-    pod = install(c)
+    pod = install(c, work)
     setup_project(pod, work)
     first = issue_key(c, pod, "shop-test-1", "shop-test-1")
     tests = [run_test(c, pod, first)]
@@ -316,6 +343,8 @@ def prove(c: Cluster, work: Path) -> dict[str, Any]:
     versions = {
         "koodam_tag": KOODAM_TAG,
         "koodam_commit": KOODAM_COMMIT,
+        "chart_sha256": CHART_SHA256,
+        "images": [IMAGE_DIGEST, WORKSPACE_DIGEST],
         "nookku": pod.sh(f"{NOOKKU} --version").strip(),
         "kind": run([c.kind, "version"]).decode().split()[1],
         "kubectl": json.loads(run([c.kubectl, "version", "--client", "-o", "json"]))[
