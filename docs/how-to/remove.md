@@ -36,7 +36,7 @@ The 2 entries are:
 - In `hooks.UserPromptSubmit`: a group with one hook, with `"timeout": 300`.
 - In `hooks.PreToolUse`: a group with `"matcher": ".*"` and one hook, with `"timeout": 30`.
 
-The `command` of each hook contains `nookku hook`. This is the file that `nookku init claude-code --entry "python3 agent.py"` wrote in a new project:
+Each hook runs `nookku hook` in isolated mode. This example shortens the Python code in each command to `<bootstrap>`:
 
 ```json
 {
@@ -46,7 +46,7 @@ The `command` of each hook contains `nookku hook`. This is the file that `nookku
     "hooks": [
      {
       "type": "command",
-      "command": ".../bin/python -m nookku hook --root .../toy-shop --harness claude-code",
+      "command": ".../bin/python -I -c '<bootstrap>' .../lib hook --root .../toy-shop --harness claude-code",
       "timeout": 300
      }
     ]
@@ -58,7 +58,7 @@ The `command` of each hook contains `nookku hook`. This is the file that `nookku
     "hooks": [
      {
       "type": "command",
-      "command": ".../bin/python -m nookku hook --root .../toy-shop --harness claude-code",
+      "command": ".../bin/python -I -c '<bootstrap>' .../lib hook --root .../toy-shop --harness claude-code",
       "timeout": 30
      }
     ]
@@ -77,7 +77,7 @@ nookku init --remove claude-code
 nookku init --remove codex
 ```
 
-It removes each hook whose `command` contains `nookku hook`, and also each hook of verbatim-relay 0.3, whose command contains `verbatim_relay hook`. If a group or an event then has no hook, it removes it too. It keeps each other hook, each other key, the file itself and `.nookku/`. If the file had only the hooks of nookku, it is then `{}`. The command does not delete it, because the file can be yours from before `init`.
+It removes the isolated hook commands and the earlier hook commands that contain `nookku hook` or `verbatim_relay hook`. If a group or an event then has no hook, it removes it too. It keeps each other hook, each other key, the file itself and `.nookku/`. If the file had only the hooks of nookku, it is then `{}`. The command does not delete it, because the file can be yours from before `init`.
 
 In my run, `.claude/settings.local.json` had a permission and an own hook before `init`. `.codex/hooks.json` did not exist before `init`:
 

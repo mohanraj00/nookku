@@ -45,7 +45,7 @@ from pathlib import Path
 from typing import Any, TextIO
 from urllib.parse import urlsplit
 
-from nookku import page, state
+from nookku import child, page, state
 from nookku.record import loads
 
 # The wait of `nookku start` for the page server to say if the browser opened.
@@ -150,7 +150,7 @@ def _start(root: Path, test: str, print_url: bool) -> str:
     if stopped is not None:
         return FAILED.format(reason=stopped.removeprefix("nookku: "))
     read, write = os.pipe()
-    command = [sys.executable, "-m", "nookku", "chat", "--root", str(root)]
+    command = child.argv("chat", "--root", str(root))
     command += ["--auto-test", test, "--status-fd", str(write)]
     command += ["--print-url"] if print_url else []
     try:
@@ -330,7 +330,10 @@ def _is_page_server(pid: int, root: Path) -> bool:
     if not args or Path(args[0]).resolve() != Path(sys.executable).resolve():
         return False
     script = Path(sys.executable).with_name("nookku")
-    if args[1:4] == ["-m", "nookku", "chat"]:
+    command = child.argv("chat")
+    if args[1 : len(command)] == command[1:]:
+        options = args[len(command) :]
+    elif args[1:4] == ["-m", "nookku", "chat"]:
         options = args[4:]
     elif args[1:3] == [str(script), "chat"]:
         options = args[3:]

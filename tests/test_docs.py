@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shlex
 import subprocess
 import sys
 from collections import Counter
@@ -916,12 +917,14 @@ def test_the_remove_page_names_each_hook_that_init_writes(harness: str, tmp_path
     for event, groups in json.loads(hook_file.read_text(encoding="utf-8"))["hooks"].items():
         (group,) = groups
         (hook,) = group["hooks"]
-        assert "nookku hook" in hook["command"]
+        args = shlex.split(hook["command"])
+        assert args[1:3] == ["-I", "-c"]
+        assert args[5:] == ["hook", "--root", str(tmp_path), "--harness", harness]
         assert f"`hooks.{event}`" in page
         assert f'"timeout": {hook["timeout"]}' in page
         if "matcher" in group:
             assert f'"matcher": "{group["matcher"]}"' in page
-    assert "`nookku hook`" in page
+    assert "-I -c '<bootstrap>' .../lib hook --root" in page
 
 
 def test_the_upgrade_page_has_a_section_for_each_release_with_an_upgrade_step() -> None:

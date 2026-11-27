@@ -2,9 +2,13 @@
 
 Each date is the day of the upload to PyPI, in UTC ([nookku](https://pypi.org/project/nookku/#history), [verbatim-relay](https://pypi.org/project/verbatim-relay/#history)). 0.2.0 has no upload, so its date is the day of [its tag](https://github.com/mohanraj00/nookku/commit/v0.2.0).
 
-## 0.7.0
+## 0.6.2
 
 Not released yet.
+
+**Upgrade.** If your project has the [project hooks](docs/reference/glossary.md#project-hooks) of `nookku init claude-code` or `nookku init codex`, run `nookku init` again for each of these harnesses. Nookku refuses a test if a project hook has the command of an older version. If you use Codex, trust the hooks again. Else no step is necessary. [The upgrade guide](docs/how-to/upgrade.md#062) gives the commands.
+
+- **Isolated child commands.** The bridge, the MCP stdio proxy, the chat page and the project hooks use the Nookku library of the install. Python omits the project folder and the user site from its import path, so a `nookku` folder in the project cannot replace the library ([#704](https://github.com/mohanraj00/nookku/issues/704)).
 
 ## 0.6.1
 
