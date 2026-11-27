@@ -1,0 +1,31 @@
+{
+ "source": "Toy shop stock list",
+ "version": "spring",
+ "claims": [
+  {
+   "id": "mug",
+   "text": "The blue mug is in stock.",
+   "seeded": false
+  },
+  {
+   "id": "kite",
+   "text": "The kite is out of stock.",
+   "seeded": true
+  },
+  {
+   "id": "train",
+   "text": "The train is in stock.",
+   "seeded": false
+  },
+  {
+   "id": "bear",
+   "text": "The bear is out of stock.",
+   "seeded": true
+  },
+  {
+   "id": "puzzle",
+   "text": "The puzzle is out of stock.",
+   "seeded": true
+  }
+ ]
+}

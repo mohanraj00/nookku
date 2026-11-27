@@ -1,0 +1,51 @@
+{
+ "claim_set": {
+  "source": "Toy shop stock list",
+  "version": "spring",
+  "sha256": "0861a4dc893c230e3c953dfc773a1474172f18083117fbf6e520faa71bf68b2d"
+ },
+ "entry": "stock",
+ "claims": [
+  {
+   "id": "mug",
+   "seeded": false,
+   "verdict": "supported",
+   "error": null
+  },
+  {
+   "id": "kite",
+   "seeded": true,
+   "verdict": "refuted",
+   "error": null
+  },
+  {
+   "id": "train",
+   "seeded": false,
+   "verdict": "refuted",
+   "error": null
+  },
+  {
+   "id": "bear",
+   "seeded": true,
+   "verdict": "error",
+   "error": "invalid reply"
+  },
+  {
+   "id": "puzzle",
+   "seeded": true,
+   "verdict": "supported",
+   "error": null
+  }
+ ],
+ "errors": 1,
+ "refutation_rate": {
+  "numerator": 1,
+  "denominator": 3,
+  "rate": 0.3333333333333333
+ },
+ "false_refutation_rate": {
+  "numerator": 1,
+  "denominator": 2,
+  "rate": 0.5
+ }
+}

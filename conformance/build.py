@@ -10,6 +10,7 @@ folder (section 5). `evaluation/` holds the cases of the rule for a check test (
 `discovery/` holds the cases of the egress answer (section 7.11).
 `database/` holds the cases of the variable of a Postgres proxy (section 7.13).
 `gateway/` holds the cases of the read of the gateway logs (section 8.9).
+`verifier/` holds the cases of a verifier measurement (section 11).
 
 Never fill an expectation by running the audit. CI runs this script and fails if the files change.
 
@@ -42,6 +43,7 @@ NOTES = Path(__file__).parent / "notes"
 DISCOVERY = Path(__file__).parent / "discovery"
 DATABASE = Path(__file__).parent / "database"
 GATEWAY = Path(__file__).parent / "gateway"
+VERIFIER = Path(__file__).parent / "verifier"
 
 
 def sha(text: str | None) -> str | None:
@@ -10964,6 +10966,41 @@ DATABASE_CASES: dict[str, dict] = {
 }
 
 
+# The verifier refutes a seeded claim and a true claim. A bad reply counts as an error,
+# and that claim stays in its group's denominator. The rates and verdicts are hand-written.
+VERIFIER_CLAIMS = {
+    "source": "Toy shop stock list",
+    "version": "spring",
+    "claims": [
+        {"id": "mug", "text": "The blue mug is in stock.", "seeded": False},
+        {"id": "kite", "text": "The kite is out of stock.", "seeded": True},
+        {"id": "train", "text": "The train is in stock.", "seeded": False},
+        {"id": "bear", "text": "The bear is out of stock.", "seeded": True},
+        {"id": "puzzle", "text": "The puzzle is out of stock.", "seeded": True},
+    ],
+}
+VERIFIER_REPLIES = {
+    "mug": '{"verdict": "supported"}',
+    "kite": '{"verdict": "refuted"}',
+    "train": '{"verdict": "refuted"}',
+    "bear": '{"verdict": "unknown"}',
+    "puzzle": '{"verdict": "supported"}',
+}
+VERIFIER_REPORT = {
+    "entry": "stock",
+    "claims": [
+        {"id": "mug", "seeded": False, "verdict": "supported", "error": None},
+        {"id": "kite", "seeded": True, "verdict": "refuted", "error": None},
+        {"id": "train", "seeded": False, "verdict": "refuted", "error": None},
+        {"id": "bear", "seeded": True, "verdict": "error", "error": "invalid reply"},
+        {"id": "puzzle", "seeded": True, "verdict": "supported", "error": None},
+    ],
+    "errors": 1,
+    "refutation_rate": {"numerator": 1, "denominator": 3, "rate": 0.3333333333333333},
+    "false_refutation_rate": {"numerator": 1, "denominator": 2, "rate": 0.5},
+}
+
+
 def main() -> None:
     shutil.rmtree(CASES, ignore_errors=True)
     for name, (tap, relay, expect) in CASES_BY_NAME.items():
@@ -11068,6 +11105,16 @@ def main() -> None:
     for name, case in DATABASE_CASES.items():
         text = json.dumps(case, indent=1, ensure_ascii=False) + "\n"
         (DATABASE / f"{name}.json").write_text(text, encoding="utf-8")
+    shutil.rmtree(VERIFIER, ignore_errors=True)
+    VERIFIER.mkdir()
+    claims = json.dumps(VERIFIER_CLAIMS, indent=1) + "\n"
+    (VERIFIER / "claims.json").write_text(claims, encoding="utf-8")
+    report = {
+        "claim_set": {"source": "Toy shop stock list", "version": "spring", "sha256": sha(claims)},
+        **VERIFIER_REPORT,
+    }
+    for name, value in [("replies", VERIFIER_REPLIES), ("expect", report)]:
+        (VERIFIER / f"{name}.json").write_text(json.dumps(value, indent=1) + "\n", encoding="utf-8")
     print(
         f"{len(CASES_BY_NAME)} audit cases, {len(CONTRACT_CASES)} contract cases, "
         f"{len(TRACE_CASES)} trace cases, {len(SEAL_CASES)} seal cases, "

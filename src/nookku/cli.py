@@ -32,6 +32,7 @@ from nookku import (
     stdio,
     trace,
     verdict,
+    verifier,
 )
 from nookku.adapters import make
 from nookku.audit import audit, render
@@ -476,6 +477,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     flt.add_argument("--json", action="store_true", help="print the report as JSON")
 
+    vfr = sub.add_parser("verifier", help="measure a verifier on a declared claim set")
+    vfr_sub = vfr.add_subparsers(dest="verifier_command", metavar="COMMAND", required=True)
+    vfr_run = vfr_sub.add_parser("run", help="run the verifier and write its report")
+    vfr_run.add_argument("claims", type=Path, help="the claim set file (JSON)")
+    vfr_run.add_argument("--entry", required=True, help="the name of the verifier in entries")
+    vfr_run.add_argument("--out", type=Path, help=f"the report path (default: {verifier.FILE})")
+    vfr_run.add_argument("--root", type=Path, default=Path.cwd(), help="the project folder")
+    vfr_run.add_argument(
+        "--timeout", type=float, default=verifier.TIMEOUT, help="the most seconds for each claim"
+    )
+
     tr = sub.add_parser("transcript", help="print the exact conversation for the model to evaluate")
     tr.add_argument("--root", type=Path, default=Path.cwd())
     tr.add_argument("--all", action="store_true", help="all sessions, not only the latest one")
@@ -664,6 +676,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
         print(json.dumps(result, indent=1) if args.json else faults.render(result))
         return 0 if result["ok"] else 1
+    if args.command == "verifier":
+        out = args.out or (args.claims.parent / verifier.FILE)
+        try:
+            if out.resolve() == args.claims.resolve():
+                raise ValueError("the report path is the claim set path. Use --out for the report.")
+            result = verifier.run(args.root.resolve(), args.claims, args.entry, args.timeout)
+            verifier.write(out, result)
+        except (OSError, ValueError) as e:
+            print(f"nookku: {e}", file=sys.stderr)
+            return 2
+        print(f"nookku: wrote {out}")
+        return 0
     if args.command == "audit":
         report = audit(args.tap, args.relay, args.script)
         if args.json:
