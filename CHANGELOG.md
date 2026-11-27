@@ -12,6 +12,14 @@ Not released yet.
 - **The runner of a simulated user.** The new config key `persona_runner` selects the runner of `nookku run --persona`: `claude-code` (the default, as before) or a declared command that gets the prompt on stdin and writes the message on stdout. A declared command must have no tools, because the prompt holds the replies of the agent. Nookku has no built-in `codex` runner, because `codex exec` has no flag that removes each tool. `simulated_user.json` has the new key `command`, and its `harness` names the runner. A gate run still never starts a simulated user. A proof with each real runner is not done yet ([SPEC.md section 7.10](SPEC.md#710-scripted-tests), [cli.md](docs/reference/cli.md#nookku-run), [#667](https://github.com/mohanraj00/nookku/issues/667)).
 - **Koodam v0.5.0 in the seam tests.** The CI jobs `kind-testkey` and `release-samples` pin the Koodam tag `v0.5.0` (commit `a08e48c`). `kind-testkey` also pins the SHA-256 of the chart file and the digests of the 2 Koodam images. The readers read the v0.5.0 samples with no change. The span sample has 10 lines: 7 spans that the reader keeps and 3 spans of the kind `llm` ([getting-started-cluster.md](docs/getting-started-cluster.md#the-koodam-tag-of-the-ci-job), [data](proofs/release-samples/results.json), [method](scripts/release_samples.py), [#702](https://github.com/mohanraj00/nookku/issues/702)).
 
+## 0.6.2
+
+Not released yet.
+
+**Upgrade.** If your project has the [project hooks](docs/reference/glossary.md#project-hooks) of `nookku init claude-code` or `nookku init codex`, run `nookku init` again for each of these harnesses. Nookku refuses a test if a project hook has the command of an older version. If you use Codex, trust the hooks again. Else no step is necessary. [The upgrade guide](docs/how-to/upgrade.md#062) gives the commands.
+
+- **Isolated child commands.** The bridge, the MCP stdio proxy, the chat page and the project hooks use the Nookku library of the install. Python omits the project folder and the user site from its import path, so a `nookku` folder in the project cannot replace the library ([#704](https://github.com/mohanraj00/nookku/issues/704)).
+
 ## 0.6.1
 
 Released 2026-11-26.

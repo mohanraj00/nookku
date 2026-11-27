@@ -1079,22 +1079,13 @@ def run_hook(root: Path | None, harness: str, stdin: TextIO, stdout: TextIO) -> 
 
 
 def hook_command(root: Path, harness: str) -> str:
-    argv = [
-        sys.executable,
-        "-m",
-        "nookku",
-        "hook",
-        "--root",
-        str(root),
-        "--harness",
-        harness,
-    ]
-    return " ".join(shlex.quote(a) for a in argv)
+    from nookku import child
+
+    return shlex.join(child.argv("hook", "--root", str(root), "--harness", harness))
 
 
-# The hook commands of nookku. verbatim-relay 0.3.x and earlier wrote the second one, so a new
-# `init` replaces those hooks too.
-OWN_COMMANDS = ("nookku hook", "verbatim_relay hook")
+# Earlier versions wrote these commands. A new `init` replaces their hooks too.
+OLD_COMMANDS = ("nookku hook", "verbatim_relay hook")
 
 
 # The events of the hooks, with the matcher and the timeout in seconds of each. The plugin's
@@ -1106,7 +1097,20 @@ HOOK_EVENTS: dict[str, tuple[dict[str, str], int]] = {
 
 
 def _ours(hook: Any) -> bool:
-    return isinstance(hook, dict) and any(c in str(hook.get("command", "")) for c in OWN_COMMANDS)
+    from nookku import child
+
+    if not isinstance(hook, dict):
+        return False
+    command = str(hook.get("command", ""))
+    if any(c in command for c in OLD_COMMANDS):
+        return True
+    try:
+        argv = shlex.split(command)
+        # The Python and library paths can differ after a new install.
+        bootstrap = argv.index(child.BOOTSTRAP)
+    except ValueError:
+        return False
+    return argv[bootstrap + 2 : bootstrap + 3] == ["hook"]
 
 
 def _merge_hooks(settings: dict[str, Any], command: str) -> dict[str, Any]:
