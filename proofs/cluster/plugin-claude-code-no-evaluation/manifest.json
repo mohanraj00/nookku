@@ -1,29 +1,26 @@
 {
  "v": "0.2",
- "test": "20261030-181505-0fbe",
- "dir": "/tests/20261030-181505-0fbe",
+ "test": "20261127-123950-ddba",
+ "dir": "/home/dev/nookku-tests/20261127-123950-ddba",
  "root": "/home/dev/toy-shop",
  "entry": [
-  "uv",
-  "run",
-  "--with",
-  "/home/dev/dl/nookku-0.5.6-py3-none-any.whl",
   "python3",
   "service_entry.py"
  ],
  "entry_name": null,
  "script": null,
+ "persona": null,
  "models": [],
- "started": 1793384106.0235264,
- "ended": 1793384111.257679,
+ "started": 1795783191.4708688,
+ "ended": 1795783203.7392566,
  "versions": {
-  "nookku": "0.5.6",
-  "claude-code": "2.1.302 (Claude Code)",
+  "nookku": "0.6.0",
+  "claude-code": "2.1.319 (Claude Code)",
   "codex": null
  },
  "config_sha256": {
-  "config.json": "16870c9b8632a2dd9b4491082452ee6935f4521821e268741216753f0a0781d5",
-  "discovery.json": "b4e916a916029f1c35ca595e01e187b9945d04fb4d1432ae3a50f26dc8cbcd76",
+  "config.json": "c2f85d452d53a601a12214e9ec201b25e5898c6d143fa505f0515fcc6efb0eee",
+  "discovery.json": "8d31cd30f28c83595c4f3de3688d65112a240f0ec6c46ce4a21c4250d4bafa53",
   "nookku-state": "7865f36f072b094306fd3bfc1a6e26563a2265d1a427ff21bad350fb04ad61d0"
  },
  "policy": {
@@ -36,25 +33,36 @@
   ],
   "guard_reads": [],
   "scripts": "person",
-  "control_distance": 2
+  "control_distance": 2,
+  "answer_keys": []
  },
  "trace": {
   "repeated_reply": 2,
   "model_reply_field": "",
   "model_reply_match": "normalized",
+  "citation_field": "",
+  "citation_prefix": "",
   "egress_ignore": [
-   "api.anthropic.com"
+   "api.anthropic.com",
+   "koodam-litellm.koodam-system.svc:4000"
   ]
  },
  "spec": [],
  "spec_copies": true,
  "trace_points": [],
  "trace_points_unread": [],
+ "verdict": {
+  "limits": {},
+  "unread": []
+ },
+ "replay": null,
+ "answer_key": null,
+ "approvals": [],
  "tester_sessions": [
-  "4beea8bc-1740-4a68-96c8-229efdf20f98",
-  "62a8e27c-afc0-40da-a3cf-b9a9446f6f6a",
-  "7f25d9fb-406b-4c28-be6d-c305e2e072ea",
-  "d6c3477d-922f-4846-b910-449c114fc552"
+  "a943c196-b687-46d1-883b-7725ce6aab3a",
+  "ef34ce12-4c09-49ec-b93d-8e634464f34f",
+  "f5dc4e66-f459-48ca-a8ef-731a15383a1a",
+  "f5e35b4c-3699-4895-a460-cbd5cf7e3f8a"
  ],
  "model_sessions": [],
  "codex_gate": {
@@ -71,7 +79,7 @@
  },
  "check": false,
  "egress": {
-  "registered": 1793384105.526737,
+  "registered": 1795783188.8875253,
   "answer": {
    "model_apis": [],
    "backends": [
@@ -87,12 +95,14 @@
   },
   "unseen": [],
   "driver": [],
+  "client_trace": [],
   "proxies": {
-   "toy-shop": "http://127.0.0.1:44937"
+   "toy-shop": "http://127.0.0.1:45405"
   },
   "sslmode": {},
-  "receiver": "http://127.0.0.1:43837"
+  "receiver": "http://127.0.0.1:46587"
  },
- "entry_pid": 416,
- "entry_pid_start": "proc:70877203"
+ "test_key": null,
+ "entry_pid": 631,
+ "entry_pid_start": "proc:27459248"
 }

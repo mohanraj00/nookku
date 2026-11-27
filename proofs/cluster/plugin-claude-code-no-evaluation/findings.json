@@ -1,6 +1,6 @@
 {
  "v": "0.2",
- "test": "20261030-181505-0fbe",
+ "test": "20261127-123950-ddba",
  "turns": 3,
  "items": 3,
  "sessions": [],
@@ -16,13 +16,14 @@
  "database": null,
  "egress": {
   "file": "egress.jsonl",
-  "rows": 8,
+  "rows": 12,
   "spans": 2,
   "hosts": [
    "example.com"
   ],
   "ignored": {
-   "egress_ignore": 6
+   "egress_ignore": 7,
+   "llm": 3
   }
  },
  "trace_points": null,
@@ -30,6 +31,9 @@
   "agent_error": 0,
   "repeated_reply": 0,
   "reply_not_from_model": 0,
+  "citation_not_read": 0,
+  "answer_key_mismatch": 0,
+  "answer_key_missing": 0,
   "tool_error": 0,
   "command_failed": 0,
   "span_error": 0,
@@ -37,8 +41,13 @@
   "model_api_error": 0,
   "questions_lost": 0,
   "database_error": 0,
+  "proxy_call_without_span": 0,
+  "mcp_task_unfinished": 0,
+  "replay_changed": 0,
+  "replay_miss": 0,
   "unseen_call": 0,
   "driver_without_span": 0,
+  "other_without_span": 0,
   "egress_not_in_discovery": 1,
   "egress_denied": 1,
   "model_error": 0,
@@ -49,7 +58,9 @@
   "session_inferred": 0,
   "version_untested": 0,
   "missing_trace_point": 0,
-  "trace_points_unread": 0
+  "trace_points_unread": 0,
+  "action_without_approval": 0,
+  "call_cut": 0
  },
  "findings": [
   {
@@ -60,7 +71,7 @@
    "session": "example.com",
    "source": {
     "file": "egress.jsonl",
-    "line": 5
+    "line": 8
    }
   },
   {
@@ -71,7 +82,7 @@
    "session": "example.com",
    "source": {
     "file": "egress.jsonl",
-    "line": 6
+    "line": 9
    }
   }
  ]
