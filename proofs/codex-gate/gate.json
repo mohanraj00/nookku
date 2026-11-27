@@ -1,11 +1,11 @@
 {
- "date": "2026-11-25",
- "nookku": "0.6.1",
+ "date": "2026-11-27",
+ "nookku": "0.6.2",
  "codex": "codex-cli 0.169.0",
  "method": "scripts/proof_codex_gate.py",
  "part_a": {
-  "nookku": "0.6.1",
-  "plugin_folder": "<user-home>/Reboot/public/nookku/.claude/worktrees/release-0-6-1-86f863/.proof/codex-gate/codex-home/plugins/cache/nookku/nookku/0.6.1",
+  "nookku": "0.6.2",
+  "plugin_folder": "<user-home>/Reboot/public/nookku/.claude/worktrees/release-0-6-2-0ef5a7/.proof/codex-gate/codex-home/plugins/cache/nookku/nookku/0.6.2",
   "plugin_folder_is_this_version": true,
   "start_output": "nookku: the Codex hooks of nookku are not ready, so nookku refuses the test and does not change relay mode. Codex skips a hook that is not trusted, and then a message goes to the model.\n- the plugin hook PreToolUse is untrusted, not trusted.\n- the plugin hook UserPromptSubmit is untrusted, not trusted.\nStart codex in this project, type /hooks, check each nookku hook and trust it. Then start the test again.",
   "start_exit": 1,
@@ -18,7 +18,7 @@
      "event": "preToolUse",
      "enabled": true,
      "trust": "untrusted",
-     "hash": "sha256:b17fd671aff4ea1cf061585881db03115d7812d6ad47cd5bb17ff6dc84d20b17/sha256:6a4d7a0655bd544006a87360e70be335adfb0b19ab9ba99a6970c5e9d83f6841",
+     "hash": "sha256:b17fd671aff4ea1cf061585881db03115d7812d6ad47cd5bb17ff6dc84d20b17/sha256:5d481238a9158b46d646e12a4bc8a556b54e4b8ff94464bf59e79eb3ce6d7b41",
      "script_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
     },
     {
@@ -26,7 +26,7 @@
      "event": "userPromptSubmit",
      "enabled": true,
      "trust": "untrusted",
-     "hash": "sha256:cdada78120900a490c84e8a0c483ebb42013e71e767237bb1feda58d19818682/sha256:6a4d7a0655bd544006a87360e70be335adfb0b19ab9ba99a6970c5e9d83f6841",
+     "hash": "sha256:cdada78120900a490c84e8a0c483ebb42013e71e767237bb1feda58d19818682/sha256:5d481238a9158b46d646e12a4bc8a556b54e4b8ff94464bf59e79eb3ce6d7b41",
      "script_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
     }
    ],
@@ -36,18 +36,18 @@
    ]
   },
   "hash_after_script_change": {
-   "preToolUse": "sha256:b17fd671aff4ea1cf061585881db03115d7812d6ad47cd5bb17ff6dc84d20b17/sha256:a87b93fb8b9f981df02093e5475206681baec7a0bcd6c166ae52c7cb9a18f985",
-   "userPromptSubmit": "sha256:cdada78120900a490c84e8a0c483ebb42013e71e767237bb1feda58d19818682/sha256:a87b93fb8b9f981df02093e5475206681baec7a0bcd6c166ae52c7cb9a18f985"
+   "preToolUse": "sha256:b17fd671aff4ea1cf061585881db03115d7812d6ad47cd5bb17ff6dc84d20b17/sha256:6c0ee2dd37c958bc1ff9e90753ba268adb44d428f66ee0061dd5b2017a7e2808",
+   "userPromptSubmit": "sha256:cdada78120900a490c84e8a0c483ebb42013e71e767237bb1feda58d19818682/sha256:6c0ee2dd37c958bc1ff9e90753ba268adb44d428f66ee0061dd5b2017a7e2808"
   },
   "hash_after_timeout_change": {
-   "preToolUse": "sha256:dc01794f49c27feeb4f91e789ecc7cdf71a83149b67b703b4428e7548769670f/sha256:c2f4d354989271f3bde2c37501f573194cf6cf2b5180c07e42ff39995ec88e85",
-   "userPromptSubmit": "sha256:cdada78120900a490c84e8a0c483ebb42013e71e767237bb1feda58d19818682/sha256:c2f4d354989271f3bde2c37501f573194cf6cf2b5180c07e42ff39995ec88e85"
+   "preToolUse": "sha256:dc01794f49c27feeb4f91e789ecc7cdf71a83149b67b703b4428e7548769670f/sha256:ef0d5cf4a6359983b93922d8f143d89387746c2a4a8e98221c2191698c81b6fa",
+   "userPromptSubmit": "sha256:cdada78120900a490c84e8a0c483ebb42013e71e767237bb1feda58d19818682/sha256:ef0d5cf4a6359983b93922d8f143d89387746c2a4a8e98221c2191698c81b6fa"
   },
   "problems_after_script_change": [
    "the plugin hook PreToolUse is untrusted, not trusted.",
-   "the plugin hook PreToolUse is modified: its script <user-home>/Reboot/public/nookku/.claude/worktrees/release-0-6-1-86f863/.proof/codex-gate/codex-home/plugins/cache/nookku/nookku/0.6.1/hooks/nookku-hook.sh differs from the script of nookku 0.6.1.",
+   "the plugin hook PreToolUse is modified: its script <user-home>/Reboot/public/nookku/.claude/worktrees/release-0-6-2-0ef5a7/.proof/codex-gate/codex-home/plugins/cache/nookku/nookku/0.6.2/hooks/nookku-hook.sh differs from the script of nookku 0.6.2.",
    "the plugin hook UserPromptSubmit is untrusted, not trusted.",
-   "the plugin hook UserPromptSubmit is modified: its script <user-home>/Reboot/public/nookku/.claude/worktrees/release-0-6-1-86f863/.proof/codex-gate/codex-home/plugins/cache/nookku/nookku/0.6.1/hooks/nookku-hook.sh differs from the script of nookku 0.6.1."
+   "the plugin hook UserPromptSubmit is modified: its script <user-home>/Reboot/public/nookku/.claude/worktrees/release-0-6-2-0ef5a7/.proof/codex-gate/codex-home/plugins/cache/nookku/nookku/0.6.2/hooks/nookku-hook.sh differs from the script of nookku 0.6.2."
   ],
   "checks": {
    "the installed plugin is this version": true,
@@ -61,8 +61,8 @@
   }
  },
  "part_b": {
-  "nookku": "0.6.1",
-  "plugin_folder": "<user-home>/Reboot/public/nookku/.claude/worktrees/release-0-6-1-86f863/.proof/codex-gate/codex-home/plugins/cache/nookku/nookku/0.6.1",
+  "nookku": "0.6.2",
+  "plugin_folder": "<user-home>/Reboot/public/nookku/.claude/worktrees/release-0-6-2-0ef5a7/.proof/codex-gate/codex-home/plugins/cache/nookku/nookku/0.6.2",
   "plugin_folder_is_this_version": true,
   "gate": {
    "codex": true,
@@ -72,7 +72,7 @@
      "event": "preToolUse",
      "enabled": true,
      "trust": "trusted",
-     "hash": "sha256:b17fd671aff4ea1cf061585881db03115d7812d6ad47cd5bb17ff6dc84d20b17/sha256:6a4d7a0655bd544006a87360e70be335adfb0b19ab9ba99a6970c5e9d83f6841",
+     "hash": "sha256:b17fd671aff4ea1cf061585881db03115d7812d6ad47cd5bb17ff6dc84d20b17/sha256:5d481238a9158b46d646e12a4bc8a556b54e4b8ff94464bf59e79eb3ce6d7b41",
      "script_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
     },
     {
@@ -80,14 +80,14 @@
      "event": "userPromptSubmit",
      "enabled": true,
      "trust": "trusted",
-     "hash": "sha256:cdada78120900a490c84e8a0c483ebb42013e71e767237bb1feda58d19818682/sha256:6a4d7a0655bd544006a87360e70be335adfb0b19ab9ba99a6970c5e9d83f6841",
+     "hash": "sha256:cdada78120900a490c84e8a0c483ebb42013e71e767237bb1feda58d19818682/sha256:5d481238a9158b46d646e12a4bc8a556b54e4b8ff94464bf59e79eb3ce6d7b41",
      "script_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
     }
    ],
    "problems": []
   },
   "start_exit": 0,
-  "end_output": "Ending test 20261125-145231-0d16. Waiting up to 120 s for the bridge to stop.\nTest 20261125-145231-0d16 ended: 0 turns, 0 model sessions.\nFolder: <user-home>/Reboot/public/nookku/.claude/worktrees/release-0-6-1-86f863/.proof/codex-gate/project/.nookku/tests/20261125-145231-0d16\nTrace: 0 model items in 0 turns, no findings.\nAudit: nookku audit --tap <user-home>/Reboot/public/nookku/.claude/worktrees/release-0-6-1-86f863/.proof/codex-gate/project/.nookku/tests/20261125-145231-0d16/tap.jsonl --relay <user-home>/Reboot/public/nookku/.claude/worktrees/release-0-6-1-86f863/.proof/codex-gate/project/.nookku/tests/20261125-145231-0d16/relay.jsonl\nTo evaluate the test, type this prompt in your harness: nookku end",
+  "end_output": "Ending test 20261127-121351-8a6c. Waiting up to 120 s for the bridge to stop.\nTest 20261127-121351-8a6c ended: 0 turns, 0 model sessions.\nFolder: <user-home>/Reboot/public/nookku/.claude/worktrees/release-0-6-2-0ef5a7/.proof/codex-gate/project/.nookku/tests/20261127-121351-8a6c\nTrace: 0 model items in 0 turns, no findings.\nAudit: nookku audit --tap <user-home>/Reboot/public/nookku/.claude/worktrees/release-0-6-2-0ef5a7/.proof/codex-gate/project/.nookku/tests/20261127-121351-8a6c/tap.jsonl --relay <user-home>/Reboot/public/nookku/.claude/worktrees/release-0-6-2-0ef5a7/.proof/codex-gate/project/.nookku/tests/20261127-121351-8a6c/relay.jsonl\nTo evaluate the test, type this prompt in your harness: nookku end",
   "manifest_codex_gate": {
    "start": {
     "codex": true,
@@ -97,7 +97,7 @@
       "event": "preToolUse",
       "enabled": true,
       "trust": "trusted",
-      "hash": "sha256:b17fd671aff4ea1cf061585881db03115d7812d6ad47cd5bb17ff6dc84d20b17/sha256:6a4d7a0655bd544006a87360e70be335adfb0b19ab9ba99a6970c5e9d83f6841",
+      "hash": "sha256:b17fd671aff4ea1cf061585881db03115d7812d6ad47cd5bb17ff6dc84d20b17/sha256:5d481238a9158b46d646e12a4bc8a556b54e4b8ff94464bf59e79eb3ce6d7b41",
       "script_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
      },
      {
@@ -105,7 +105,7 @@
       "event": "userPromptSubmit",
       "enabled": true,
       "trust": "trusted",
-      "hash": "sha256:cdada78120900a490c84e8a0c483ebb42013e71e767237bb1feda58d19818682/sha256:6a4d7a0655bd544006a87360e70be335adfb0b19ab9ba99a6970c5e9d83f6841",
+      "hash": "sha256:cdada78120900a490c84e8a0c483ebb42013e71e767237bb1feda58d19818682/sha256:5d481238a9158b46d646e12a4bc8a556b54e4b8ff94464bf59e79eb3ce6d7b41",
       "script_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
      }
     ],
@@ -119,7 +119,7 @@
       "event": "preToolUse",
       "enabled": true,
       "trust": "trusted",
-      "hash": "sha256:b17fd671aff4ea1cf061585881db03115d7812d6ad47cd5bb17ff6dc84d20b17/sha256:6a4d7a0655bd544006a87360e70be335adfb0b19ab9ba99a6970c5e9d83f6841",
+      "hash": "sha256:b17fd671aff4ea1cf061585881db03115d7812d6ad47cd5bb17ff6dc84d20b17/sha256:5d481238a9158b46d646e12a4bc8a556b54e4b8ff94464bf59e79eb3ce6d7b41",
       "script_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
      },
      {
@@ -127,7 +127,7 @@
       "event": "userPromptSubmit",
       "enabled": true,
       "trust": "trusted",
-      "hash": "sha256:cdada78120900a490c84e8a0c483ebb42013e71e767237bb1feda58d19818682/sha256:6a4d7a0655bd544006a87360e70be335adfb0b19ab9ba99a6970c5e9d83f6841",
+      "hash": "sha256:cdada78120900a490c84e8a0c483ebb42013e71e767237bb1feda58d19818682/sha256:5d481238a9158b46d646e12a4bc8a556b54e4b8ff94464bf59e79eb3ce6d7b41",
       "script_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
      }
     ],

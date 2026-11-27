@@ -2,7 +2,7 @@
 
 I ran the proofs of the 0.6.2 release candidate on 2026-11-27, on macOS, in the worktree of the branch `claude/release-0.6.2`. The base is the tag `v0.6.1` at 65d0d8c9, plus the commits of [#704](https://github.com/mohanraj00/nookku/issues/704) and [#431](https://github.com/mohanraj00/nookku/issues/431) and the commit that sets the version to 0.6.2. The tools were Claude Code 2.1.319, codex-cli 0.169.0, Python 3.13.12 and Docker 29.6.1 (client). These are the harness versions of [0.6.1](claude-code-0.6.1.md), and CI still pins Claude Code 2.1.319. Each result file records its tested versions.
 
-This release ran the proofs with no model, with and without the network, and some proofs with the model in slots that the owner gave. Each other proof carries its record. [The carried records](#the-carried-records) give each record and the reason.
+This release ran the proofs with no model, with and without the network, and some proofs with the model and with kind in slots that the owner gave. Each other proof carries its record. [The carried records](#the-carried-records) give each record and the reason.
 
 ## Runs with no model
 
@@ -56,6 +56,19 @@ The owner gave a model slot for Claude Code. At the start of the slot, the weekl
 
 The relay proofs and the plugin load proof start the bridge and the hooks with the child argv of [#704](https://github.com/mohanraj00/nookku/issues/704). Each of the 10 turns of each relay proof passed P1 and P2, and P3b blocked the model call. The plugin load proof also runs Codex 0.169.0 for its 9 Codex checks.
 
+## Runs with Codex
+
+The owner gave Codex slot 3, and did the 3 person steps of [run-the-proofs.md](../../docs/contributing/run-the-proofs.md#trust-the-codex-hooks-once): the trust of the plugin hooks, the login of the project hooks setup and the trust of the project hooks. The runs used codex-cli 0.169.0, one at a time. Part A ran at 19:53 UTC, before the trust. The other runs started at 20:13 UTC. No run had HTTP 429 or a quota error.
+
+| Proof | Setup | Command | Result | Data |
+|---|---|---|---|---|
+| Hook gate, part A |  | `uv run python scripts/proof_codex_gate.py` | 8 of 8 checks pass, run 1 | [results](../codex-gate/gate.json) |
+| Hook gate, part B |  | `uv run python scripts/proof_codex_gate.py --trusted`, after the owner trusted the 2 hooks | 5 of 5 checks pass, run 1 | [results](../codex-gate/gate.json) |
+| P1 to P4 | plugin-codex | `uv run python scripts/proofs_relay.py plugin-codex` | pass, run 1 | [results](../plugin-codex/results.json) |
+| P1 to P4 | hooks-codex | `uv run python scripts/proofs_relay.py hooks-codex` | not complete, run 1: setup problem | none, the 0.6.0 record stays |
+
+In the `hooks-codex` run, the prompt `nookku start` did not start a test. The proof wrote the project hooks of 0.6.2 in `.proof/codex/` of this worktree. Then `hooks/list` of codex-cli 0.169.0, with this folder as its `cwds`, gave the hooks of `.proof/codex/` in the main checkout of the repo. That file is from 2026-11-20 and has the hook command of an older version (`python3 -m nookku hook`). So the gate of 0.6.2 found each project hook `modified` and refused the test, as it must. I think that Codex finds the project of a git worktree through the main checkout, but I did not prove it. This is a problem of the proof setup in a worktree, not a fault of Nookku. I did not run it again. A new run needs the main checkout or a project folder outside the repo, and a new trust step.
+
 ## The tutorial change
 
 The hook check of `nookku start` compares the command of each project hook with `kit.hook_command`, word for word ([claude_gate.py](../../src/nookku/claude_gate.py)). The first word is `sys.executable` of the process that runs the check. In a uv virtual environment, `.venv/bin/python` and `.venv/bin/python3` are 2 links to the same Python, but the check reads them as 2 different words.
@@ -94,6 +107,8 @@ The owner gave kind slot 2 on 2026-11-27. Before the runs, at 19:54 UTC, the 1-m
 - `proof_cluster_tap.py` stopped before it made a cluster: "Docker has 899 MB free, below 1200 MB. Stop; do not prune." I did not prune.
 - `kind_testkey.py` made its cluster, and the Koodam Workspace `shop` was not running after the wait of 600 seconds. The script deleted its cluster. The cause is probably the low free space of Docker, but the cluster is gone, so I have no pod events.
 
+The `hooks-codex` relay run did not complete, for a setup problem of the worktree ([Runs with Codex](#runs-with-codex)).
+
 No other run failed.
 
 ## The carried records
@@ -107,9 +122,10 @@ These proofs did not run for 0.6.2, and each keeps its last record:
 
 | Proof | Why it did not run | Last record |
 |---|---|---|
-| P1 to P4 of `proofs_relay.py`, the Codex setups, the streamed forms and the chat page | It needs the model. | 0.6.0, [Claude Code run notes of 0.6.0](claude-code-0.6.0.md#runs-with-the-model) |
+| P1 to P4 of `proofs_relay.py` for hooks-codex | Its run did not complete ([Runs with Codex](#runs-with-codex)). | 0.6.0, [Codex run notes of 0.6.0](codex-0.6.0.md#runs) |
+| P1 to P4 of `proofs_relay.py`, the streamed forms and the chat page | It needs the model. | 0.6.0, [Claude Code run notes of 0.6.0](claude-code-0.6.0.md#runs-with-the-model) |
 | `proof_trace.py` | It needs the model. | 0.6.1, [run notes](claude-code-0.6.1.md#runs-of-both-harnesses) |
-| `proof_codex_gate.py`, `proof_codex_hook_keys.py` | It runs a Codex job. | 0.6.1, [Codex run notes](codex-0.6.1.md), [run notes](claude-code-0.6.1.md#runs-with-no-model) |
+| `proof_codex_hook_keys.py` | It runs a Codex job. | 0.6.1, [run notes](claude-code-0.6.1.md#runs-with-no-model) |
 | Each other proof with the model | It needs the model. | 0.6.0, [carried records of 0.6.1](claude-code-0.6.1.md#the-carried-records) |
 | `proof_cluster_tap.py`, `kind_testkey.py` | It needs a kind cluster. | 0.6.1, [run notes](claude-code-0.6.1.md#runs-with-docker-and-kind) |
 
