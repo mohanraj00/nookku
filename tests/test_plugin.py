@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from nookku import __version__, kit, mcp
+from nookku import __version__, claude_gate, kit, mcp
 
 ROOT = Path(__file__).resolve().parent.parent
 PLUGIN = ROOT / "plugins" / "nookku"
@@ -40,6 +40,16 @@ def test_the_function_hooks_are_only_in_the_claude_code_manifest() -> None:
     assert load(PLUGIN / "hooks" / "display.json") == {"modules": ["./register.tsx"]}
     # The plugin has no options. Each option comes from the config of the project.
     assert "userConfig" not in claude
+
+
+def test_the_hash_file_has_the_hash_of_each_hook_file() -> None:
+    # The start check compares each install with its own hash file (#628). After a change of a
+    # hook file, run scripts/plugin_hashes.py.
+    table = load(PLUGIN / claude_gate.PLUGIN_HASHES)
+    assert table == {"v": 1, "files": claude_gate.hook_files(PLUGIN)}
+    assert {"hooks/hooks.json", "hooks/nookku-hook.sh", ".claude-plugin/plugin.json"} <= set(
+        table["files"]
+    )
 
 
 def test_the_two_manifests_name_the_same_plugin() -> None:

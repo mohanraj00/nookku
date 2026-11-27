@@ -1,0 +1,21 @@
+{
+ "answer": {
+  "hookSpecificOutput": {
+   "hookEventName": "PreToolUse",
+   "permissionDecision": "deny",
+   "permissionDecisionReason": "nookku: .nookku/tests/refused-20261127-120000-0a1b2c3d/report.md is a record or a state file of nookku. Only nookku writes it. A command may read it."
+  }
+ },
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "content": "# Report\n",
+   "file_path": ".nookku/tests/refused-20261127-120000-0a1b2c3d/report.md"
+  },
+  "tool_name": "Write"
+ },
+ "links": {},
+ "state": true,
+ "test": false
+}
