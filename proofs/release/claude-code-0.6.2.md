@@ -88,7 +88,13 @@ The 2 versions give the same result. Thus [#704](https://github.com/mohanraj00/n
 
 ## The failed runs
 
-Run 1 of `proof_sdk_bundles.py` exited with 1. My shell loop gave the 6 versions to the script as 1 argument, so uv could not install the release. Run 2 gave each version as its own argument and passed. No other run failed.
+Run 1 of `proof_sdk_bundles.py` exited with 1. My shell loop gave the 6 versions to the script as 1 argument, so uv could not install the release. Run 2 gave each version as its own argument and passed. 
+The owner gave kind slot 2 on 2026-11-27. Before the runs, at 19:54 UTC, the 1-minute load was 5.74, and `kind get clusters` gave 1 cluster of another project. Both runs failed for a cause outside Nookku, and each kept its 0.6.1 record:
+
+- `proof_cluster_tap.py` stopped before it made a cluster: "Docker has 899 MB free, below 1200 MB. Stop; do not prune." I did not prune.
+- `kind_testkey.py` made its cluster, and the Koodam Workspace `shop` was not running after the wait of 600 seconds. The script deleted its cluster. The cause is probably the low free space of Docker, but the cluster is gone, so I have no pod events.
+
+No other run failed.
 
 ## The carried records
 
