@@ -46,15 +46,15 @@ ROOT = Path(__file__).resolve().parent.parent
 
 # The pinned Koodam tag (docs/getting-started-cluster.md#the-koodam-tag-of-the-release-samples).
 # Use only a tag of a Koodam release.
-KOODAM_TAG = "v0.4.0"
+KOODAM_TAG = "v0.5.0"
 # The commit of the tag. The result records it. The SHA-256 values below pin the bytes.
-KOODAM_COMMIT = "1a8c3a133c4155e1120268109e7436d07cbcb095"
+KOODAM_COMMIT = "a08e48c52915b01609d5e50ae660495232328432"
 SPANS, LOGS, INGRESS = "egress-spans.jsonl", "gateway-log.jsonl", "app-ingress-spans.jsonl"
 # The SHA-256 of each sample file of the pinned tag, from `checksums.txt` of the release.
 SAMPLES = {
-    SPANS: "016cac2cdb7468973cc275c8efe1fce80e73feca46b7c35fcb7470415a1e7a63",
-    LOGS: "191ba84384df90e41bcaafd07d07bc737ea75bcc565311253e9d7362e0db0f8b",
-    INGRESS: "1282eb24a1010ceddadd445e838964b1c131653297d73c6daf7a07d2c62bed80",
+    SPANS: "d21892b1b19f344d262e1d040e38b72a128dcc2ed0c0a9ba7c176a70e9b0eb4d",
+    LOGS: "5968807b7d89ddf09d3b80df1452d0d726bbaaa7de4bf663ac3ab0ad95578b03",
+    INGRESS: "241339e5a4b7c96ac290bf9968aa24529499416a33caac0ce14948d6e2d38227",
 }
 ASSET = "https://github.com/mohanraj00/koodam/releases/download/{tag}/{name}"
 # The most bytes of a sample file that the script reads. This is a chosen value.
