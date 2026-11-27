@@ -1,17 +1,23 @@
 {
- "date": "2026-10-30",
+ "date": "2026-11-27",
  "method": "scripts/proof_cluster.py",
  "guide": "docs/getting-started-cluster.md",
- "test": "20261030-181505-0fbe",
+ "test": "20261127-123950-ddba",
  "versions": {
-  "nookku": "0.5.6",
-  "nookku_in_pod": "0.5.6",
-  "claude-code": "2.1.302 (Claude Code)",
-  "koodam_chart": "0.3.0",
-  "koodam_controller": "ghcr.io/mohanraj00/koodam:0.3.0",
-  "koodam_workspace": "ghcr.io/mohanraj00/koodam-workspace@sha256:93ae73bd2898218af72715d8137a36ac3ac2aad98582a4485e5c9472573134f8",
-  "koodam_cli": "koodam 0.3.0",
-  "uv_in_pod": "uv 0.10.8",
+  "nookku_checkout": "0.6.1",
+  "nookku_in_pod": "0.6.0",
+  "claude-code": "2.1.319 (Claude Code)",
+  "koodam_tag": "v0.5.0",
+  "koodam_commit": "a08e48c52915b01609d5e50ae660495232328432",
+  "koodam_chart": "0.5.0@sha256:746593cfa80ee90bf4a4244d64aba072ce5cd1c8bc3ae720a0d2f1357e6032f2",
+  "koodam_controller": "ghcr.io/mohanraj00/koodam:0.5.0",
+  "koodam_nookku_image": "ghcr.io/mohanraj00/koodam-nookku@sha256:be6c674c2699532e3d2b94a89a96b3ad7ea9b92ac0e694459987e1fe2e9d2a2e",
+  "koodam_nookku_image_in_pod": "ghcr.io/mohanraj00/koodam-nookku@sha256:be6c674c2699532e3d2b94a89a96b3ad7ea9b92ac0e694459987e1fe2e9d2a2e",
+  "workspace_base": "ghcr.io/mohanraj00/koodam-workspace:0.5.0@sha256:b4f428400d0bda4e8698b92bcc12111e1f25213ea6ce4c6a804c787ec566180a",
+  "workspace_image": "nookku-proof/workspace-python:0.5.0 sha256:36ec99af1475d16e94e8c0a27a76f6b6bab16e6139f92cc4582206161613e3e2",
+  "workspace_image_in_pod": "docker.io/library/import-2026-11-27@sha256:7e1c7fd521cd8f189b62edc8087e75f99b65eec8acb859375029c1239193e983",
+  "python_in_pod": "Python 3.13.5",
+  "koodam_cli": "koodam 0.5.0",
   "app_image": "python:3.13-alpine",
   "kind": "v0.33.0",
   "kubernetes": "v1.37.0",
@@ -19,15 +25,50 @@
   "docker": "29.5.2",
   "os": "Darwin"
  },
- "disk_free_mb_after_install": 1507,
+ "disk_free_mb_after_install": 1757,
  "W1_workspace": {
   "phase": "Running",
-  "traced_egress": "True",
+  "conditions": {
+   "GatewayKey": "True",
+   "ProfileBound": "True",
+   "Ready": "True",
+   "SSHKeysValid": "True",
+   "Harnesses": "True",
+   "TracedEgress": "True"
+  },
+  "init_exit_codes": {
+   "koodam-nookku-python": 0,
+   "koodam-nookku-files": 0
+  },
+  "nookku_on_image_path": "",
+  "nookku_on_image_path_issue": "https://github.com/mohanraj00/koodam/issues/476",
+  "python3_imports_nookku": false,
+  "python3_imports_nookku_issue": "https://github.com/mohanraj00/koodam/issues/478",
+  "preset": {
+   "nookku_path": "/koodam/bin/nookku",
+   "nookku_version": "0.6.0",
+   "python3": "Python 3.13.5",
+   "python3_flags": [
+    "1",
+    "1"
+   ],
+   "tests_dir": "/home/dev/nookku-tests",
+   "tests_dir_mode": "700",
+   "tests_dir_on_home": "/home/dev",
+   "files_read_only": true,
+   "plugin_files": 10,
+   "plugin_same_as_tag": true,
+   "plugin_differences": []
+  },
   "plugins": [
    "cc-plugin-agents-md@builtin",
    "cc-plugin-plugin-authoring@builtin",
+   "cc-plugin-privacy@builtin",
    "cc-plugin-telemetry@builtin",
-   "nookku@nookku"
+   "nookku@inline"
+  ],
+  "plugin_paths": [
+   "/koodam/nookku/plugin"
   ],
   "mcp_servers": [
    "plugin:nookku:nookku"
@@ -35,6 +76,7 @@
   "pass": true
  },
  "W2_turns": {
+  "test_folder": "/home/dev/nookku-tests/20261127-123950-ddba",
   "turns": [
    {
     "message": 1,
@@ -63,23 +105,25 @@
   "pass": true
  },
  "W3_egress": {
-  "export_sha256": "627f6cef16a6a3da23afe43f5babd260dc2797fb942115ce59690f9de4cba18d",
-  "export_rows": 8,
+  "export_sha256": "d851af701aba6e389d416b6571586d5b50a13a36f2df5a50dc4ad227589d232c",
+  "export_rows": 12,
   "copy_same": true,
   "sealed": true,
   "egress": {
    "file": "egress.jsonl",
-   "rows": 8,
+   "rows": 12,
    "spans": 2,
    "hosts": [
     "example.com"
    ],
    "ignored": {
-    "egress_ignore": 6
+    "egress_ignore": 7,
+    "llm": 3
    }
   },
   "harness_hosts_ignored": [
-   "api.anthropic.com"
+   "api.anthropic.com",
+   "koodam-litellm.koodam-system.svc:4000"
   ],
   "planted_calls": {
    "http": "HTTP/1.1 200 OK",
@@ -94,6 +138,7 @@
   "kinds": [
    "connect",
    "http",
+   "llm",
    "tls"
   ],
   "pass": true
@@ -101,7 +146,7 @@
  "W4_evaluation": {
   "report_written": false,
   "report_table_rows": 0,
-  "verify": "Test 20261030-181505-0fbe. Seal: intact. No record changed after the end of the test.",
+  "verify": "Test 20261127-123950-ddba. Seal: intact. No record changed after the end of the test.",
   "answer": null,
   "pass": null
  },
