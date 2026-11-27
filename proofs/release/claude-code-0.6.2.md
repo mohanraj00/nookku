@@ -65,9 +65,12 @@ The owner gave Codex slot 3, and did the 3 person steps of [run-the-proofs.md](.
 | Hook gate, part A |  | `uv run python scripts/proof_codex_gate.py` | 8 of 8 checks pass, run 1 | [results](../codex-gate/gate.json) |
 | Hook gate, part B |  | `uv run python scripts/proof_codex_gate.py --trusted`, after the owner trusted the 2 hooks | 5 of 5 checks pass, run 1 | [results](../codex-gate/gate.json) |
 | P1 to P4 | plugin-codex | `uv run python scripts/proofs_relay.py plugin-codex` | pass, run 1 | [results](../plugin-codex/results.json) |
-| P1 to P4 | hooks-codex | `uv run python scripts/proofs_relay.py hooks-codex` | not complete, run 1: setup problem | none, the 0.6.0 record stays |
+| P1 to P4 | hooks-codex | `uv run python scripts/proofs_relay.py hooks-codex` | not complete, run 1: setup problem | none |
+| P1 to P4 | hooks-codex | `uv run python scripts/proofs_relay.py hooks-codex`, in a separate clone | pass, run 2 | [results](../hooks-codex/results.json) |
 
-In the `hooks-codex` run, the prompt `nookku start` did not start a test. The proof wrote the project hooks of 0.6.2 in `.proof/codex/` of this worktree. Then `hooks/list` of codex-cli 0.169.0, with this folder as its `cwds`, gave the hooks of `.proof/codex/` in the main checkout of the repo. That file is from 2026-11-20 and has the hook command of an older version (`python3 -m nookku hook`). So the gate of 0.6.2 found each project hook `modified` and refused the test, as it must. I think that Codex finds the project of a git worktree through the main checkout, but I did not prove it. This is a problem of the proof setup in a worktree, not a fault of Nookku. I did not run it again. A new run needs the main checkout or a project folder outside the repo, and a new trust step.
+In run 1 of `hooks-codex`, the prompt `nookku start` did not start a test. The proof wrote the project hooks of 0.6.2 in `.proof/codex/` of this worktree. Then `hooks/list` of codex-cli 0.169.0, with this folder as its `cwds`, gave the hooks of `.proof/codex/` in the main checkout of the repo. That file is from 2026-11-20 and has the hook command of an older version (`python3 -m nookku hook`). So the gate of 0.6.2 found each project hook `modified` and refused the test, as it must. This is a problem of the proof setup in a worktree, not a fault of Nookku, so I did not run it again in the worktree.
+
+The cause is the project trust of Codex. The config of the `CODEX_HOME` of the setup trusts the project of the main checkout of the repo, and the trusted hooks have paths in that checkout. Codex maps a path in a git worktree to the main checkout: `hooks/list` gave the hooks of the main checkout for `.proof/codex` of the worktree, and also for a symlink from that path to a folder outside the repo. For a project folder that is not trusted, `hooks/list` gives no project hooks. `proofs_relay.py` always uses `<repo>/.proof/codex`, so the rerun used a separate git clone of the branch outside the repo, with its own virtual environment. That path has a space (`Application Support`). The hook command quotes the Python path and the root, and it ran through `sh -c` with exit 0. The `CODEX_HOME` of the clone is a link to the `CODEX_HOME` of the worktree, so the owner did not log in again. The owner trusted the project of the clone and its 2 hooks. Run 2 started at 20:41 UTC in the clone at 9e9b6136, and passed. I copied `proofs/hooks-codex/` of the clone into the worktree. The record has no path of the clone.
 
 ## Runs with kind
 
@@ -120,7 +123,7 @@ The 2 versions give the same result. Thus [#704](https://github.com/mohanraj00/n
 Run 1 of `proof_sdk_bundles.py` exited with 1. My shell loop gave the 6 versions to the script as 1 argument, so uv could not install the release. Run 2 gave each version as its own argument and passed. 
 Run 1 of `proof_cluster_tap.py` and run 1 of `kind_testkey.py` failed for a cause outside Nookku ([Runs with kind](#runs-with-kind)).
 
-The `hooks-codex` relay run did not complete, for a setup problem of the worktree ([Runs with Codex](#runs-with-codex)).
+Run 1 of the `hooks-codex` relay did not complete, for a setup problem of the worktree. Run 2 in a separate clone passed ([Runs with Codex](#runs-with-codex)).
 
 No other run failed.
 
@@ -135,7 +138,6 @@ These proofs did not run for 0.6.2, and each keeps its last record:
 
 | Proof | Why it did not run | Last record |
 |---|---|---|
-| P1 to P4 of `proofs_relay.py` for hooks-codex | Its run did not complete ([Runs with Codex](#runs-with-codex)). | 0.6.0, [Codex run notes of 0.6.0](codex-0.6.0.md#runs) |
 | P1 to P4 of `proofs_relay.py`, the streamed forms and the chat page | It needs the model. | 0.6.0, [Claude Code run notes of 0.6.0](claude-code-0.6.0.md#runs-with-the-model) |
 | `proof_trace.py` | It needs the model. | 0.6.1, [run notes](claude-code-0.6.1.md#runs-of-both-harnesses) |
 | `proof_codex_hook_keys.py` | It runs a Codex job. | 0.6.1, [run notes](claude-code-0.6.1.md#runs-with-no-model) |

@@ -1,5 +1,5 @@
 {
- "date": "2026-11-21",
+ "date": "2026-11-27",
  "setup": "hooks-codex",
  "harness": "codex",
  "version": "codex-cli 0.169.0",
@@ -90,14 +90,14 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "I’ll run the requested local POST and return the response.\nThe command was blocked by the Nookku PreToolUse hook:\n\n```text\nnookku: only the tester talks to the agent\n```"
+  "model_text": "I’ll run the requested local `curl` command and report its output.\nThe command was blocked by the Nookku PreToolUse hook:\n\n`nookku: only the tester talks to the agent.`"
  },
- "end_model_output_tokens": 2167,
+ "end_model_output_tokens": 2495,
  "test": {
   "ended": true,
   "model_sessions": [],
   "versions": {
-   "nookku": "0.6.0",
+   "nookku": "0.6.2",
    "claude-code": "2.1.319 (Claude Code)",
    "codex": "codex-cli 0.169.0"
   }
