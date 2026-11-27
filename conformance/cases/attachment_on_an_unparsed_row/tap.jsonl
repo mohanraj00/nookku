@@ -1,0 +1,1 @@
+{"v": "0.5", "type": "unparsed", "ts": 1.0, "method": "POST", "path": "/", "error": "the request body is not JSON", "attachments": [{"media_type": "image/png", "bytes": 72, "sha256": "99f2ab2980589ba64226149678211f2870a591e63540320a961030867cd4c5c4"}]}

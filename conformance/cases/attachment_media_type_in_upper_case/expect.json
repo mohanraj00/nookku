@@ -1,0 +1,7 @@
+{
+ "exit": 2,
+ "errors": [
+  "record_invalid"
+ ],
+ "reader_error": "line 1: attachment 1 has a media type that is not lower-case type/subtype"
+}

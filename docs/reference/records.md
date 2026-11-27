@@ -38,6 +38,7 @@ Each test is a new conversation, with a new test id and a new entry process. The
 | `notes.jsonl` | Your notes on the turns, from the chat page: a thumbs up, a thumbs down or a comment. The [evaluation](glossary.md#evaluation) reads them as your opinion, not as a [finding](glossary.md#findings). | [SPEC.md section 2.3](../../SPEC.md#23-notes-record) |
 | `script.jsonl` or `script.json` | Only in a scripted test: a copy of the script file. | [SPEC.md section 7.10](../../SPEC.md#710-scripted-tests) |
 | `tap.jsonl` | What the entry received and sent, and the model sessions that the tap found. | [SPEC.md section 2.1](../../SPEC.md#21-tap-record) |
+| `tap.attachments/`, `relay.attachments/` | The bytes of each attachment of a record, in a file named by its SHA-256 ([attachments.md](attachments.md)). | [SPEC.md section 2.4](../../SPEC.md#24-attachments) |
 | `app.log` | The stderr of the entry and your app. | text |
 | `bridge.log` | The steps of the bridge, and each error of the [trace](glossary.md#trace), the [audit](glossary.md#audit) or the seal. | text |
 | `manifest.json` | The test id, the times, the entry, the harness versions and the SHA-256 of each configuration file. | [SPEC.md section 7.2](../../SPEC.md#72-start-and-end) |
@@ -65,7 +66,7 @@ The seal does not contain `report.md`, `bridge.log`, `seal.json` and `denied.jso
 
 | Record | Version | Defined in |
 |---|---|---|
-| [Tap record](glossary.md#tap-record) and relay record | `"0.2"`. The row of a failed stream in the tap record is `"0.3"`. A reader accepts `"0.1"`, `"0.2"` and `"0.3"`. | [SPEC.md section 2](../../SPEC.md#2-record-format) |
+| [Tap record](glossary.md#tap-record) and relay record | `"0.2"`. The row of a failed stream in the tap record is `"0.3"`. A row with attachments is `"0.5"`. A reader accepts `"0.1"`, `"0.2"`, `"0.3"` and `"0.5"`. | [SPEC.md section 2](../../SPEC.md#2-record-format) |
 | [Agent contract](glossary.md#agent-contract) | `1` | [SPEC.md section 6](../../SPEC.md#6-agent-contract-version-1) |
 | Trace row | `"0.3"` | [SPEC.md section 8.2](../../SPEC.md#82-trace-record) |
 | Seal | `1` | [SPEC.md section 7.4](../../SPEC.md#74-seal) |

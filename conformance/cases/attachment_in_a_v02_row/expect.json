@@ -1,0 +1,7 @@
+{
+ "exit": 2,
+ "errors": [
+  "record_invalid"
+ ],
+ "reader_error": "line 1: version 0.5 is for an exchange or a turn with 'attachments'"
+}

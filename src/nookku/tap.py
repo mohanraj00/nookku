@@ -18,7 +18,7 @@ from urllib.parse import urlsplit
 
 from nookku import websocket
 from nookku.adapters import Adapter, AdapterError, JsonAdapter, StreamError, is_stream
-from nookku.record import Writer, lone_surrogate
+from nookku.record import Writer, lone_surrogate, write_attachment
 from nookku.stdio import TIMEOUT, bind, write_failed
 
 HOP_BY_HOP = {
@@ -158,6 +158,15 @@ class _Handler(BaseHTTPRequestHandler):
         body = json.dumps({"error": message}).encode()
         self._send(status, [("Content-Type", "application/json")], body)
 
+    # The attachments of the current request, as rows give them (SPEC.md section 2.4).
+    _attachments: list[dict[str, object]] = []  # noqa: RUF012 (each request sets a new list)
+
+    def _attached(self, row: dict[str, object]) -> dict[str, object]:
+        """The row with the attachments of the request, if it is an exchange (SPEC.md 2.4)."""
+        if row.get("type") != "exchange" or not self._attachments:
+            return row
+        return {**row, "attachments": self._attachments}
+
     def _write(self, row: dict[str, object]) -> bool:
         """Write one row of a response that is not a stream. If the write fails, write the error
         to stderr, answer 502 with a message that names the record, and return False. The caller
@@ -166,7 +175,7 @@ class _Handler(BaseHTTPRequestHandler):
         A caller can be on another computer (--listen), so the 502 body gives only the file name
         of the record. The full path and the OS error go to stderr."""
         try:
-            self.server.writer.append(row)
+            self.server.writer.append(self._attached(row))
         except OSError as e:
             self._error(502, write_failed(self.server.writer.path, e))
             return False
@@ -194,6 +203,22 @@ class _Handler(BaseHTTPRequestHandler):
             if found:
                 # The record cannot hold the message. The tap marks it as unparsed.
                 message, parse_error = None, f"request: the message has {found}"
+        # The attachments of the message (SPEC.md section 2.4). The side files go to disk before
+        # the request goes to the agent. If the tap cannot write them, it sends nothing.
+        self._attachments = []
+        if message is not None:
+            try:
+                images = tap.adapter.attachments(body)
+            except AdapterError as e:
+                message, parse_error = None, f"request: {e}"
+            else:
+                try:
+                    self._attachments = [
+                        write_attachment(tap.writer.path, media, data) for media, data in images
+                    ]
+                except OSError as e:
+                    self._error(502, write_failed(tap.writer.path, e))
+                    return
 
         headers = {k: v for k, v in self.headers.items() if k.lower() not in NOT_FORWARDED}
         headers["Accept-Encoding"] = "identity"
@@ -518,7 +543,7 @@ class _Handler(BaseHTTPRequestHandler):
                 tap.writer.append({**unparsed, "error": f"response: {e}"})
                 return
         row.update(parts.fields(raw))
-        tap.writer.append(row)
+        tap.writer.append(self._attached(row))
 
     do_GET = do_POST = do_PUT = do_PATCH = do_DELETE = do_HEAD = do_OPTIONS = _forward
 

@@ -129,6 +129,12 @@ BREAK_FIX = {
     "not_delivered": "The agent did not receive the check message. Read bridge.log and app.log.",
     "altered_reply": "The check got a different reply from the agent. Read bridge.log.",
     "unshown_reply": "The check did not get the reply of the agent. Read bridge.log.",
+    "altered_attachment": f"The agent received a different attachment. {ONE_SENDER}",
+    "missing_attachment": "The agent did not receive an attachment of the check. Read bridge.log.",
+    "extra_attachment": f"The agent received an attachment that the check did not send. "
+    f"{ONE_SENDER}",
+    "missing_attachment_file": "A side file of an attachment does not exist. Run nookku verify.",
+    "altered_attachment_file": "A side file of an attachment changed. Run nookku verify.",
     "script_mismatch": "A turn of the relay record is not the script message at its position. "
     "Read relay.jsonl and the script copy in the test folder.",
 }

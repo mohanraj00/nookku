@@ -17,7 +17,7 @@ Two processes write two records. The relay writes the **relay record**: what the
 
 ## 2. Record format
 
-Each record is a UTF-8 JSONL file. Each line is one JSON object. Each object has a version `v` and a `type`. A writer writes `"v": "0.2"`, except for the row of a failed stream (section 2.1), which has `"v": "0.3"`. A reader accepts `"0.1"`, `"0.2"` and `"0.3"`. The tap record also uses `"0.4"` for SSE parts and WebSocket frames. A type or a field that this section marks as 0.2 is not valid in a `"0.1"` row. A `"0.3"` row can have each type and field of a `"0.2"` row. Each text field has a `<field>_sha256` field: the SHA-256 of the UTF-8 bytes of the text, in lower-case hex. If the text is `null`, its hash is `null`. `ts` is a Unix time in seconds.
+Each record is a UTF-8 JSONL file. Each line is one JSON object. Each object has a version `v` and a `type`. A writer writes `"v": "0.2"`, except for the row of a failed stream (section 2.1), which has `"v": "0.3"`. A reader accepts `"0.1"`, `"0.2"`, `"0.3"` and `"0.5"`. The tap record also uses `"0.4"` for SSE parts and WebSocket frames. A row with attachments has `"v": "0.5"` (section 2.4). A type or a field that this section marks as 0.2 is not valid in a `"0.1"` row. A `"0.3"` row can have each type and field of a `"0.2"` row. Each text field has a `<field>_sha256` field: the SHA-256 of the UTF-8 bytes of the text, in lower-case hex. If the text is `null`, its hash is `null`. `ts` is a Unix time in seconds.
 
 **Version 0.3.** The row of a failed stream has a 2xx status and `reply: null`. A reader of verbatim-relay 0.2.0 refuses this row as `record_invalid`, because it does not know the rule of a failed stream. Thus this row has version 0.3, and a 0.2.0 reader gives an error that names the version. The other exchange rows keep version 0.2. A row of a failed stream with version `"0.1"` or `"0.2"` is not valid.
 
@@ -44,8 +44,9 @@ The relays refuse a message with a lone surrogate (section 5). The other writers
 | `started` | number | Optional, 0.2. The Unix time when the tap sent the request to the agent. `ts` is the time when the tap wrote the row. |
 | `replied` | number | Optional, 0.2. Only for a second message in stdio mode (section 4.2), if its reply line came during the turn of the message before it: the Unix time when the tap got the reply line. The tap writes the row later, after the row of that message. |
 | `stream` | object | Optional, 0.2. The tap writes it if the response is a stream (section 4.1). `sha256` is the SHA-256 of the raw response body, as the tap forwarded it, in lower-case hex. `bytes` is the size of that body. |
+| `attachments` | list | Optional, 0.5. The binary parts of the message that the agent received, for example an image, in the order of the request (section 2.4). |
 
-A streamed reply: the tap writes one `exchange` row when the stream ends. `reply` is the complete reply that the adapter joins from the stream. For a stream with part rows and a non-null reply, the reader checks that the recorded bytes give this reply. The audit then compares it with the relay text. If the stream failed (section 4.1), the row has the 2xx status, `reply: null`, `stream` and `error`, and `"v": "0.3"`. A row with a 2xx status and `reply: null` must have `stream`, `error` and `"v": "0.3"`.
+A streamed reply: the tap writes one `exchange` row when the stream ends. `reply` is the complete reply that the adapter joins from the stream. For a stream with part rows and a non-null reply, the reader checks that the recorded bytes give this reply. The audit then compares it with the relay text. If the stream failed (section 4.1), the row has the 2xx status, `reply: null`, `stream` and `error`, and `"v": "0.3"`. A row with a 2xx status and `reply: null` must have `stream`, `error` and `"v": "0.3"`, or `"v": "0.5"` if it has `attachments`.
 
 
 `stream_part` and `websocket_frame` (0.4) record the bytes and the Unix time `ts` of each part that the tap observes. Both row types have `stream_id` (the tap's id for this exchange), `index` (from 1 in the order of the stream), `base64` (the exact bytes), and `sha256` (the hash of those bytes). An SSE part is the bytes of one read from the response body. It can hold part of an event, an event or more than one event. A WebSocket row holds one full wire frame, including its header and mask if present. It also has `direction` (`to_agent` or `from_agent`), `opcode` and `final` (the FIN bit).
@@ -90,6 +91,7 @@ In stdio mode, the tap writes these `status` values:
 | `shown` | string or null | The exact text that the relay showed to the tester. `null` if the relay showed no reply. |
 | `ok` | boolean | Optional. `true` if `shown` is the agent's reply, `false` if it is an error from the relay. |
 | `session` | string | Optional. The harness session id. |
+| `attachments` | list | Optional, 0.5. The binary parts of the message that the tester submitted, for example an image, in the order of the message (section 2.4). |
 
 In a test (section 7), the relay record is `relay.jsonl` in the test folder.
 
@@ -124,6 +126,28 @@ A note is the opinion of the tester, not a finding. The evaluation prompt (secti
 
 The cases are in [`conformance/notes/`](conformance/notes/).
 
+### 2.4 Attachments
+
+A message can have binary parts, for example an image or a file. This spec calls them attachments. A row does not hold the bytes of an attachment. A row holds a description of each attachment, and the bytes go in a side file next to the record.
+
+`attachments` is a list of 1 or more objects, in the order of the message. Each object has exactly these 3 keys:
+
+| Key | Type | Meaning |
+|---|---|---|
+| `media_type` | string | The media type of the attachment, for example `image/png`: lower-case, `type/subtype`, with no parameters. |
+| `bytes` | integer | The size of the attachment in bytes, 0 or more. |
+| `sha256` | string | The SHA-256 of the bytes of the attachment, in lower-case hex. |
+
+**Side file.** The bytes of an attachment are in the file `<stem>.attachments/<sha256>` in the folder of the record. `<stem>` is the name of the record file with no `.jsonl`. Thus the side files of `tap.jsonl` are in `tap.attachments/`, and the side files of `relay.jsonl` are in `relay.attachments/`. Each record has its own side files, because the tap and the relay each write what they saw. The name is the hash, so 2 attachments with the same bytes in one record use one file. A writer writes the side file and flushes it to disk before it writes the row ([`record.write_attachment`](src/nookku/record.py)). A side file that no row names is not a break.
+
+**Version 0.5.** An `exchange` row or a `turn` row with `attachments` has `"v": "0.5"`. No other row has this version, and a row with `"v": "0.5"` must have `attachments`. A `"0.5"` row can have each field of a `"0.3"` row, also the fields of a failed stream. A reader of Nookku 0.6.x ignores a field that it does not know, so it does not check the attachments. The new version makes it refuse the row, with an error that names the version. A row with no `attachments` does not change, so each record of an older version stays valid.
+
+**Reader.** The reader (section 2) checks the form of `attachments`: a list of 1 or more objects with the 3 keys and their types. A row that breaks this form is `record_invalid`. The reader does not read the side files, so the trace and the other readers do not need them. The audit checks them (section 3.2, step 8).
+
+**Seal.** The seal covers each file of the test folder and its subfolders (section 7.4). Thus it covers `tap.attachments/` and `relay.attachments/`. A change to a side file after the end of a test breaks the seal.
+
+The harness surfaces that can carry an attachment, and the attachments that the tap captures, are in [docs/reference/attachments.md](docs/reference/attachments.md). The cases are `attachment_*` in [`conformance/cases/`](conformance/cases/).
+
 ## 3. Audit
 
 ### 3.1 Validity
@@ -131,7 +155,7 @@ The cases are in [`conformance/notes/`](conformance/notes/).
 The audit stops with exit code 2 and does not report breaks if one of these conditions occurs:
 
 - `record_missing`: a record file does not exist or cannot be read.
-- `record_invalid`: a line is not a JSON object, has a wrong `v` or an unknown `type`, has a missing or wrongly typed field, has a hash that does not match its text, has a `reply` that does not agree with its `status` (section 2.1), or has a lone surrogate or a `NaN`, `Infinity` or `-Infinity` value (section 2).
+- `record_invalid`: a line is not a JSON object, has a wrong `v` or an unknown `type`, has a missing or wrongly typed field, has `attachments` that break the form of section 2.4, has a hash that does not match its text, has a `reply` that does not agree with its `status` (section 2.1), or has a lone surrogate or a `NaN`, `Infinity` or `-Infinity` value (section 2).
 - `tap_unparsed`: the tap record has an `unparsed` row. The audit cannot check that exchange.
 
 With a script (section 7.10), a script file that cannot be read is `record_missing`, and a script that breaks the rule of its form is `record_invalid`. Each has `"record": "script"`.
@@ -157,6 +181,10 @@ The audit compares text byte for byte. It does not normalize whitespace, line en
    - If `shown` is `null`, it is an `unshown_reply` break.
    - If `shown` is not equal to `reply`, it is an `altered_reply` break.
 7. **Script.** Only with a script (section 7.10). Turn n of the relay record must have the harness `script` and a `said` equal to message n of the script, byte for byte. Each turn that breaks this rule is a `script_mismatch` break. Each turn after the last message and each message after the last turn is also a `script_mismatch` break. The evidence has `script_message`, the 1-based index of the message or `null`. For a changed text, it also has the first difference. For a turn with another harness or with no message, it has `harness`.
+8. **Attachments** (section 2.4).
+   - For each pair from steps 1, 2 and 4, the audit compares attachment n of the turn with attachment n of the exchange. The 3 keys must be equal. If they are not equal, it is an `altered_attachment` break. An attachment of the turn with no attachment n in the exchange is a `missing_attachment` break. An attachment of the exchange with no attachment n in the turn is an `extra_attachment` break.
+   - For each attachment of each row of the 2 records, the audit reads its side file. If the file does not exist or cannot be read, it is a `missing_attachment_file` break. If the SHA-256 or the size of its bytes is not the value in the row, it is an `altered_attachment_file` break. This break has the line of its record and `null` for the other record.
+   - The evidence has `attachment`, the 1-based index of the attachment, and `detail`, a text that names the attachment and each difference. `nookku audit` prints `detail` after the break. For a side file, it also has `record` (`tap` or `relay`), `file` (its path from the folder of the record), `actual_sha256` and `actual_bytes`, or `null` for a missing file.
 
 ### 3.3 Break classes
 
@@ -169,6 +197,11 @@ The audit compares text byte for byte. It does not normalize whitespace, line en
 | `not_delivered` | The tester typed a message, and the agent did not receive it. |
 | `altered_reply` | The tester saw a reply that is different from the reply that the agent sent. |
 | `unshown_reply` | The relay did not show the agent's reply. |
+| `altered_attachment` | A binary part that the agent received is different from the part that the tester sent at that position. |
+| `missing_attachment` | The tester sent a binary part, and the agent did not receive it. |
+| `extra_attachment` | The agent received a binary part that the tester did not send. |
+| `missing_attachment_file` | A record names a binary part, and its side file does not exist or cannot be read. |
+| `altered_attachment_file` | The bytes of a side file do not have the SHA-256 or the size that its record gives. |
 | `script_mismatch` | In a scripted test, a turn is not the script message at its position, or the counts of turns and messages differ. |
 
 Each break has `relay_line` and `tap_line` (1-based line numbers, or `null`) and `evidence`. For a changed text, the evidence gives the index of the first different character and a short excerpt of each side.
@@ -206,7 +239,7 @@ The audit counts `blocked_call` rows and `model_session` rows. It does not match
 #### Adapters
 
 - **`json`:** the input is at a field path in the request body, and the reply is at a field path in the response body. The defaults are `text` and `reply`. A path uses dots, and a list index is a number, for example `choices.0.message.content`. The `json` adapter does not read a stream. For a 2xx stream, the tap writes an `unparsed` row.
-- **`openai`:** for a `POST` to a path that ends in `/chat/completions`. The input is the `content` of the last message with role `user`. The content must be a string, or a list with exactly one part of type `text`. The reply is `choices.0.message.content`. The request can have `"stream": true`. The tap forwards it without change. The relay sends `"stream": true` only with the option `openai_stream` (section 5).
+- **`openai`:** for a `POST` to a path that ends in `/chat/completions`. The input is the `content` of the last message with role `user`. The content must be a string, or a list with exactly one part of type `text` and 0 or more parts of type `image_url`. The `url` of each `image_url` part must be a `data:` URL with a media type and `;base64,`, for example `data:image/png;base64,iVBORw0K...`, with no other parameter. The tap writes the media type in lower case. The tap decodes each image, writes its side file and gives the exchange its `attachments` (section 2.4). An image with another URL, or with base64 that is not valid, makes the request `unparsed`. The reply is `choices.0.message.content`. The request can have `"stream": true`. The tap forwards it without change. The relay sends `"stream": true` only with the option `openai_stream` (section 5).
 
 The `openai` adapter reads a 2xx stream with these rules:
 
@@ -608,6 +641,7 @@ The seal shows if a file of the test folder changed after the end of the test. I
 | `copy` | boolean | True if the bridge wrote the copy. |
 
 - The seal does not contain `report.md`, `bridge.log`, `seal.json` and `denied.jsonl`, because these files change after the end.
+- The seal contains the side files of the attachments in `tap.attachments/` and `relay.attachments/` (section 2.4).
 - The seal contains `notes.jsonl` (section 2.3), the notes of the tester. The page server writes no note after the end of the test begins, so a change to `notes.jsonl` after the end breaks the seal. The case is `changed_notes` in `conformance/seal/`.
 - The bridge also writes a copy, with the same fields and `copy: true`, to `~/.nookku/seals/<test-id>.json` (under `NOOKKU_HOME` if it is set). If it cannot write the copy, for example in a sandbox, `seal.json` has `copy: false`.
 - If no copy is in `~/.nookku/seals/` but a copy is in `~/.verbatim-relay/seals/` (under `VERBATIM_RELAY_HOME` if it is set), the copy of verbatim-relay 0.3.x and earlier is the copy.

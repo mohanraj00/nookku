@@ -1,0 +1,7 @@
+{
+ "exit": 2,
+ "errors": [
+  "record_invalid"
+ ],
+ "reader_error": "line 1: attachment 1 must have exactly the keys 'bytes', 'media_type' and 'sha256'"
+}
