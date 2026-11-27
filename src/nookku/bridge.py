@@ -360,15 +360,14 @@ def start(
         raise BridgeError(f"test {cur['test']} runs already. End it first.")
     from nookku import claude_gate, codex_gate
 
-    # A refusal adds a row to the refusal log of the state folder (SPEC.md section 7.8).
+    # A refusal writes a sealed refusal record in the tests folder, and adds a row to the
+    # refusal log of the state folder (SPEC.md section 7.8).
     found = claude_gate.problems(root)
     if found:
-        claude_gate.log_refusal(root, "start", "claude-code", found)
-        raise BridgeError(claude_gate.refusal(found))
+        raise _refused(root, "claude-code", found, claude_gate.refusal(found))
     gate = codex_gate.check(root)
     if gate["problems"]:
-        claude_gate.log_refusal(root, "start", "codex", gate["problems"])
-        raise BridgeError(codex_gate.refusal(gate))
+        raise _refused(root, "codex", gate["problems"], codex_gate.refusal(gate))
     # A version skew of the plugin is a warning only (SPEC.md section 7.8).
     for warning in claude_gate.plugin_warnings(root):
         print(warning, file=sys.stderr)
@@ -456,6 +455,38 @@ def start(
         time.sleep(0.1)
     proc.terminate()
     raise BridgeError(f"the test did not start in {wait:g} s:\n{_tail(folder / 'bridge.log')}")
+
+
+def _harness_versions() -> dict[str, str | None]:
+    """The versions of Claude Code and Codex. The 2 `--version` calls run at the same time."""
+    found: dict[str, str | None] = {}
+    lookups = [
+        threading.Thread(target=lambda c=cmd, k=key: found.update({k: _version(c)}), daemon=True)
+        for cmd, key in (("claude", "claude-code"), ("codex", "codex"))
+    ]
+    for lookup in lookups:
+        lookup.start()
+    for lookup in lookups:
+        lookup.join(20)
+    return {"claude-code": found.get("claude-code"), "codex": found.get("codex")}
+
+
+def _refused(root: Path, harness: str, found: list[str], text: str) -> BridgeError:
+    """The error of a refused start. It first writes the sealed refusal record and the row of
+    the refusal log (SPEC.md section 7.8). If the record cannot be written, the start is still
+    refused, and the error says so."""
+    from nookku import claude_gate, refusal
+
+    try:
+        folder = refusal.write(root, harness, found, _harness_versions())
+    except (OSError, TestsDirError) as e:
+        claude_gate.log_refusal(root, "start", harness, found, None)
+        return BridgeError(f"{text}\nnookku cannot write the sealed refusal record: {e}")
+    claude_gate.log_refusal(root, "start", harness, found, folder.name)
+    return BridgeError(
+        f"{text}\nThe sealed refusal record is {folder}. To check its seal, run "
+        f"nookku verify {folder.name}."
+    )
 
 
 def stopped(root: Path) -> Path | None:

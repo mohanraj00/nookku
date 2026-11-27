@@ -93,9 +93,25 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 
 ### `nookku: the Claude Code hooks of nookku are not ready, so nookku refuses the test and does not change relay mode.`
 
-(claude_gate.py) **Cause.** A project hook of `nookku init claude-code` is missing, is there 2 times or is modified, a required hook of the installed plugin is missing or runs another command, or a settings file has `disableAllHooks: true`. The lines after the error name each problem. Without the prompt hook, a message goes to the model ([SPEC.md section 7.8](../SPEC.md#78-codex-hook-gate)).
+(claude_gate.py) **Cause.** A project hook of `nookku init claude-code` is missing, is there 2 times or is modified, a required hook of the installed plugin is missing or runs another command, a hook file of the installed plugin differs from `hook-hashes.json` of the install, or a settings file has `disableAllHooks: true`. The lines after the error name each problem. Without the prompt hook, a message goes to the model ([SPEC.md section 7.8](../SPEC.md#78-codex-hook-gate)).
 
 **Fix.** Run `nookku init claude-code` again, update the plugin to the version of `nookku --version`, or remove `disableAllHooks` from the file that the error names. Then start the test again. `.nookku/refusals.jsonl` keeps a row for each refused start.
+
+Each refused start also writes a sealed refusal record in the tests folder. For example, remove the `UserPromptSubmit` hook from `.claude/settings.local.json` of a toy shop project, and start a test:
+
+```text
+$ nookku start
+nookku: the Claude Code hooks of nookku are not ready, so nookku refuses the test and does not change relay mode. Without the prompt hook, a message goes to the model.
+- the project hook UserPromptSubmit is missing.
+Run nookku init claude-code again, or install the plugin of this version of nookku, or remove disableAllHooks. Then start the test again.
+The sealed refusal record is /home/tester/toy-shop/.nookku/tests/refused-20261127-120000-0a1b2c3d. To check its seal, run nookku verify refused-20261127-120000-0a1b2c3d.
+$ nookku verify refused-20261127-120000-0a1b2c3d
+Refusal record refused-20261127-120000-0a1b2c3d. Seal: intact. No record changed after the end of the test.
+```
+
+No test starts. The file `refusal.json` of the record holds the reasons. The record holds the reasons, and the error names its folder. To check that nobody changed the record, run `nookku verify refused-20261127-120000-0a1b2c3d`. The dashboard, the evaluation and the commands for a test do not show the record as a test ([SPEC.md section 7.8](../SPEC.md#78-codex-hook-gate)).
+
+If the error says that the hook files of the plugin differ from `hook-hashes.json` of the install, a person or a tool changed a file in the install folder of the plugin. Install the plugin again, then start the test again.
 
 ### `nookku: the test did not start:` and `cannot start the entry ['python', 'agent.py']: [Errno 2] No such file or directory: 'python'`
 

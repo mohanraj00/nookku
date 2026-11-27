@@ -717,7 +717,9 @@ def _protected(rest: list[str], during: bool) -> bool:
     if any(c in first for c in "*?["):
         return any(fnmatch.fnmatchcase(r, first) for r in RECORDS)
     if first == "tests" and len(rest) == 3 and rest[2].lower() == "report.md":
-        return False
+        # A sealed refusal record has no report (SPEC.md section 7.8). A glob can match it.
+        name = rest[1]
+        return state.is_refusal(name) or any(c in name for c in "*?[")
     return first in RECORDS
 
 
@@ -1418,12 +1420,18 @@ def parse_test_arg(root: Path, arg: str) -> str:
     raise TranscriptError(f"'{arg}' is not a test id or a test folder. {TESTS_HELP}")
 
 
-def existing_test(root: Path, test: str) -> Path:
+def existing_test(root: Path, test: str, refusal: bool = False) -> Path:
     """The folder of a test id. Raise TranscriptError that names the expected argument if the
-    id is not valid or the test does not exist."""
+    id is not valid or the test does not exist. A sealed refusal record is not a test (SPEC.md
+    section 7.8): only a command with `refusal` true, for example `verify`, takes its id."""
     folder = folder_of_test(root, test)
     if not folder.is_dir():
         raise TranscriptError(f"no test '{test}'. {TESTS_HELP}")
+    if state.is_refusal(folder.name) and not refusal:
+        raise TranscriptError(
+            f"'{test}' is a sealed refusal record of a refused start, not a test. To check its "
+            f"seal, run nookku verify {test}."
+        )
     return folder
 
 

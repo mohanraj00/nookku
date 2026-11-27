@@ -1,0 +1,24 @@
+{
+ "verify": {
+  "test": "refused-20261127-120000-0a1b2c3d",
+  "sealed": true,
+  "intact": false,
+  "copy": "same",
+  "changed": [
+   "refusal.json"
+  ],
+  "missing": [],
+  "added": []
+ },
+ "tests": [],
+ "record_keys": [
+  "v",
+  "refusal",
+  "refused",
+  "command",
+  "harness",
+  "root",
+  "problems",
+  "versions"
+ ]
+}

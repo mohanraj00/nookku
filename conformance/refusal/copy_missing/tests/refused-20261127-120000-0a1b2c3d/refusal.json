@@ -1,0 +1,16 @@
+{
+ "v": 1,
+ "refusal": "refused-20261127-120000-0a1b2c3d",
+ "refused": 1795780800.0,
+ "command": "start",
+ "harness": "claude-code",
+ "root": "/home/tester/toy-shop",
+ "problems": [
+  "the project hook UserPromptSubmit is missing."
+ ],
+ "versions": {
+  "nookku": "0.7.0",
+  "claude-code": "2.1.319",
+  "codex": null
+ }
+}

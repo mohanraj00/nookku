@@ -117,6 +117,17 @@ def is_test_id(name: str) -> bool:
     return TEST_ID.fullmatch(name) is not None
 
 
+# The start of the name of a sealed refusal record in the tests folder (SPEC.md section 7.8,
+# #628). A test id of the bridge starts with a digit, so no test has this name.
+REFUSAL_PREFIX = "refused-"
+
+
+def is_refusal(name: str) -> bool:
+    """True if a folder of the tests folder is a sealed refusal record, not a test. The check
+    ignores case, so a folder on a file system that ignores case is still a refusal."""
+    return name.casefold().startswith(REFUSAL_PREFIX)
+
+
 def tests_dir(root: Path) -> Path:
     """The folder of the tests of the project (SPEC.md section 7): the absolute path in
     NOOKKU_TESTS_DIR, else <root>/.nookku/tests. An empty variable counts as no variable. A
@@ -312,10 +323,13 @@ def _started(folder: Path) -> float:
 def tests_newest_first(root: Path) -> list[Path]:
     """The test folders, the test that started last first. 2 test ids of the same second differ
     only by a random part. A folder whose name is not a test id is not a test, for example
-    `lost+found` on a mounted volume (SPEC.md section 7)."""
+    `lost+found` on a mounted volume (SPEC.md section 7). A sealed refusal record is not a test
+    (SPEC.md section 7.8)."""
     tests = tests_dir(root)
     dirs = (
-        [p for p in tests.iterdir() if p.is_dir() and is_test_id(p.name)] if tests.is_dir() else []
+        [p for p in tests.iterdir() if p.is_dir() and is_test_id(p.name) and not is_refusal(p.name)]
+        if tests.is_dir()
+        else []
     )
     return sorted(dirs, key=lambda d: (_started(d), d.name), reverse=True)
 

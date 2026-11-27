@@ -5,7 +5,8 @@
 2. The project hooks of `nookku init claude-code` are complete and not changed (#554). Without
    the prompt hook, a relayed message goes to the model.
 3. No settings file turns off all hooks while a nookku setup is on (#554).
-4. Each install of an enabled nookku plugin has the hook files of this version (#554).
+4. Each install of an enabled nookku plugin has the required hooks (#554), and its hook files
+   agree with the hash file of the install (#628).
 
 The Codex hook gate does the same checks for Codex. Claude Code merges the settings files: the
 local file wins over the project file, and the project file wins over the user file. Claude Code
@@ -14,6 +15,7 @@ runs the hooks of each file.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
@@ -39,11 +41,18 @@ PLUGIN_COMMAND = re.compile(
     + re.escape(PLUGIN_SCRIPT)
     + r'"[ \t]+(\w+)[ \t]*'
 )
+# The file in the plugin folder with the SHA-256 of each hook file of the plugin (#628). Each
+# install has its own file, so an install from a newer commit has the table of its own files.
+PLUGIN_HASHES = "hook-hashes.json"
+# The hook files: each file in the hooks folder, and the manifest of the plugin, because its key
+# `hooks` names the hooks file of the function hooks.
+HOOKS_FOLDER = "hooks"
+PLUGIN_MANIFEST = ".claude-plugin/plugin.json"
 # The keys of a required hook. Another key can change how Claude Code runs the hook: with
 # "async": true, Claude Code does not wait for the hook, so the hook cannot block the prompt.
 HOOK_KEYS = frozenset({"type", "command", "timeout"})
 # The file of the refusals of a start (SPEC.md section 7.8). It is a log for a person, with no
-# seal.
+# seal. A refused start also writes a sealed refusal record (refusal.py).
 REFUSALS = "refusals.jsonl"
 # The command that turns off the plugin in this project only. Without --scope local, it can
 # turn off the plugin of the user, and a test in another project then loses its prompt hook.
@@ -180,9 +189,71 @@ def _plugin_hook_ok(group: Any, event: str) -> bool:
     return False
 
 
+def hook_files(folder: Path) -> dict[str, str]:
+    """The SHA-256 of each hook file of a plugin folder, by its path in the folder (with `/`):
+    each file in the hooks folder and its subfolders, and the manifest of the plugin. A link to
+    a file gives the hash of that file. A link to a folder, and an entry that is not a regular
+    file, give an empty hash, so they never agree with a table."""
+    from nookku import seal  # only start and the tests need it
+
+    out: dict[str, str] = {}
+    hooks = folder / HOOKS_FOLDER
+    paths = sorted(hooks.rglob("*")) if hooks.is_dir() and not hooks.is_symlink() else []
+    if hooks.is_symlink():
+        out[HOOKS_FOLDER] = ""
+    if (folder / PLUGIN_MANIFEST).exists() or (folder / PLUGIN_MANIFEST).is_symlink():
+        paths.append(folder / PLUGIN_MANIFEST)
+    for path in paths:
+        rel = path.relative_to(folder).as_posix()
+        if path.is_dir() and not path.is_symlink():
+            continue
+        out[rel] = ""
+        if path.is_file():
+            with contextlib.suppress(OSError):
+                out[rel] = seal.sha256_of(path.read_bytes())
+    return out
+
+
+def _hash_problems(folder: Path) -> list[str]:
+    """A problem if a hook file of an install differs from the file PLUGIN_HASHES of the same
+    install: a person or a tool changed it after the install (#628)."""
+    table = _read(folder / PLUGIN_HASHES)
+    want = table.get("files")
+    if (
+        table.get("v") != 1
+        or not isinstance(want, dict)
+        or not all(isinstance(v, str) for v in want.values())
+    ):
+        return [
+            f"the plugin hash file {folder / PLUGIN_HASHES} is missing or not valid, so nookku "
+            "cannot check the hook files of the install."
+        ]
+    found = hook_files(folder)
+    parts = []
+    for word, names in (
+        ("changed", [k for k in want if k in found and found[k] != want[k]]),
+        ("missing", [k for k in want if k not in found]),
+        ("new", [k for k in found if k not in want]),
+    ):
+        if names:
+            parts.append(f"{word}: {', '.join(sorted(names))}")
+    if not parts:
+        return []
+    return [
+        f"the hook files of the plugin in {folder} differ from {PLUGIN_HASHES} of the install "
+        f"({'; '.join(parts)}). A person or a tool changed them after the install."
+    ]
+
+
 def _install_problems(folder: Path) -> list[str]:
+    """Each required hook that an install of the plugin does not have, and a problem if a hook
+    file differs from the hash file of the install."""
+    return _hook_problems(folder) + _hash_problems(folder)
+
+
+def _hook_problems(folder: Path) -> list[str]:
     """Each required hook that an install of the plugin does not have. The check reads what the
-    hooks run, not the bytes of the files, so an install of a newer plugin passes."""
+    hooks run, so an install of a newer plugin passes."""
     if not (folder / PLUGIN_SCRIPT).is_file():
         return [f"the plugin hook script {folder / PLUGIN_SCRIPT} is missing."]
     hooks = _read(folder / PLUGIN_HOOKS).get("hooks")
@@ -368,15 +439,19 @@ def problem(root: Path) -> str | None:
     return refusal(found) if found else None
 
 
-def log_refusal(root: Path, command: str, harness: str, found: list[str]) -> None:
+def log_refusal(
+    root: Path, command: str, harness: str, found: list[str], record: str | None = None
+) -> None:
     """Add a row for a refused start to the file REFUSALS of the state folder. The row is a log
-    for a person: it has no seal, and a failed write does not change the refusal."""
+    for a person: it has no seal, and a failed write does not change the refusal. `record` is
+    the id of the sealed refusal record of a refused start, or None."""
     row = {
         "ts": time.time(),
         "command": command,
         "harness": harness,
         "nookku": __version__,
         "problems": found,
+        "record": record,
     }
     nofollow = getattr(os, "O_NOFOLLOW", 0)
     data = (json.dumps(row, ensure_ascii=False) + "\n").encode("utf-8")

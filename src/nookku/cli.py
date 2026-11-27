@@ -660,12 +660,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "finding":
         return finding_record.command(args, _test_folder)
     if args.command == "verify":
-        folder = _test_folder(args.root.resolve(), args.test)
+        folder = _test_folder(args.root.resolve(), args.test, refusal=True)
         if folder is None:
             return 2
         result = seal.verify(folder)
         # The test id shows which test the command checked, also with no TEST argument (#160).
-        text = f"Test {folder.name}. {seal.summary(result)}"
+        # A refused start has a sealed record, not a test (SPEC.md section 7.8).
+        kind = "Refusal record" if state.is_refusal(folder.name) else "Test"
+        text = f"{kind} {folder.name}. {seal.summary(result)}"
         print(json.dumps(result, indent=1) if args.json else text)
         return 0 if result["intact"] else 2
     if args.command == "faults":
@@ -850,12 +852,12 @@ def _names(keys: list[str]) -> str:
     return ", ".join(keys) if keys else "none"
 
 
-def _test_folder(root: Path, test: str | None) -> Path | None:
+def _test_folder(root: Path, test: str | None, refusal: bool = False) -> Path | None:
     """The folder of a TEST argument: a test id or the path of a test folder. With no argument,
     the latest test. If there is no such test, print an error that names the expected argument
-    and return None."""
+    and return None. With `refusal`, the argument can also name a sealed refusal record."""
     try:
-        folder = kit.existing_test(root, kit.parse_test_arg(root, test)) if test else None
+        folder = kit.existing_test(root, kit.parse_test_arg(root, test), refusal) if test else None
     except kit.TranscriptError as e:
         print(f"nookku: {e}", file=sys.stderr)
         return None

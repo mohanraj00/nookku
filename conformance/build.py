@@ -3,7 +3,8 @@
 `cases/` holds the audit cases (SPEC.md section 3). `contract/` holds the stdio cases (sections 4.2
 and 6): the requests that the relay posts, what a scripted agent does with each one, and the rows
 and HTTP statuses that the tap must give. `trace/` holds the trace cases (section 8). `seal/` holds
-the seal cases (section 7.4). `otlp/` holds the receiver cases (section 7.5). `policy/` holds the
+the seal cases (section 7.4). `refusal/` holds the cases of the sealed refusal record (section
+7.8). `otlp/` holds the receiver cases (section 7.5). `policy/` holds the
 deny cases of the policy file (sections 5 and 7.9). `guard/` holds the deny cases of the state
 folder (section 5). `evaluation/` holds the cases of the rule for a check test (section 9.1).
 `notes/` holds the cases of the notes record (section 2.3).
@@ -34,6 +35,7 @@ CASES = Path(__file__).parent / "cases"
 CONTRACT = Path(__file__).parent / "contract"
 TRACE = Path(__file__).parent / "trace"
 SEAL = Path(__file__).parent / "seal"
+REFUSAL = Path(__file__).parent / "refusal"
 OTLP = Path(__file__).parent / "otlp"
 POLICY = Path(__file__).parent / "policy"
 GUARD = Path(__file__).parent / "guard"
@@ -8645,6 +8647,76 @@ def write_seal_case(d: Path, case: dict) -> None:
     (d / "expect_verify.json").write_text(json.dumps(case["verify"], indent=1) + "\n")
 
 
+# Refusal cases (SPEC.md section 7.8, #628). Each case is a tests folder with the sealed record of
+# one refused start, the copy of its seal in `home/seals/`, and in expect.json: the result that
+# `nookku verify --json` must give, the test ids that the readers of the tests folder find (none:
+# a refusal record is not a test), and the keys of refusal.json.
+REFUSAL_ID = "refused-20261127-120000-0a1b2c3d"
+REFUSAL_RECORD = (
+    json.dumps(
+        {
+            "v": 1,
+            "refusal": REFUSAL_ID,
+            "refused": 1795780800.0,
+            "command": "start",
+            "harness": "claude-code",
+            "root": "/home/tester/toy-shop",
+            "problems": ["the project hook UserPromptSubmit is missing."],
+            "versions": {"nookku": "0.7.0", "claude-code": "2.1.319", "codex": None},
+        },
+        indent=1,
+    )
+    + "\n"
+)
+REFUSAL_KEYS = ["v", "refusal", "refused", "command", "harness", "root", "problems", "versions"]
+
+
+def refusal_seal(files: dict[str, str], copy: bool) -> dict:
+    sealed = {k: sha(v) for k, v in sorted(files.items())}
+    return {"v": 1, "test": REFUSAL_ID, "sealed": 1795780800.5, "files": sealed, "copy": copy}
+
+
+def refusal_verified(intact: bool, copy: str, **lists: list[str]) -> dict:
+    out = {"test": REFUSAL_ID, "sealed": True, "intact": intact, "copy": copy}
+    return {**out, **{k: lists.get(k, []) for k in ("changed", "missing", "added")}}
+
+
+REFUSAL_CASES: dict[str, dict] = {
+    "intact": {"verify": refusal_verified(True, "same")},
+    # A changed reason breaks the seal.
+    "changed_reason": {
+        "after": {"refusal.json": REFUSAL_RECORD.replace("UserPromptSubmit", "PreToolUse")},
+        "verify": refusal_verified(False, "same", changed=["refusal.json"]),
+    },
+    # A planted manifest does not make the record a test, and it breaks the seal.
+    "planted_manifest": {
+        "after": {"manifest.json": '{"test": "refused-20261127-120000-0a1b2c3d", "started": 1}\n'},
+        "verify": refusal_verified(False, "same", added=["manifest.json"]),
+    },
+    # The copy outside the project is gone.
+    "copy_missing": {"no_copy_file": True, "verify": refusal_verified(False, "missing")},
+    "no_copy": {"copy": False, "no_copy_file": True, "verify": refusal_verified(True, "none")},
+}
+
+
+def write_refusal_case(d: Path, case: dict) -> None:
+    folder = d / "tests" / REFUSAL_ID
+    folder.mkdir(parents=True)
+    files = {"refusal.json": REFUSAL_RECORD, **case.get("after", {})}
+    for rel, text in files.items():
+        (folder / rel).write_text(text, encoding="utf-8")
+    seal = refusal_seal({"refusal.json": REFUSAL_RECORD}, case.get("copy", True))
+    (folder / "seal.json").write_text(json.dumps(seal, indent=1, sort_keys=True) + "\n")
+    if not case.get("no_copy_file"):
+        (d / "home" / "seals").mkdir(parents=True)
+        copy = refusal_seal({"refusal.json": REFUSAL_RECORD}, True)
+        (d / "home" / "seals" / f"{REFUSAL_ID}.json").write_text(
+            json.dumps(copy, indent=1, sort_keys=True) + "\n"
+        )
+    expect = {"verify": case["verify"], "tests": [], "record_keys": REFUSAL_KEYS}
+    (d / "expect.json").write_text(json.dumps(expect, indent=1) + "\n")
+
+
 # Policy cases (SPEC.md sections 5 and 7.9). Each case is a PreToolUse event with no running test,
 # the project around it, and the answer of `nookku hook`. In the event, `{root}` is the project.
 # `state` is false for a project with no state folder. `links` maps a link to its target.
@@ -8859,6 +8931,7 @@ def key_deny(name: str) -> dict:
 
 STATE = "." + "nookku"
 T1 = f"{STATE}/tests/t1"
+REFUSED = f"{STATE}/tests/refused-20261127-120000-0a1b2c3d"
 RECORD = f"{T1}/relay.jsonl"
 CONFIG = f"{STATE}/config.json"
 GUARD_CASES: dict[str, dict] = {
@@ -9458,6 +9531,19 @@ GUARD_CASES: dict[str, dict] = {
     "write_of_the_report": {
         "event": pevent("Write", file_path=f"{T1}/report.md", content="# Report\n"),
         "answer": None,
+    },
+    # A sealed refusal record has no report, so the model writes no file in it (#628).
+    "write_of_a_refusal_record": {
+        "event": pevent("Write", file_path=f"{REFUSED}/refusal.json", content="{}"),
+        "answer": records(f"{REFUSED}/refusal.json"),
+    },
+    "write_of_a_report_in_a_refusal_record": {
+        "event": pevent("Write", file_path=f"{REFUSED}/report.md", content="# Report\n"),
+        "answer": records(f"{REFUSED}/report.md"),
+    },
+    "shell_writes_the_report_with_a_glob": {
+        "event": bash(f"cat > {STATE}/tests/*/report.md <<'EOF'\n# Report\nEOF"),
+        "answer": records(f"{STATE}/tests/*/report.md", 'The redirect ">" writes it.'),
     },
     "patch_header_names_a_state_file": {
         "event": pevent(
@@ -11073,6 +11159,9 @@ def main() -> None:
     shutil.rmtree(SEAL, ignore_errors=True)
     for name, case in SEAL_CASES.items():
         write_seal_case(SEAL / name, case)
+    shutil.rmtree(REFUSAL, ignore_errors=True)
+    for name, case in REFUSAL_CASES.items():
+        write_refusal_case(REFUSAL / name, case)
     shutil.rmtree(NOTES, ignore_errors=True)
     for name, case in NOTES_CASES.items():
         (NOTES / name).mkdir(parents=True)
@@ -11118,6 +11207,7 @@ def main() -> None:
     print(
         f"{len(CASES_BY_NAME)} audit cases, {len(CONTRACT_CASES)} contract cases, "
         f"{len(TRACE_CASES)} trace cases, {len(SEAL_CASES)} seal cases, "
+        f"{len(REFUSAL_CASES)} refusal cases, "
         f"{len(OTLP_CASES)} receiver cases, {len(POLICY_CASES)} policy cases, "
         f"{len(GUARD_CASES)} guard cases, {len(CONTROL_CASES)} control cases, "
         f"{len(EVALUATION_CASES)} evaluation cases, {len(NOTES_CASES)} notes cases, "

@@ -9,10 +9,16 @@ from typing import Any
 
 import pytest
 
-from nookku import __version__, bridge, claude_gate, kit
+from nookku import __version__, bridge, claude_gate, kit, state
 from nookku.cli import main
 
 ENTRY = {"entry": ["python3", "agent.py"]}
+
+
+@pytest.fixture(autouse=True)
+def no_harness_versions(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A refused start records the harness versions. The tests do not run the harnesses."""
+    monkeypatch.setattr(bridge, "_version", lambda cmd: f"{cmd} 1.0.0")
 
 
 def _enable(path: Path, value: bool) -> None:
@@ -63,7 +69,7 @@ def test_start_refuses_a_test_with_both_on(tmp_path: Path, claude_home: Path) ->
     _enable(claude_home / "settings.json", True)
     with pytest.raises(bridge.BridgeError, match="two times"):
         bridge.start(tmp_path)
-    assert not (tmp_path / ".nookku" / "tests").exists()
+    assert state.latest_test(tmp_path) is None
 
 
 def test_mode_on_with_an_entry_refuses_a_test_with_both_on_and_exits_with_1(
@@ -75,7 +81,7 @@ def test_mode_on_with_an_entry_refuses_a_test_with_both_on_and_exits_with_1(
     assert main(["mode", "on", "--root", str(tmp_path)]) == 1
     assert "two times" in capsys.readouterr().out
     assert not kit.is_on(tmp_path)
-    assert not (tmp_path / ".nookku" / "tests").exists()
+    assert state.latest_test(tmp_path) is None
 
 
 def test_mode_on_keeps_relay_mode_off_with_both_on(
@@ -159,7 +165,8 @@ def test_start_refuses_a_test_with_no_prompt_hook(tmp_path: Path, claude_home: P
     assert claude_gate.hook_problems(tmp_path) == ["the project hook UserPromptSubmit is missing."]
     with pytest.raises(bridge.BridgeError, match="UserPromptSubmit is missing"):
         bridge.start(tmp_path)
-    assert not (tmp_path / ".nookku" / "tests").exists()
+    # The start writes a sealed refusal record, not a test (#628).
+    assert state.latest_test(tmp_path) is None
     assert main(["mode", "on", "--root", str(tmp_path)]) == 1
     assert not kit.is_on(tmp_path)
 
@@ -249,6 +256,12 @@ def _install(claude_home: Path, root: Path, scope: str = "user") -> Path:
     return folder
 
 
+def _rehash(folder: Path) -> None:
+    """The hash file of a plugin of another commit: it has the hashes of its own files."""
+    table = {"v": 1, "files": claude_gate.hook_files(folder)}
+    (folder / claude_gate.PLUGIN_HASHES).write_text(json.dumps(table))
+
+
 @pytest.mark.parametrize("scope", ["user", "project"])
 def test_an_install_of_this_version_passes(tmp_path: Path, claude_home: Path, scope: str) -> None:
     kit.init(tmp_path, "plugin", ENTRY)
@@ -280,6 +293,8 @@ def test_a_newer_plugin_with_the_required_hooks_passes(
         lambda d: d["hooks"]["UserPromptSubmit"][0]["hooks"][0].update(timeout=600),
     )
     _edit(folder / ".claude-plugin" / "plugin.json", lambda d: d.update(version="9.9.9"))
+    # The plugin of a newer commit has the hash file of its own files (#628).
+    _rehash(folder)
     assert claude_gate.problems(tmp_path) == []
     # A version skew gives a warning only.
     [warning] = claude_gate.plugin_warnings(tmp_path)
@@ -395,6 +410,7 @@ def test_a_plugin_install_with_a_required_hook_missing_is_refused(
     _enable(claude_home / "settings.json", True)
     folder = _install(claude_home, tmp_path)
     _edit(folder / "hooks" / "hooks.json", change)
+    _rehash(folder)
     assert claude_gate.problems(tmp_path) == [
         f"the plugin hook {event} is missing in {folder / 'hooks' / 'hooks.json'}, or its "
         "matcher or its command differs from the hook of nookku, or its timeout is not "
@@ -430,7 +446,10 @@ def test_a_refused_start_adds_a_row_to_the_refusal_log(tmp_path: Path, claude_ho
     assert [(r["command"], r["harness"]) for r in rows] == [("start", "claude-code")] * 2
     assert rows[0]["problems"] == ["the project hook PreToolUse is missing."]
     assert rows[0]["nookku"] == __version__
-    assert not (tmp_path / ".nookku" / "tests").exists()
+    # Each row names its sealed refusal record (#628).
+    assert all(state.is_refusal(r["record"]) for r in rows)
+    assert len({r["record"] for r in rows}) == 2
+    assert state.latest_test(tmp_path) is None
 
 
 def test_a_codex_refusal_adds_a_row_to_the_refusal_log(
@@ -475,3 +494,82 @@ def test_a_model_write_to_the_refusal_log_is_denied(tmp_path: Path) -> None:
     event = {"cwd": str(tmp_path)}
     found = kit.state_write(event, tmp_path, "Write", {"file_path": path}, False)
     assert found is not None and found[0] == path
+
+
+def _append(path: Path) -> None:
+    with path.open("a") as f:
+        f.write("// a change after the install\n")
+
+
+def _add_file(folder: Path) -> None:
+    (folder / "hooks" / "extra.tsx").write_text("export {}\n")
+
+
+def _remove_file(folder: Path) -> None:
+    (folder / "hooks" / "register.test.ts").unlink()
+
+
+def _point_elsewhere(folder: Path) -> None:
+    # The manifest names the hooks file of the function hooks, so it is a hook file too.
+    _edit(folder / ".claude-plugin" / "plugin.json", lambda d: d.update(hooks="./other.json"))
+
+
+@pytest.mark.parametrize(
+    ("change", "word", "name"),
+    [
+        (lambda f: _append(f / "hooks" / "register.tsx"), "changed", "hooks/register.tsx"),
+        (lambda f: _append(f / "hooks" / "nookku-hook.sh"), "changed", "hooks/nookku-hook.sh"),
+        (_point_elsewhere, "changed", ".claude-plugin/plugin.json"),
+        (_add_file, "new", "hooks/extra.tsx"),
+        (_remove_file, "missing", "hooks/register.test.ts"),
+    ],
+)
+def test_a_hook_file_changed_after_the_install_is_refused(
+    tmp_path: Path, claude_home: Path, change: Any, word: str, name: str
+) -> None:
+    # The required hooks are still there, but a person or a tool changed a file (#628).
+    kit.init(tmp_path, "plugin", ENTRY)
+    _enable(claude_home / "settings.json", True)
+    folder = _install(claude_home, tmp_path)
+    change(folder)
+    assert claude_gate.problems(tmp_path) == [
+        f"the hook files of the plugin in {folder} differ from {claude_gate.PLUGIN_HASHES} of "
+        f"the install ({word}: {name}). A person or a tool changed them after the install."
+    ]
+    with pytest.raises(bridge.BridgeError, match="sealed refusal record") as e:
+        bridge.start(tmp_path)
+    assert name in str(e.value)
+    [row] = _refusals(tmp_path)
+    record = json.loads(
+        (state.tests_dir(tmp_path) / row["record"] / "refusal.json").read_text(encoding="utf-8")
+    )
+    assert record["problems"] == claude_gate.problems(tmp_path)
+    assert main(["verify", row["record"], "--root", str(tmp_path)]) == 0
+
+
+@pytest.mark.parametrize("table", [None, "{}", '{"v": 2, "files": {}}', '{"v": 1, "files": []}'])
+def test_an_install_with_no_valid_hash_file_is_refused(
+    tmp_path: Path, claude_home: Path, table: str | None
+) -> None:
+    kit.init(tmp_path, "plugin", ENTRY)
+    _enable(claude_home / "settings.json", True)
+    folder = _install(claude_home, tmp_path)
+    path = folder / claude_gate.PLUGIN_HASHES
+    if table is None:
+        path.unlink()
+    else:
+        path.write_text(table)
+    assert claude_gate.problems(tmp_path) == [
+        f"the plugin hash file {path} is missing or not valid, so nookku cannot check the hook "
+        "files of the install."
+    ]
+
+
+def test_a_link_in_the_hooks_folder_does_not_agree_with_the_table(tmp_path: Path) -> None:
+    folder = tmp_path / "plugin"
+    shutil.copytree(PLUGIN_DIR, folder)
+    other = tmp_path / "other"
+    other.mkdir()
+    (folder / "hooks" / "more").symlink_to(other, target_is_directory=True)
+    assert claude_gate.hook_files(folder)["hooks/more"] == ""
+    assert "new: hooks/more" in claude_gate._hash_problems(folder)[0]

@@ -1,0 +1,3 @@
+# The start check compares the plugin files with the SHA-256 in plugins/nookku/hook-hashes.json
+# (#628). A change of the line ends at a checkout would change each hash.
+plugins/nookku/** -text

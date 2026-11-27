@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from nookku import bridge, codex_gate, kit
+from nookku import bridge, codex_gate, kit, state
 from nookku.cli import main
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -241,7 +241,8 @@ def test_start_refuses_a_test_with_an_untrusted_hook(
     fake_codex(tmp_path, monkeypatch, answer_with(hooks))
     with pytest.raises(bridge.BridgeError, match="PreToolUse is untrusted"):
         bridge.start(root)
-    assert not (root / kit.STATE_DIR / "tests").exists()
+    # The start writes a sealed refusal record, not a test (#628).
+    assert state.latest_test(root) is None
     assert main(["mode", "on", "--root", str(root)]) == 1
     assert "the Codex hooks of nookku are not ready" in capsys.readouterr().out
     assert not kit.is_on(root)
