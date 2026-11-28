@@ -63,6 +63,7 @@ If a hook changes, trust it again. A new plugin script also needs a new run of `
 | The prompt after a timeout of a `UserPromptSubmit` hook of Claude Code, no model | `uv run python scripts/proof_hook_timeout.py` | `proofs/hook-timeout/claude-code.json` |
 | P5 to P8, evaluation at the end of a test | `uv run python scripts/proof_report.py <setup>` | `proofs/report/<setup>.json` |
 | Full telemetry | `uv run python scripts/proof_telemetry.py <setup>` | `proofs/telemetry/<setup>.json` |
+| Full telemetry with the TypeScript toy shop, Node 23.6 or later and npm | `uv run python scripts/proof_telemetry.py <setup> toy-shop-ts` | `proofs/telemetry/toy-shop-ts/<setup>.json` |
 | Time and tokens of each turn | `uv run python scripts/proof_performance.py <setup>` | `proofs/performance/<setup>.json` |
 | The Codex app usage rule | `uv run python scripts/proof_codex_performance.py` | `proofs/performance/codex-app.json` |
 | The issue classes of the app spec | `uv run python scripts/proof_spec_classes.py <setup>` | `proofs/spec-classes/<setup>.json` |
