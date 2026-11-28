@@ -1,0 +1,66 @@
+{
+ "date": "2026-11-27",
+ "versions": {
+  "nookku": "0.6.1",
+  "claude-code": null
+ },
+ "runner": "command",
+ "persona": {
+  "persona": "A customer of a small toy shop. The teapot that you ordered came broken.",
+  "goal": "Find out what refund the shop gives for a damaged item.",
+  "turns": 8
+ },
+ "result": {
+  "harness": "command",
+  "turns": 2,
+  "limit": 8,
+  "ended": "goal",
+  "error": null
+ },
+ "turns": [
+  [
+   "Hello. My order came broken. What can you do for me?",
+   "Which item is this about: the mug or the teapot?"
+  ],
+  [
+   "It is the teapot. What refund do I get for a damaged item?",
+   "Our refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: 30 days.\n"
+  ]
+ ],
+ "first_run": {
+  "exit": 0,
+  "audit_exit": 0
+ },
+ "script_run": {
+  "exit": 0,
+  "audit_exit": 0
+ },
+ "command_calls": [
+  {
+   "persona_and_goal": true,
+   "files": [],
+   "outside_project": true,
+   "hidden": []
+  },
+  {
+   "persona_and_goal": true,
+   "files": [],
+   "outside_project": true,
+   "hidden": []
+  },
+  {
+   "persona_and_goal": true,
+   "files": [],
+   "outside_project": true,
+   "hidden": []
+  }
+ ],
+ "checks": {
+  "U1": true,
+  "U2": true,
+  "U3": true,
+  "U4": true,
+  "U5": true
+ },
+ "pass": true
+}
