@@ -169,15 +169,15 @@ The 0.6.0 and 0.6.1 runs with Claude Code 2.1.301 and codex-cli 0.169.0 have the
 | GET /stock | 0 bytes | 2,059 bytes | yes | [results](../proofs/backend/results.json) |
 | POST /import | 2,320,000 bytes, cut in the record | 2,059 bytes | yes | [results](../proofs/backend/results.json) |
 
-The record cuts the third request body at 1 MiB, but the stock service got all of its bytes. The [seal](reference/glossary.md#seal) of the [test folder](reference/glossary.md#test-folder) was intact. The run used nookku 0.6.1 on 2026-11-25 (the keys `versions` and `date` of the results file).
+The record cuts the third request body at 1 MiB, but the stock service got all of its bytes. The [seal](reference/glossary.md#seal) of the [test folder](reference/glossary.md#test-folder) was intact. The run used nookku 0.7.0 on 2026-11-28 (the keys `versions` and `date` of the results file).
 
 ### Database calls from the driver trace
 
-[scripts/proof_driver_trace.py](../scripts/proof_driver_trace.py) runs a test of a toy shop app that reads its stock from a SQLite file. The app uses the OpenTelemetry instrumentation of the sqlite3 driver, and the egress answer gives the database `record: driver`. It needs no model. In the run with nookku 0.6.1 on 2026-11-25 and opentelemetry-instrumentation-sqlite3 0.65b0, the 1 query of the turn is 1 driver query in the trace, with its statement text and no parameter values. The span has no `db.name`, so the query has the name of the database in the answer, `stock`. The trace has no `driver_without_span` finding. The transcript names its source as the driver trace from the app process, and the seal is intact ([results](../proofs/driver-trace/results.json)).
+[scripts/proof_driver_trace.py](../scripts/proof_driver_trace.py) runs a test of a toy shop app that reads its stock from a SQLite file. The app uses the OpenTelemetry instrumentation of the sqlite3 driver, and the egress answer gives the database `record: driver`. It needs no model. In the run with nookku 0.7.0 on 2026-11-28 and opentelemetry-instrumentation-sqlite3 0.65b0, the 1 query of the turn is 1 driver query in the trace, with its statement text and no parameter values. The span has no `db.name`, so the query has the name of the database in the answer, `stock`. The trace has no `driver_without_span` finding. The transcript names its source as the driver trace from the app process, and the seal is intact ([results](../proofs/driver-trace/results.json)).
 
 ### Queue calls from the client trace
 
-[scripts/proof_queue_trace.py](../scripts/proof_queue_trace.py) runs a toy shop app that puts each order on a RabbitMQ queue in Docker and sends a mail through smtplib to a toy SMTP server. The egress answer gives the queue `record: driver` and the mail `record: none`. It needs no model. The proof runs 2 tests of 1 message each. In test A, the app uses the OpenTelemetry instrumentation of pika. In test B, it does not. In the run with nookku 0.6.1 on 2026-11-25, pika 1.3.2 and opentelemetry-instrumentation-pika 0.65b0, these results came ([results](../proofs/queue-trace/results.json)):
+[scripts/proof_queue_trace.py](../scripts/proof_queue_trace.py) runs a toy shop app that puts each order on a RabbitMQ queue in Docker and sends a mail through smtplib to a toy SMTP server. The egress answer gives the queue `record: driver` and the mail `record: none`. It needs no model. The proof runs 2 tests of 1 message each. In test A, the app uses the OpenTelemetry instrumentation of pika. In test B, it does not. In the run with nookku 0.7.0 on 2026-11-28, pika 1.3.2 and opentelemetry-instrumentation-pika 0.65b0, these results came ([results](../proofs/queue-trace/results.json)):
 
 - In both tests, the start text names the queue as `(driver trace)`, the mail as `(no proxy)`, and says that the test does not record the calls of `mail`. The manifest names the queue in `client_trace` and the mail in `unseen`.
 - In test A, the trace has 2 `orders send` spans in turn 1, with `messaging.system` `rabbitmq`, and no `other_without_span` finding.
@@ -186,7 +186,7 @@ The record cuts the third request body at 1 MiB, but the stock service got all o
 
 ### A call that the in-app trace does not show
 
-[scripts/proof_inapp_trace.py](../scripts/proof_inapp_trace.py) runs a toy shop app that reads the stock of a teapot set and then reserves it, at a toy stock service. The app sends its spans to a local Phoenix with the OpenTelemetry SDK. It makes a span for the stock read and no span for the reserve call: that is the planted call. It needs no model. After the test, the proof reads the spans back from the REST API of Phoenix and runs `nookku trace --openinference` with them ([SPEC.md section 8.10](../SPEC.md#810-openinference-spans)). In the run with nookku 0.6.1 on 2026-11-25, arize-phoenix 21.0.0 and opentelemetry-sdk 1.44.0, these results came ([results](../proofs/inapp-trace/results.json)):
+[scripts/proof_inapp_trace.py](../scripts/proof_inapp_trace.py) runs a toy shop app that reads the stock of a teapot set and then reserves it, at a toy stock service. The app sends its spans to a local Phoenix with the OpenTelemetry SDK. It makes a span for the stock read and no span for the reserve call: that is the planted call. It needs no model. After the test, the proof reads the spans back from the REST API of Phoenix and runs `nookku trace --openinference` with them ([SPEC.md section 8.10](../SPEC.md#810-openinference-spans)). In the run with nookku 0.7.0 on 2026-11-28, arize-phoenix 21.0.0 and opentelemetry-sdk 1.44.0, these results came ([results](../proofs/inapp-trace/results.json)):
 
 - The stock service got 2 calls, `GET /stock` and `POST /reserve`, and the backend proxy recorded both.
 - Phoenix had 1 span, for `GET /stock`, and no span for `POST /reserve`.
@@ -207,7 +207,7 @@ The record cuts the third request body at 1 MiB, but the stock service got all o
 | OpenAI Decisions, the toy shop app | 435 bytes | yes | not a stream | yes | [results](../proofs/model-api/results.json) |
 | OpenAI Decisions, request body cut | 435 bytes | yes | not a stream | yes | [results](../proofs/model-api/results.json) |
 
-The API key was not in the record. The seal of the test folder was intact. The run used nookku 0.6.1 on 2026-11-25 (the keys `versions` and `date` of the results file).
+The API key was not in the record. The seal of the test folder was intact. The run used nookku 0.7.0 on 2026-11-28 (the keys `versions` and `date` of the results file).
 
 ### Codex and the OpenTelemetry variables
 
@@ -464,10 +464,10 @@ The current run used nookku 0.6.0 on 2026-11-21, and the earlier run used nookku
 
 ### A test with a simulated user
 
-I ran the toy shop agent with 1 persona on 2026-11-27, with nookku 0.6.1 from `main`, one time with each runner of the config key `persona_runner` ([#667](https://github.com/mohanraj00/nookku/issues/667), [method](../scripts/proof_simulated_user.py)):
+I ran the toy shop agent with 1 persona, one time with each runner of the config key `persona_runner` ([#667](https://github.com/mohanraj00/nookku/issues/667), [method](../scripts/proof_simulated_user.py)):
 
-- `claude-code`, the default: Claude Code 2.1.319 is the simulated user ([data](../proofs/simulated-user/results.json)).
-- A declared command: [toy_persona_user.py](../scripts/toy_persona_user.py), a toy user with no model and no tools ([data](../proofs/simulated-user/command.json)).
+- `claude-code`, the default: Claude Code 2.1.319 is the simulated user. The run was on 2026-11-27, with nookku 0.6.1 from `main` ([data](../proofs/simulated-user/results.json)).
+- A declared command: [toy_persona_user.py](../scripts/toy_persona_user.py), a toy user with no model and no tools. The run was on 2026-11-28, with nookku 0.7.0 ([data](../proofs/simulated-user/command.json)).
 
 The persona is a customer whose teapot came broken. The goal is the refund for a damaged item, and the limit is 8 turns. The toy shop answers only a few keywords, so I chose a goal that it can answer. The return label of #520 is not a goal that the toy shop can reach.
 
@@ -497,7 +497,7 @@ This is 1 run of 3 prompts for each setup. Each prompt names the tool to use, so
 
 ### A replay with the recorded backends
 
-I replayed the toy shop script 10 times with `nookku replay --recorded --verdict` on 2026-11-25, with nookku 0.6.1 and no model ([data](../proofs/replay/results.json), [method](../scripts/proof_replay.py)). The toy entry asks a toy stock service and a toy model API for each of the 3 messages. The toy model puts a call counter in each answer, and the stock service answers 1 call of each turn with status 503. Thus the base test has 3 `backend_error` findings.
+I replayed the toy shop script 10 times with `nookku replay --recorded --verdict` on 2026-11-28, with nookku 0.7.0 and no model ([data](../proofs/replay/results.json), [method](../scripts/proof_replay.py)). The toy entry asks a toy stock service and a toy model API for each of the 3 messages. The toy model puts a call counter in each answer, and the stock service answers 1 call of each turn with status 503. Thus the base test has 3 `backend_error` findings.
 
 - R1: a live replay, as a control, changed 3 of 3 turns, because the toy model gave new answers.
 - R2: after the 2 toy servers stopped, 10 of 10 recorded replays had no changed turn, no miss, exit code 0, an intact seal and the findings of the base test. The servers got 0 calls in these replays.
@@ -507,7 +507,7 @@ This proof uses 1 script and HTTP parts only. A stdio MCP server and a Postgres 
 
 ### An action with no approval
 
-[scripts/proof_approvals.py](../scripts/proof_approvals.py) runs a test of a toy shop app with a backend `shop` and a stdio MCP server `payments`, with no model. The server asks for the approval of a refund with an MCP elicitation. The [app spec](reference/app-spec.md#approvals) says that a refund needs an accepted elicitation of `payments`, and that the cancel of an order needs the message `yes` after an interrupt. The proof plants 1 defect: in turn 2, the app calls the refund backend and asks nobody. In the run of 2026-11-25 on nookku 0.6.1, which has the code of [#521](https://github.com/mohanraj00/nookku/issues/521) ([data](../proofs/approvals/results.json)):
+[scripts/proof_approvals.py](../scripts/proof_approvals.py) runs a test of a toy shop app with a backend `shop` and a stdio MCP server `payments`, with no model. The server asks for the approval of a refund with an MCP elicitation. The [app spec](reference/app-spec.md#approvals) says that a refund needs an accepted elicitation of `payments`, and that the cancel of an order needs the message `yes` after an interrupt. The proof plants 1 defect: in turn 2, the app calls the refund backend and asks nobody. In the run of 2026-11-28 on nookku 0.7.0, which has the code of [#521](https://github.com/mohanraj00/nookku/issues/521) ([data](../proofs/approvals/results.json)):
 
 - The [trace](reference/glossary.md#trace) has 2 `elicitation` items from the record of the MCP proxy: an `accept` in turn 1 and a `decline` in turn 3. It has 1 `interrupt` item in turn 4 and 1 `resume` item in turn 5 from the tap record.
 - The refund of turn 1 follows the `accept`, and the cancel of turn 5 follows the message `yes`. They give no [finding](reference/glossary.md#findings).
@@ -518,18 +518,18 @@ This is 1 run of 5 turns, with 1 planted defect and 2 rows of the `Approvals` ta
 
 ### A second message during a slow turn
 
-[scripts/proof_second_message.py](../scripts/proof_second_message.py) runs 2 [scripted tests](reference/glossary.md#scripted-test) of a toy shop app with a stdio MCP server `payments`, with no model. The tool `refund` of the server takes 1.5 seconds. The app reads its stdin during a turn, and a message during a refund stops the refund: the app sends `notifications/cancelled`, and the server sends no result. The 2 tests have the same 3 messages. In the test `second`, the row of message 2 has `"during": 0.5`. In the test `control`, no row has it. In the run of 2026-11-25 on nookku 0.6.1, which has the code of [#522](https://github.com/mohanraj00/nookku/issues/522) and [#656](https://github.com/mohanraj00/nookku/issues/656) ([data](../proofs/second-message/results.json)):
+[scripts/proof_second_message.py](../scripts/proof_second_message.py) runs 2 [scripted tests](reference/glossary.md#scripted-test) of a toy shop app with a stdio MCP server `payments`, with no model. The tool `refund` of the server takes 1.5 seconds. The app reads its stdin during a turn, and a message during a refund stops the refund: the app sends `notifications/cancelled`, and the server sends no result. The 2 tests have the same 3 messages. In the test `second`, the row of message 2 has `"during": 0.5`. In the test `control`, no row has it. In the run of 2026-11-28 on nookku 0.7.0, which has the code of [#522](https://github.com/mohanraj00/nookku/issues/522) and [#656](https://github.com/mohanraj00/nookku/issues/656) ([data](../proofs/second-message/results.json)):
 
-- In the test `second`, the [tap](reference/glossary.md#tap) gave message 2 to the [entry](reference/glossary.md#entry) 0.498 seconds after message 1, and the reply of turn 1 came at 0.518 seconds. `findings.json` has 1 row in `second_messages`: turn 2 during turn 1, with `reply_first` `false`.
+- In the test `second`, the [tap](reference/glossary.md#tap) gave message 2 to the [entry](reference/glossary.md#entry) 0.498 seconds after message 1, and the reply of turn 1 came at 0.505 seconds. `findings.json` has 1 row in `second_messages`: turn 2 during turn 1, with `reply_first` `false`.
 - The app stopped the refund. The `refund` tool call of turn 1 has no result in the record of the MCP proxy, and it gives 1 `call_cut` [finding](reference/glossary.md#findings). The `Verdict` table permits 0, so the verdict is `fail`.
-- In the test `control`, turn 2 started after the reply of turn 1, at 1.51 seconds. The tool call has its result, the test has no second message and no finding, and the verdict is `pass`.
+- In the test `control`, turn 2 started after the reply of turn 1, at 1.52 seconds. The tool call has its result, the test has no second message and no finding, and the verdict is `pass`.
 - The audit of each test exits with 0, and each [seal](reference/glossary.md#seal) is intact.
 
 This is 1 run of each test, with 1 app that stops its first turn. It does not show an app that refuses the second message or does both turns, and it has no backend call, no database query and no Claude Code session. The tests in [tests/test_second_message.py](../tests/test_second_message.py) cover a queue, a refusal and a stop with no model, and the case [conformance/trace/second_message/](../conformance/trace/second_message/) covers the rules of the trace.
 
 ### A rollout gate
 
-I ran a gate run for each of 2 versions of a toy shop agent on 2026-11-25, with nookku 0.6.1 and no model
+I ran a gate run for each of 2 versions of a toy shop agent on 2026-11-28, with nookku 0.7.0 and no model
  ([data](../proofs/rollout-gate/results.json), [method](../scripts/proof_rollout_gate.py)). The toy rollout controller of [examples/rollout-gate/](../examples/rollout-gate/) read `result.json` and the copy of the seal of each gate run ([gate-a-rollout.md](how-to/gate-a-rollout.md)). Version 2 has a planted defect: 1 backend call with status 503 in each of its 3 turns. Its replies are the same as the replies of version 1. The gate file permits 0 `backend_error` findings.
 
 - R1: version 1 passed the gate, `nookku gate verify` gave exit code 0, and the controller promoted it.

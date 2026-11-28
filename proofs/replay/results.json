@@ -1,14 +1,14 @@
 {
- "date": "2026-11-25",
+ "date": "2026-11-28",
  "versions": {
-  "nookku": "0.6.1",
+  "nookku": "0.7.0",
   "python": "3.13.12",
   "os": "Darwin"
  },
  "script": "examples/toy-shop/script.jsonl",
  "turns": 3,
  "base": {
-  "test": "20261125-135520-62ba",
+  "test": "20261128-092544-ffff",
   "passed": true,
   "findings": 3,
   "server_calls": 18
@@ -21,7 +21,7 @@
  "runs": [
   {
    "run": 1,
-   "test": "20261125-135527-984e",
+   "test": "20261128-092551-80f3",
    "exit": 0,
    "changed": 0,
    "replay_changed": 0,
@@ -38,7 +38,7 @@
   },
   {
    "run": 2,
-   "test": "20261125-135531-edf2",
+   "test": "20261128-092554-3669",
    "exit": 0,
    "changed": 0,
    "replay_changed": 0,
@@ -55,7 +55,7 @@
   },
   {
    "run": 3,
-   "test": "20261125-135534-24e6",
+   "test": "20261128-092557-7236",
    "exit": 0,
    "changed": 0,
    "replay_changed": 0,
@@ -72,7 +72,7 @@
   },
   {
    "run": 4,
-   "test": "20261125-135538-6897",
+   "test": "20261128-092601-0df7",
    "exit": 0,
    "changed": 0,
    "replay_changed": 0,
@@ -89,7 +89,7 @@
   },
   {
    "run": 5,
-   "test": "20261125-135543-2ebd",
+   "test": "20261128-092604-94d2",
    "exit": 0,
    "changed": 0,
    "replay_changed": 0,
@@ -106,7 +106,7 @@
   },
   {
    "run": 6,
-   "test": "20261125-135547-83a7",
+   "test": "20261128-092607-beb8",
    "exit": 0,
    "changed": 0,
    "replay_changed": 0,
@@ -123,7 +123,7 @@
   },
   {
    "run": 7,
-   "test": "20261125-135550-ccf3",
+   "test": "20261128-092611-1664",
    "exit": 0,
    "changed": 0,
    "replay_changed": 0,
@@ -140,7 +140,7 @@
   },
   {
    "run": 8,
-   "test": "20261125-135555-fed3",
+   "test": "20261128-092614-9f3f",
    "exit": 0,
    "changed": 0,
    "replay_changed": 0,
@@ -157,7 +157,7 @@
   },
   {
    "run": 9,
-   "test": "20261125-135600-7645",
+   "test": "20261128-092617-2b69",
    "exit": 0,
    "changed": 0,
    "replay_changed": 0,
@@ -174,7 +174,7 @@
   },
   {
    "run": 10,
-   "test": "20261125-135603-68df",
+   "test": "20261128-092620-df75",
    "exit": 0,
    "changed": 0,
    "replay_changed": 0,
