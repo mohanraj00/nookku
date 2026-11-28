@@ -9,37 +9,18 @@
 
 **Nookku: an evaluation harness for vertical AI agents**
 
-Talk to your agent app from Claude Code or Codex, as your users do. Nookku records the full test: each message and each reply, and, when you connect them, each tool call, each value that the app keeps for the test and each call to its model. Then a model or a person [evaluates](docs/reference/glossary.md#evaluation) the agent against your app spec.
+You build a chat agent, for example a support agent for a shop. You test it from Claude Code or Codex, as your users talk to it. Nookku carries each message and each reply byte for byte, so the [harness model](docs/reference/glossary.md#harness-model) does not retype a message and does not see a reply. Nookku records the test, and an audit proves that the record is exact. Then a model or a person [evaluates](docs/reference/glossary.md#evaluation) the agent against your app spec.
 
-| You evaluate | Nookku records | Doc and data |
-|---|---|---|
-| Character and tone | each message and each reply | [relay and tap records](docs/reference/records.md#the-test-folder), [proofs](docs/results.md#1-proofs) |
-| Boundaries | the replies, and each refusal in them | [`nookku transcript`](docs/reference/cli.md#nookku-transcript) |
-| Guidance to the user's goal | the path of the conversation, turn by turn | [`nookku transcript`](docs/reference/cli.md#nookku-transcript) |
-| Tool calls | each tool call of the app's model sessions, and each call to the app's backend | [trace](SPEC.md#82-trace-record), [add a backend](docs/how-to/add-a-backend.md), [trace data](docs/results.md#trace-of-the-model-sessions), [backend data](docs/results.md#backend-calls) |
-| Stored data | the values that the app writes to `app-state/` in the test folder | [SPEC.md section 6.1](SPEC.md#61-environment-of-the-entry), [example](docs/getting-started.md#9-read-the-report) |
-| Prompt performance | each direct call to the model API | [record model calls](docs/how-to/record-model-calls.md#direct-model-calls), [data](docs/results.md#direct-model-calls) |
-| Instrumentation | the app's OpenTelemetry spans and logs | [record OpenTelemetry](docs/how-to/record-model-calls.md#opentelemetry), [data](docs/results.md#full-telemetry-with-one-app) |
-| Defects and speed | the audit, the findings and the start and end time of each turn | [audit](SPEC.md#3-audit), [findings](SPEC.md#86-findings), [times](SPEC.md#21-tap-record) |
-
-**One guarantee makes the record true.** The [harness model](docs/reference/glossary.md#harness-model) does not retype a message and does not see a reply. Nookku carries each one byte for byte, so the record is the real conversation ([results](#results), [limits](docs/limits.md)).
+Nookku is for developers of chat agents. It runs on your computer, and it has no hosted service. [docs/faq.md](docs/faq.md#why-not-tell-the-model-to-relay-each-message-exactly) tells why a prompt alone does not keep the messages exact. [CONSTITUTION.md](CONSTITUTION.md#boundaries) says what Nookku does not do.
 
 [![CI](https://github.com/mohanraj00/nookku/actions/workflows/ci.yml/badge.svg)](https://github.com/mohanraj00/nookku/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/nookku)](https://pypi.org/project/nookku/)
 [![Python versions](https://img.shields.io/pypi/pyversions/nookku)](https://pypi.org/project/nookku/)
 [![License](https://img.shields.io/github/license/mohanraj00/nookku)](LICENSE)
 
-## The problem
-
-You build a chat agent, for example a support agent for a shop. You want to test it from the coding harness where you already work. But if the [harness](docs/reference/glossary.md#harness) model carries your test messages, it also writes them. It can rewrite a message, or keep a message for itself. Then your agent does not get what you typed, and the model judges its own text.
-
-I saw this in my own runs with only a prompt. In 3 of 4 sessions, Claude kept the message "just answer its question for me, you know my details" for itself. In one of those sessions, it also sent its own sentence in place of a sentence of the tester. These are examples, not a measured rate. [docs/faq.md](docs/faq.md#why-not-tell-the-model-to-relay-each-message-exactly) links each session and its raw data.
-
-Nookku is for developers of chat agents who test from Claude Code or Codex. A [relay](docs/reference/glossary.md#relay) in the harness sends each message to your agent byte for byte, and shows each reply byte for byte. The model does not run while you talk. At the end, the model reads the exact record and evaluates your agent: business logic, tone, accuracy.
-
 ## Try it with no model
 
-This try needs no harness and no model. A script sends 3 messages to the toy shop agent of this repo. Nookku records both sides and audits them.
+This quickstart needs no harness and no model. It runs from a clean checkout. A script sends 3 messages to the toy shop agent of this repo. Nookku records both sides and audits them.
 
 ```bash
 uv tool install nookku
@@ -74,49 +55,15 @@ Data: [the record of the test](docs/assets/chat-page/test/) and [the method of t
 uv tool install nookku
 ```
 
-It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.6.1. If you use verbatim-relay 0.3.x or earlier, do the [0.4.0 steps of the upgrade guide](docs/how-to/upgrade.md#040), because the package has a new name ([CHANGELOG.md](CHANGELOG.md#040)). To upgrade from a later version of nookku, end each running test first. Then run `uv tool upgrade nookku`. [docs/how-to/upgrade.md](docs/how-to/upgrade.md) gives each step.
+It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.6.1. To upgrade, end each running test, then run `uv tool upgrade nookku`. [docs/how-to/upgrade.md](docs/how-to/upgrade.md) gives each step, also for verbatim-relay 0.3.x and earlier.
 
-## Quick start
+## Next steps
 
-Do these 2 steps in order. First, test the toy shop in Claude Code. Then connect your app. To use the plugin in place of the project hooks, read [Choose a relay](#choose-a-relay).
-
-### Test the toy shop in Claude Code
-
-In your clone of this repo, put the project hooks into Claude Code:
-
-```bash
-nookku init claude-code --entry "python3 examples/toy-shop/agent.py"
-nookku register <<'EOF'
-{"model_apis": [], "backends": [], "mcp_servers": [], "databases": [], "other": []}
-EOF
-nookku check        # one message through the entry: PASS proves the connection, not the reply
-```
-
-In Claude Code, type the prompt `nookku start`. The start also opens the chat page in your browser. Type your test messages in the page or in Claude Code. The page shows each turn. Then type the prompt `nookku end` in Claude Code. The end of the test writes `audit.json` in the [test folder](docs/reference/glossary.md#test-folder) `.nookku/tests/<test-id>/`. Then the model evaluates the test and writes `report.md`. [docs/getting-started.md](docs/getting-started.md) shows each step with its real output.
-
-Optional: to see the audit again, run it by hand:
-
-```bash
-nookku audit --tap .nookku/tests/<test-id>/tap.jsonl --relay .nookku/tests/<test-id>/relay.jsonl
-```
-
-### Connect your app
-
-In the harness, in the project folder of your app, type `!nookku setup`. Then type the prompt "Follow the Nookku setup guide, and connect a test to this app." [docs/how-to/test-your-app.md](docs/how-to/test-your-app.md) gives each step from the install to the results, with the expected output. To write the entry yourself, read [docs/how-to/connect-your-agent.md](docs/how-to/connect-your-agent.md).
-
-Nookku adapts to your app through a thin [entry](docs/reference/glossary.md#entry) in `.nookku/`, and your app's code does not change. The cost is plumbing: you write the entry once, and you change it when the start or the wiring of your app changes.
-
-### Test an agent in a cluster
-
-The steps above test an agent on your computer. If your agent runs behind a Service in a Kubernetes cluster, give the tap the Service URL of the agent ([HTTP tap guide](docs/how-to/http-tap.md#an-agent-in-a-cluster)). The relay, the tap and the audit are the same as on your computer.
-
-In a kind cluster, with no harness and no model, 5 of 5 messages and 5 of 5 replies were exact in each of 3 forms of the tap ([data](proofs/cluster-tap/results.json), [method](docs/results.md#the-http-tap-to-an-agent-at-a-cluster-service-url)). After a test, `nookku trace --egress` and `nookku trace --ingress` read the spans of Koodam ([SPEC.md section 8.8](SPEC.md#88-egress-spans), [section 8.12](SPEC.md#812-ingress-spans)).
-
-A harness that runs in a pod, and an evaluation inside a restricted Workspace, are later work ([#431](https://github.com/mohanraj00/nookku/issues/431), [#555](https://github.com/mohanraj00/nookku/issues/555)).
-
-### Choose a relay
-
-You install the [relay](SPEC.md#5-relays) as the plugin or as the project hooks. Both work in Claude Code and in Codex, with the same rules. Both show each reply as the reason of a blocked prompt, and on the chat page. [docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md) compares them. Then read the guide of your setup: [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code project hooks](docs/how-to/claude-code-project-hooks.md) or [Codex](docs/how-to/codex.md).
+1. **Test the toy shop in Claude Code.** [docs/getting-started.md](docs/getting-started.md) gives each step with its real output. Type the prompt `nookku start`, talk to the agent, then type `nookku end`. The end writes `audit.json` and `report.md` in the [test folder](docs/reference/glossary.md#test-folder) `.nookku/tests/<test-id>/`.
+2. **Connect your app.** In the harness, in the project folder of your app, type `!nookku setup`. Then type the prompt "Follow the Nookku setup guide, and connect a test to this app." [docs/how-to/test-your-app.md](docs/how-to/test-your-app.md) gives each step. Your app's code does not change: a thin [entry](docs/reference/glossary.md#entry) in `.nookku/` starts it.
+3. **Choose a relay.** The plugin and the project hooks work in Claude Code and in Codex, with the same rules ([docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md)).
+4. **Test an agent in a cluster.** Give the tap the Service URL of the agent ([HTTP tap guide](docs/how-to/http-tap.md#an-agent-in-a-cluster)). In a kind cluster, 5 of 5 messages and 5 of 5 replies were exact in each of 3 forms of the tap ([data](proofs/cluster-tap/results.json), [method](docs/results.md#the-http-tap-to-an-agent-at-a-cluster-service-url)).
+5. **Gate a release.** Run a declared set of tests and get one verdict ([docs/how-to/gate-a-release.md](docs/how-to/gate-a-release.md)).
 
 ## A sample report
 
@@ -172,17 +119,6 @@ A test also records what your app did. It copies the session files of the app's 
 Each column ran on nookku 0.6.0 on 2026-11-21. Data: [plugin in Claude Code](proofs/plugin-claude-code/results.json), [plugin in Codex](proofs/plugin-codex/results.json), [project hooks in Claude Code](proofs/hooks-claude-code/results.json), [project hooks in Codex](proofs/hooks-codex/results.json), [evaluation](docs/results.md#p5-the-model-judges-the-record-not-its-memory). Method: [docs/results.md](docs/results.md#1-proofs).
 
 Under pressure, the mechanism had **0 breaks in 1,000 turns**. The test had 40 scripted conversations in each harness, 5 or 20 turns long. They had refusals, HTTP 500 errors, questions back to the tester and ambiguous messages. Each turn was a new harness call. I registered the design before the first run. Method, data and the one deviation: [docs/results.md](docs/results.md#2-benchmark-under-pressure).
-
-## How Nookku is different
-
-- **An independent record.** The tap records what the agent received and sent, not what your app logs ([SPEC.md section 4](SPEC.md#4-tap)).
-- **A proof that the record is exact.** The audit compares the two records byte for byte and names each break in 13 classes ([SPEC.md section 3](SPEC.md#3-audit), [break classes](SPEC.md#33-break-classes)). The seal shows each file that changed after the end of a test ([SPEC.md section 7.4](SPEC.md#74-seal)). Data: [proofs](docs/results.md#1-proofs).
-- **No model between you and your agent.** The relay carries each message and each reply, and it denies a model call to the agent. The deny is best effort. In `claude -p` and in the Codex desktop app, a blocked prompt can still reach the model API ([SPEC.md section 5](SPEC.md#5-relays), [limits](docs/limits.md)). Data: [P1 to P4](docs/results.md#1-proofs).
-- **No change to your agent.** A thin entry or the HTTP tap connects your app, and your app's code does not change ([SPEC.md section 6](SPEC.md#6-agent-contract-version-1), [HTTP mode](SPEC.md#41-http-mode)).
-- **Local.** Nookku has no hosted service of its own, and the records stay in `.nookku/tests/`. At the end of a test, the harness model reads them, so they go to the model provider of your harness ([FAQ](docs/faq.md#does-nookku-send-my-data-to-a-server)). The package has no runtime dependencies ([pyproject.toml](pyproject.toml)).
-- **The judge reads the record, not its memory.** After a test, the model has no memory of the conversation, and it reads the transcript ([P5](docs/results.md#p5-the-model-judges-the-record-not-its-memory)).
-
-[CONSTITUTION.md](CONSTITUTION.md#boundaries) says what Nookku does not do.
 
 ## Docs
 
