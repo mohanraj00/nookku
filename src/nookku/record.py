@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import errno
 import json
 import math
 import os
 import re
+import stat
+import tempfile
 import threading
 import time
 from dataclasses import dataclass
@@ -278,6 +281,40 @@ def attachment_path(record: Path, digest: str) -> Path:
     return record.parent / f"{record.stem}.attachments" / digest
 
 
+class AttachmentFileError(ValueError):
+    """A side file is not a regular file of the expected size."""
+
+    def __init__(self, message: str, size: int | None = None) -> None:
+        super().__init__(message)
+        self.size = size
+
+
+def read_attachment(path: Path, size: int) -> bytes:
+    """Read a side file only if it is a regular file of the expected size."""
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError as e:
+        if e.errno == errno.ELOOP:
+            raise AttachmentFileError("it is a symlink") from None
+        if e.errno == errno.ENXIO:
+            # The system can refuse to open some file types, for example a socket.
+            raise AttachmentFileError("it is not a regular file") from None
+        raise
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode):
+            raise AttachmentFileError("it is not a regular file")
+        if info.st_size != size:
+            raise AttachmentFileError(f"it has {info.st_size} bytes", info.st_size)
+        with os.fdopen(fd, "rb", closefd=False) as fh:
+            data = fh.read(size + 1)
+        if len(data) != size:
+            raise AttachmentFileError("its size changed during the read")
+        return data
+    finally:
+        os.close(fd)
+
+
 def write_attachment(record: Path, media_type: str, data: bytes) -> dict[str, Any]:
     """Write the side file of an attachment of a record, flushed to disk, and return the
     attachment for the `attachments` of its row. Write the side file before the row (SPEC.md
@@ -290,16 +327,20 @@ def write_attachment(record: Path, media_type: str, data: bytes) -> dict[str, An
     path = attachment_path(record, digest)
     path.parent.mkdir(exist_ok=True)
     try:
-        same = path.read_bytes() == data
-    except FileNotFoundError:
+        same = read_attachment(path, len(data)) == data
+    except (FileNotFoundError, AttachmentFileError):
         same = False
     if not same:
-        temp = path.with_name(f".{digest}.{os.getpid()}.{threading.get_ident()}")
-        with temp.open("wb") as fh:
-            fh.write(data)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(temp, path)
+        fd, name = tempfile.mkstemp(prefix=f".{digest}.", dir=path.parent)
+        temp = Path(name)
+        try:
+            with os.fdopen(fd, "wb") as fh:
+                fh.write(data)
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.replace(temp, path)
+        finally:
+            temp.unlink(missing_ok=True)
     return {"media_type": media_type, "bytes": len(data), "sha256": digest}
 
 

@@ -6,9 +6,9 @@ import json
 from pathlib import Path
 
 import pytest
-from test_tap import agent, post, run_tap  # noqa: F401 (agent is a fixture)
+from test_tap import agent, handle_post, post, run_tap  # noqa: F401 (agent is a fixture)
 
-from nookku.adapters import AdapterError, make
+from nookku.adapters import ATTACHMENT_BYTES, ATTACHMENT_COUNT, AdapterError, make
 from nookku.audit import audit, render
 from nookku.record import (
     Exchange,
@@ -74,6 +74,24 @@ def test_a_missing_side_file_is_a_break(tmp_path):
     assert [found.kind, found.relay_line, found.tap_line] == ["missing_attachment_file", 1, None]
     assert found.evidence["actual_sha256"] is None
     assert "relay.attachments/" in render(report) and "does not exist" in render(report)
+
+
+@pytest.mark.parametrize("record", ["tap", "relay"])
+def test_the_audit_reports_a_symlink_side_file_as_altered(tmp_path, record):
+    tap, relay = records(tmp_path)
+    side = attachment_path(tmp_path / f"{record}.jsonl", hashlib.sha256(MUG).hexdigest())
+    target = tmp_path / "the-mug.png"
+    side.rename(target)
+    side.symlink_to(target)
+
+    report = audit(tap, relay)
+
+    [found] = report.breaks
+    assert report.exit == 1 and found.kind == "altered_attachment_file"
+    assert (found.relay_line, found.tap_line) == ((None, 1) if record == "tap" else (1, None))
+    assert found.evidence["actual_sha256"] is None
+    assert found.evidence["actual_bytes"] is None
+    assert "it is a symlink" in found.evidence["detail"]
 
 
 def test_another_image_at_the_agent_is_an_altered_attachment(tmp_path):
@@ -201,6 +219,52 @@ def test_the_tap_records_the_image_that_the_agent_received(agent, tmp_path):  # 
     assert isinstance(row, Exchange) and row.input == ASK and row.status == 200
     assert row.attachments == ({"media_type": "image/png", "bytes": len(MUG), "sha256": digest},)
     assert (tmp_path / "tap.attachments" / digest).read_bytes() == MUG
+
+
+def test_the_tap_replaces_a_symlink_side_file(tmp_path):
+    record = tmp_path / "tap.jsonl"
+    side = attachment_path(record, hashlib.sha256(MUG).hexdigest())
+    side.parent.mkdir()
+    target = tmp_path / "the-mug.png"
+    target.write_bytes(MUG)
+    side.symlink_to(target)
+    body = openai_body(DATA_URL)
+    response, connect = handle_post(record, "/v1/chat/completions", body, adapter="openai")
+    assert response.startswith(b"HTTP/1.1 200 ")
+    assert connect.return_value.request.call_args.kwargs["body"] == body
+    assert not side.is_symlink()
+    assert side.read_bytes() == target.read_bytes() == MUG
+    [row] = read_tap(record)
+    assert isinstance(row, Exchange) and row.attachments[0]["sha256"] == side.name
+
+
+@pytest.mark.parametrize("limit", ["count", "decoded bytes"])
+@pytest.mark.parametrize("over_limit", [False, True])
+def test_the_tap_checks_each_attachment_limit(tmp_path, limit, over_limit):
+    record = tmp_path / "tap.jsonl"
+    if limit == "count":
+        images = [DATA_URL] * ATTACHMENT_COUNT
+    else:
+        half = b"m" * (ATTACHMENT_BYTES // 2)
+        image = "data:image/png;base64," + base64.b64encode(half).decode()
+        images = [image, image]
+    if over_limit:
+        images.append(DATA_URL)
+    body = openai_body(*images)
+    response, connect = handle_post(record, "/v1/chat/completions", body, adapter="openai")
+
+    if not over_limit:
+        assert response.startswith(b"HTTP/1.1 200 ")
+        assert connect.return_value.request.call_args.kwargs["body"] == body
+        [row] = read_tap(record)
+        assert isinstance(row, Exchange) and len(row.attachments) == len(images)
+        return
+    assert response.startswith(b"HTTP/1.1 413 ")
+    reason = b"decoded bytes" if limit == "decoded bytes" else b"attachments"
+    assert reason in response
+    connect.assert_not_called()
+    assert not record.exists()
+    assert not (tmp_path / "tap.attachments").exists()
 
 
 def test_the_tap_marks_an_image_with_a_web_url_unparsed(agent, tmp_path):  # noqa: F811

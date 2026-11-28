@@ -9,9 +9,16 @@ from typing import Any, Protocol
 
 from nookku.record import MEDIA_TYPE, lone_surrogate
 
+ATTACHMENT_COUNT = 16
+ATTACHMENT_BYTES = 8 * 1024 * 1024
+
 
 class AdapterError(ValueError):
     """The adapter cannot find the message or the reply."""
+
+
+class AttachmentLimitError(ValueError):
+    """The request exceeds an attachment limit of SPEC.md section 4.1."""
 
 
 class StreamError(ValueError):
@@ -185,7 +192,31 @@ class OpenAIAdapter:
         content = self._content(body)
         if not isinstance(content, list):
             return []
-        return [_data_url(p.get("image_url")) for p in content if p.get("type") == "image_url"]
+        # The content has one text part. Each other part is an image.
+        if len(content) - 1 > ATTACHMENT_COUNT:
+            raise AttachmentLimitError(f"the request has more than {ATTACHMENT_COUNT} attachments")
+        images = []
+        size = 0
+        error = None
+        for part in content:
+            if part["type"] != "image_url":
+                continue
+            try:
+                image = _data_url(part.get("image_url"))
+            except AdapterError as e:
+                # Check the limits of the other images before the tap forwards an unparsed request.
+                if error is None:
+                    error = e
+                continue
+            size += len(image[1])
+            if size > ATTACHMENT_BYTES:
+                raise AttachmentLimitError(
+                    f"the request attachments have more than {ATTACHMENT_BYTES} decoded bytes"
+                )
+            images.append(image)
+        if error is not None:
+            raise error
+        return images
 
     def reply(self, body: bytes) -> str:
         path = "choices.0.message.content"
