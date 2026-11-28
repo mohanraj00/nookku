@@ -1,5 +1,7 @@
 # Evaluate your app against its spec
 
+Release: nookku 0.6.2.
+
 The [app spec](../reference/app-spec.md) tells the [evaluation](../reference/glossary.md#evaluation) what your app must do: how the agent speaks, what it must refuse, where it must guide the user, how slow a turn can be, and which tool calls, backend calls and spans must occur. This guide adds a spec to an app that already has a test. Then it reads the results that the spec adds. The reference page gives each rule of the spec, and [read-the-results.md](read-the-results.md) gives each file of a test.
 
 I made the output of step 2 with a copy of the [full toy shop](../../examples/toy-shop-full/README.md) and nookku 0.6.0 ([version](../../src/nookku/__init__.py)), with no model. The copy already had a config from `nookku init plugin --entry "uv run --with claude-agent-sdk --with nookku python3 entry.py" --models claude-code`. I shortened the paths to `.../`. The results of step 4 come from the proofs of 0.6.0, which ran tests with a model on 2026-11-21. Each block names its data and its method.

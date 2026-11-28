@@ -1,5 +1,7 @@
 # Troubleshooting
 
+Release: nookku 0.6.2. Since 0.7.0 (not released yet): the sealed refusal record of a refused start.
+
 If you see a problem but no error text, find the problem in [Symptoms](#symptoms). If you have an error text, find it in the sections after Symptoms. Each of these sections gives a real error text from the code, its cause and the fix. The source file of each text is in parentheses. A part in angle brackets, for example `<test-id>`, changes from run to run.
 
 First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tests/<test-id>/`. `bridge.log` has the steps of the [bridge](reference/glossary.md#bridge). `app.log` has the stderr of your [entry](reference/glossary.md#entry) and your app.

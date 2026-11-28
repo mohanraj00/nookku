@@ -1,6 +1,8 @@
 # API reference
 
-`nookku dashboard` serves a read-only HTTP API of the runs and the gate runs of one project ([cli.md](cli.md#nookku-dashboard)). A script and the dashboard of [examples/evaluation-dashboard/](../../examples/evaluation-dashboard/) read the same data. The code is [src/nookku/api.py](../../src/nookku/api.py), and `tests/test_api.py` checks each route.
+Release: nookku 0.6.2.
+
+`nookku dashboard` serves a read-only HTTP API of the runs and the gate runs of one project ([cli.md](commands/dashboard.md)). A script and the dashboard of [examples/evaluation-dashboard/](../../examples/evaluation-dashboard/) read the same data. The code is [src/nookku/api.py](../../src/nookku/api.py), and `tests/test_api.py` checks each route.
 
 ## Version
 
@@ -11,7 +13,7 @@ The API version is 1. Each route starts with `/api/v1`, and each JSON answer has
 - The API answers only `GET` and `HEAD`. `POST`, `PUT`, `DELETE` and `PATCH` get status 405 with `{"api": 1, "error": "the API is read-only"}`.
 - The API reads the files of the [test folders](glossary.md#test-folder) and of the gate folders. It changes no file, and it writes no [seal](glossary.md#seal) copy.
 - A run or a gate run that does not exist, and a path that is not a route, get status 404 with `{"api": 1, "error": "..."}`. An id must be the name of a folder, so a path cannot leave the tests folder or the gates folder.
-- Each request to `/api/v1` must send the header `Authorization: Bearer <token>`. The server makes a new random token each time it starts, and `nookku dashboard` prints it ([cli.md](cli.md#nookku-dashboard)). A request with no token or a wrong token gets status 401 with `{"api": 1, "error": "no valid token"}`. Thus a process of another user on the same computer cannot read the records through the port. The static files of `--site` need no token, so the site folder must hold no record.
+- Each request to `/api/v1` must send the header `Authorization: Bearer <token>`. The server makes a new random token each time it starts, and `nookku dashboard` prints it ([cli.md](commands/dashboard.md)). A request with no token or a wrong token gets status 401 with `{"api": 1, "error": "no valid token"}`. Thus a process of another user on the same computer cannot read the records through the port. The static files of `--site` need no token, so the site folder must hold no record.
 - The server holds at most 64 open connections. A connection above this limit gets status 503 before the server reads a byte. A connection that sends no part of a request for 10 seconds closes. Thus a client with no token cannot keep the threads of the server.
 - A request with a `Host` header that is not the address of the server gets status 403 with `{"api": 1, "error": "wrong Host header"}`. With `127.0.0.1`, the server also accepts `localhost` and `[::1]` at the same port. This stops a page of another site that reaches the server through a DNS name that points to `127.0.0.1`.
 - Each answer has `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` and a Content Security Policy that lets a page load only files of the same server. The server sends no CORS header, so a page of another origin cannot read an answer.

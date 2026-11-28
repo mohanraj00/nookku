@@ -1,5 +1,7 @@
 # Architecture
 
+Release: nookku 0.6.2.
+
 This page shows the parts of Nookku and how the data goes between them. [SPEC.md](../SPEC.md) defines each part exactly. This page tells you why each part exists and where to read more.
 
 ## The problem
@@ -79,7 +81,7 @@ The relay is the command `nookku hook`. It carries each message and each reply, 
 - **The [plugin](reference/glossary.md#plugin).** One plugin folder for Claude Code and Codex. It also has the MCP server `nookku mcp`, with the read-only tools `transcript` and `status`, and the `setup` skill. In Claude Code, function hooks add `/nookku`, a status line and a pane. They are early access. They hold one rule: in [relay mode](reference/glossary.md#relay-mode), they drop a prompt with an attachment. Read [how-to/claude-code-plugin.md](how-to/claude-code-plugin.md) or [how-to/codex.md](how-to/codex.md).
 - **The [project hooks](reference/glossary.md#project-hooks).** `nookku init` writes the same 2 hooks into one project. Read [how-to/claude-code-project-hooks.md](how-to/claude-code-project-hooks.md) or [how-to/codex.md](how-to/codex.md).
 
-Both forms show each reply as the reason of a blocked prompt. The [chat page](reference/cli.md#nookku-chat) of the test also shows each reply, and it is the main view of a test. `nookku view` is the alternative for a terminal. `codex exec` does not show the reason. In Codex, `nookku start` refuses a test if a nookku hook is not trusted ([SPEC.md section 7.8](../SPEC.md#78-codex-hook-gate)).
+Both forms show each reply as the reason of a blocked prompt. The [chat page](reference/commands/chat.md) of the test also shows each reply, and it is the main view of a test. `nookku view` is the alternative for a terminal. `codex exec` does not show the reason. In Codex, `nookku start` refuses a test if a nookku hook is not trusted ([SPEC.md section 7.8](../SPEC.md#78-codex-hook-gate)).
 
 The chat page is a third way to send the messages of a test. `nookku start` starts it, and `nookku chat` starts it by hand. The page server sends each message with the same relay function as the hook. The message does not go into the harness, so the harness model cannot see it, and its reply shows on the page, not in the harness chat ([SPEC.md section 5](../SPEC.md#5-relays)).
 

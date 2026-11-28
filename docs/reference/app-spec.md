@@ -1,5 +1,7 @@
 # App spec
 
+Release: nookku 0.6.2. Since 0.7.0 (not released yet): the `Bind` column of the `Approvals` table.
+
 The app spec tells the [evaluation](glossary.md#evaluation) what the app must do. It is one or more Markdown files in your project. The config key [`spec`](config.md#test-keys) names them. At the end of a test, the evaluation prompt names each file, and the model reads them first ([SPEC.md section 9.2](../../SPEC.md#92-evaluation-prompt)).
 
 With no spec, the model finds the business rules in the code, the docs and the tests. Then it must guess which files hold the rules.
@@ -98,8 +100,8 @@ The toy shop allows 0 `agent_error` and at most 1 `repeated_reply`:
 
 - A class with no row has no limit, so it always passes.
 - The verdict is `fail` if a class has more findings than its `Most`.
-- A row of an issue class is your opt-in. Then the verdict counts the issue rows of that class in `evaluation.json`, from the model and from you ([`nookku evaluation`](cli.md#nookku-evaluation)). With no such row, an issue of the model never fails a verdict.
-- A test has no `evaluation.json` at its end. Thus a row of an issue class fails the verdict until you run `nookku evaluation import`. A [gate run](cli.md#nookku-gate) has no evaluation, so such a row fails each test of the gate.
+- A row of an issue class is your opt-in. Then the verdict counts the issue rows of that class in `evaluation.json`, from the model and from you ([`nookku evaluation`](commands/evaluation.md)). With no such row, an issue of the model never fails a verdict.
+- A test has no `evaluation.json` at its end. Thus a row of an issue class fails the verdict until you run `nookku evaluation import`. A [gate run](commands/gate.md) has no evaluation, so such a row fails each test of the gate.
 - The section and the table follow the rules of [Trace points](#trace-points): a heading of any level, more columns in any order, and no table in a fenced code block.
 - If the bridge cannot read a row, the verdict is `fail`, and `problems` in `verdict.json` names the file, the line and the problem. Examples: a class that the trace does not have, a second row for one class, or a `Most` that is not a whole number.
 - The bridge reads the table at the start of the test and records it in the manifest. If you change the table after the start, the verdict of that test does not change.
@@ -141,14 +143,14 @@ An answer can have its own rule. Give it `match`, and for `number` a `tolerance`
 
 - A turn is checked if its message is a question of the key, byte for byte.
 - `findings.json` records each checked turn in `answers`, a match and a mismatch.
-- A mismatch does not say which side is wrong. Record your decision with [`nookku adjudicate`](cli.md#nookku-adjudicate): `agent_wrong`, `key_wrong` or `both_acceptable`. A mismatch with `key_wrong` or `both_acceptable` does not count against the limit of `answer_key_mismatch`. An open mismatch counts.
+- A mismatch does not say which side is wrong. Record your decision with [`nookku adjudicate`](commands/adjudicate.md): `agent_wrong`, `key_wrong` or `both_acceptable`. A mismatch with `key_wrong` or `both_acceptable` does not count against the limit of `answer_key_mismatch`. An open mismatch counts.
 - A turn with no match gives the finding `answer_key_mismatch`. A question that no turn asked gives `answer_key_missing`. A `Verdict` row can limit each class.
 - The spec files have 1 `Answer key` row at most. If the bridge cannot read the row or the key file, the test does not start.
 - The bridge records the SHA-256 of the key file in the manifest. After the [entry](glossary.md#entry) stops, it copies the key file into the test folder as `answer_key.json`, so the entry cannot read the copy and the [seal](glossary.md#seal) covers the key. If you change the key after the start, the result of that test does not change.
 - The key file is in the project folder. If the entry can read it, the entry can give each keyed answer. Run the entry with no read access to the key file, for example as another user or in a sandbox.
 - The [harness model](glossary.md#harness-model) that builds the app can also read the key file. To deny its tool calls that name the key, add the path to the policy key [`answer_keys`](config.md#nookkupolicyjson): `nookku policy set answer_keys keys/stock.json`. If the policy key does not protect the key file, the start text of the test says so.
 
-To make CI fail on a `fail` verdict, give `--verdict` to [`nookku run`](cli.md#nookku-run) or [`nookku trace`](cli.md#nookku-trace). Then the command exits with 1. The command uses the verdict only if it agrees with the [seal](glossary.md#seal) and its copy in `~/.nookku/seals/`, so a test with no copy of the seal fails ([SPEC.md section 7.14](../../SPEC.md#714-verdict)).
+To make CI fail on a `fail` verdict, give `--verdict` to [`nookku run`](commands/run.md) or [`nookku trace`](commands/trace.md). Then the command exits with 1. The command uses the verdict only if it agrees with the [seal](glossary.md#seal) and its copy in `~/.nookku/seals/`, so a test with no copy of the seal fails ([SPEC.md section 7.14](../../SPEC.md#714-verdict)).
 
 ### Approvals
 

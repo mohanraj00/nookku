@@ -1,5 +1,7 @@
 # Read the results of a test
 
+Release: nookku 0.6.2.
+
 After a test, the [test folder](../reference/glossary.md#test-folder) holds the records, the [trace](../reference/glossary.md#trace), the [audit](../reference/glossary.md#audit), the [seal](../reference/glossary.md#seal) and, if the model ran, a report. This page tells you how to read these files in order. Read the seal first. If a file changed after the end of the test, do not trust the other results.
 
 The sample output on this page comes from one test of the [toy shop agent](../../examples/toy-shop/agent.py) with nookku 0.4.0. The test has the 3 messages of the [tutorial](../getting-started.md#6-run-the-test). I gave each prompt to `nookku hook --harness claude-code` as a `UserPromptSubmit` event, as Claude Code does. No [harness model](../reference/glossary.md#harness-model) ran, so this test has no report. The output is a sample of one run, not a measurement. To make it again, run the steps of the tutorial on the toy shop. I shortened the paths to `.../`. The test id and the times are different on your machine.
@@ -419,7 +421,7 @@ A repeated text then shows as `(compact: the same text as [trace.jsonl:N], sha25
 | The audit exits with 2. | Read `errors` in `audit.json`, and find the error in [troubleshooting.md](../troubleshooting.md#audit-verify-and-trace). Fix the entry or the relay, then run the test again. |
 | The audit exits with 1. | Find the class of each break in the [break classes](#break-classes) table, and do its fix. Then run the test again. Do not trust the report of this test. |
 | A finding. | Find the item in the transcript. If the item shows a fault of the app, fix the app. If it is the correct result, keep it as a fact. |
-| `answer_key_mismatch`. | Compare the reply with the source of the key. Then record your decision with [`nookku adjudicate`](../reference/cli.md#nookku-adjudicate): `agent_wrong`, `key_wrong` or `both_acceptable`. If the key is wrong, correct the key file. If the agent is wrong, fix the app. Then run the test again. |
+| `answer_key_mismatch`. | Compare the reply with the source of the key. Then record your decision with [`nookku adjudicate`](../reference/commands/adjudicate.md): `agent_wrong`, `key_wrong` or `both_acceptable`. If the key is wrong, correct the key file. If the agent is wrong, fix the app. Then run the test again. |
 | `version_untested`. | Run the proofs for the new harness version ([run-the-proofs.md](../contributing/run-the-proofs.md)). |
 | `missing_trace_point`. | Find the code of the app that sends the trace point, and check why the turn did not send it. If the spec is wrong, correct its `When`. |
 | `trace_points_unread`. | Correct the row or the table at the line that `detail` gives. Then the next test checks the trace point. |

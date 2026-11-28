@@ -235,7 +235,7 @@ def test_the_timeout_table_matches_the_constants() -> None:
 CHECK_PAGES = [
     "docs/getting-started.md",
     "docs/how-to/connect-your-agent.md",
-    "docs/reference/cli.md",
+    "docs/reference/commands/check.md",
     "src/nookku/setup.md",
 ]
 
@@ -691,17 +691,33 @@ def _documented(action: argparse.Action) -> list[str]:
     return [(action.metavar if isinstance(action.metavar, str) else action.dest).upper()]
 
 
+COMMANDS = DOCS / "reference" / "commands"
+
+
 def test_the_cli_page_has_each_command_and_each_flag() -> None:
+    # The CLI page lists each command, and each command has its own page with each flag (#715).
     page = _sections(DOCS / "reference" / "cli.md", "###")
     commands = _commands()
     assert sorted(page) == sorted(f"nookku {name}" for name in commands)
+    assert sorted(p.stem for p in COMMANDS.glob("*.md")) == sorted(commands)
     for name, parser in commands.items():
-        section = page[f"nookku {name}"]
+        assert f"(commands/{name}.md)" in page[f"nookku {name}"], name
+        section = (COMMANDS / f"{name}.md").read_text(encoding="utf-8")
         # Each flag in the first cell of a row, for example `--no-evaluate`, `--evaluate`.
         cells = re.findall(r"^\| ((?:`[^`]+`(?:, )?)+) \|", section, re.MULTILINE)
         rows = {m for cell in cells for m in re.findall(r"`(--[a-z][a-z-]*|[A-Z]+)\b", cell)}
         wanted = {d for action in parser._actions for d in _documented(action)}
         assert rows == wanted, name
+
+
+@pytest.mark.parametrize("name", sorted(set(_commands()) - cli.INTERNAL_COMMANDS))
+def test_each_command_page_has_an_example_and_its_exit_codes(name: str) -> None:
+    # A new user runs the example of the page, and reads the meaning of each exit code (#715).
+    text = (COMMANDS / f"{name}.md").read_text(encoding="utf-8")
+    example = _sections(COMMANDS / f"{name}.md", "##").get("Example", "")
+    assert re.search(r"```bash\n.*\bnookku\b", example), name
+    assert "```text\n" in example, name
+    assert re.search(r"^\| (Command \| )?Exit code \|", text, re.M), name
 
 
 def _row_defaults(section: str) -> dict[str, str]:

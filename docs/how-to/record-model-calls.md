@@ -1,5 +1,7 @@
 # Record model calls and OpenTelemetry
 
+Release: nookku 0.6.2.
+
 A test records 2 more sources by default: the direct model calls of your app, and the OpenTelemetry spans and logs of your app. Both go into the [trace](../reference/glossary.md#trace), each item in its turn.
 
 ## Direct model calls
@@ -14,7 +16,7 @@ An Agent SDK session in your app also reads `ANTHROPIC_BASE_URL`, so its calls a
 
 ### Change which APIs the proxy records
 
-Nookku 0.5.1 and earlier recorded both APIs by default. Now the proxy records only the APIs of the answer. Tell the model to change the answer in these cases:
+The proxy records only the APIs of the answer. Tell the model to change the answer in these cases:
 
 | Case | The answer |
 |---|---|

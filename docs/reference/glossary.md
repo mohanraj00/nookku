@@ -1,5 +1,7 @@
 # Glossary
 
+Release: nookku 0.6.2.
+
 This page defines each term that the docs use for the parts of Nookku. Each term links to the section of [SPEC.md](../../SPEC.md) that defines it exactly. SPEC.md is the authority. If this page and SPEC.md disagree, SPEC.md is correct.
 
 The test `tests/test_docs.py` checks that each term on this page links to a section of SPEC.md.

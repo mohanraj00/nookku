@@ -1,5 +1,7 @@
 # FAQ
 
+Release: nookku 0.6.2.
+
 ## Why not tell the model to relay each message exactly?
 
 An [evaluation](reference/glossary.md#evaluation) is only as good as the conversation under it. If the [harness model](reference/glossary.md#harness-model) carries the messages, it also writes them, and then it judges its own text.

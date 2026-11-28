@@ -1,5 +1,7 @@
 # Add a backend
 
+Release: nookku 0.6.2.
+
 A backend is an HTTP service that your app calls, for example a stock service or a payment service. At each start, the [harness model](../reference/glossary.md#harness-model) finds each backend of your app, and the test records each call of the app to it. The [trace](../reference/glossary.md#trace) shows each call in its turn, so the [evaluation](../reference/glossary.md#evaluation) can see what the app did, not only what it said.
 
 ## 1. Find the variable of the URL
@@ -22,7 +24,7 @@ You do not write the backends into `.nookku/config.json`. When you type `nookku 
 
 If a line is wrong, tell the model. It runs `nookku register` again. Then type `nookku start` again in the next 30 minutes ([`FRESH`](../../src/nookku/discovery.py)).
 
-Each name and each variable can occur only once. You can also run `nookku register` yourself in a shell, with the answer as JSON ([cli.md](../reference/cli.md#nookku-register)):
+Each name and each variable can occur only once. You can also run `nookku register` yourself in a shell, with the answer as JSON ([cli.md](../reference/commands/register.md)):
 
 ```bash
 nookku register <<'EOF'
