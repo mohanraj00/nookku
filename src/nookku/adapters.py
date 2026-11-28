@@ -113,6 +113,18 @@ def _data_url(value: Any) -> tuple[str, bytes]:
         raise AdapterError("an image_url part has base64 that is not valid") from None
 
 
+def _check_parts(content: Any) -> None:
+    """A list content must have exactly one text part and 0 or more image_url parts."""
+    if isinstance(content, list):
+        kinds = [p.get("type") if isinstance(p, dict) else None for p in content]
+        texts, images = kinds.count("text"), kinds.count("image_url")
+        if texts != 1 or texts + images != len(kinds):
+            raise AdapterError(
+                "the user content must be a string, or exactly one text part and 0 or more "
+                "image_url parts"
+            )
+
+
 class JsonAdapter:
     """Any POST. The message and the reply are at field paths of JSON bodies."""
 
@@ -161,24 +173,21 @@ class OpenAIAdapter:
     def accepts(self, method: str, path: str) -> bool:
         return method == "POST" and path.split("?")[0].rstrip("/").endswith("/chat/completions")
 
-    def _content(self, body: bytes) -> Any:
-        """The content of the last user message. A list has one text part and 0 or more image_url
-        parts (SPEC.md section 4.1)."""
+    def _user_content(self, body: bytes) -> Any:
+        """The content of the last user message, with no check of its parts."""
         messages = pick(_json(body, "request"), "messages")
         if not isinstance(messages, list):
             raise AdapterError("'messages' is not a list")
         users = [m for m in messages if isinstance(m, dict) and m.get("role") == "user"]
         if not users:
             raise AdapterError("the request has no message with role 'user'")
-        content = users[-1].get("content")
-        if isinstance(content, list):
-            kinds = [p.get("type") if isinstance(p, dict) else None for p in content]
-            texts, images = kinds.count("text"), kinds.count("image_url")
-            if texts != 1 or texts + images != len(kinds):
-                raise AdapterError(
-                    "the user content must be a string, or exactly one text part and 0 or more "
-                    "image_url parts"
-                )
+        return users[-1].get("content")
+
+    def _content(self, body: bytes) -> Any:
+        """The content of the last user message. A list has one text part and 0 or more image_url
+        parts (SPEC.md section 4.1)."""
+        content = self._user_content(body)
+        _check_parts(content)
         return content
 
     def message(self, body: bytes) -> str:
@@ -188,19 +197,20 @@ class OpenAIAdapter:
         return _text(content, "messages[-1].content")
 
     def attachments(self, body: bytes) -> list[tuple[str, bytes]]:
-        """The media type and the bytes of each image of the last user message."""
-        content = self._content(body)
+        """The media type and the bytes of each image of the last user message.
+
+        The limits apply before the check of the parts, so that the tap also refuses an unparsed
+        request above a limit (SPEC.md section 4.1)."""
+        content = self._user_content(body)
         if not isinstance(content, list):
             return []
-        # The content has one text part. Each other part is an image.
-        if len(content) - 1 > ATTACHMENT_COUNT:
+        parts = [p for p in content if isinstance(p, dict) and p.get("type") == "image_url"]
+        if len(parts) > ATTACHMENT_COUNT:
             raise AttachmentLimitError(f"the request has more than {ATTACHMENT_COUNT} attachments")
         images = []
         size = 0
         error = None
-        for part in content:
-            if part["type"] != "image_url":
-                continue
+        for part in parts:
             try:
                 image = _data_url(part.get("image_url"))
             except AdapterError as e:
@@ -214,6 +224,7 @@ class OpenAIAdapter:
                     f"the request attachments have more than {ATTACHMENT_BYTES} decoded bytes"
                 )
             images.append(image)
+        _check_parts(content)
         if error is not None:
             raise error
         return images
