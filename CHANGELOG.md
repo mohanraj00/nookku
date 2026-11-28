@@ -21,11 +21,15 @@ Not released yet.
 
 ## 0.6.2
 
-Not released yet.
+Released 2026-11-27.
+
+This release closes a gap of the child commands of Nookku, and adds the proof of a test in a Koodam v0.5.0 Workspace. It is a maintenance release from 0.6.1. The tap record, the relay record and the audit keep their versions. No record gets a new key.
 
 **Upgrade.** If your project has the [project hooks](docs/reference/glossary.md#project-hooks) of `nookku init claude-code` or `nookku init codex`, run `nookku init` again for each of these harnesses. Nookku refuses a test if a project hook has the command of an older version. If you use Codex, trust the hooks again. Else no step is necessary. [The upgrade guide](docs/how-to/upgrade.md#062) gives the commands.
 
 - **Isolated child commands.** The bridge, the MCP stdio proxy, the chat page and the project hooks use the Nookku library of the install. Python omits the project folder and the user site from its import path, so a `nookku` folder in the project cannot replace the library ([#704](https://github.com/mohanraj00/nookku/issues/704)).
+- **A test in a Koodam v0.5.0 Workspace.** `scripts/proof_cluster.py` now runs a test from Claude Code in a Koodam v0.5.0 Workspace with the Nookku preset, in a kind cluster, with the toy shop agent behind a Service. With `--no-evaluation`, it uses the mock model of the bundled gateway and needs no login. The run of 2026-11-27 passed W1 to W3. The preset has 2 gaps, and the guide closes both with 2 lines in `~/.profile` ([getting-started-cluster.md](docs/getting-started-cluster.md), [data](proofs/cluster/plugin-claude-code-no-evaluation.json), [method](scripts/proof_cluster.py), [#431](https://github.com/mohanraj00/nookku/issues/431)).
+- **Proofs.** On 2026-11-27, the 18 proofs with no model and no kind cluster and the seeded faults ran on 0.6.2, with Claude Code 2.1.319. Each proof passed, and the run notes give the run number of each. The seeded faults run found 97 of 97 faults in 49 cases, and each of the 33 checks has a fault. In the slots of the owner, P1 to P4 of the plugin and of the project hooks in Claude Code and in Codex, the plugin load proof, the key guard proof, the Codex hook gate proof, the cluster tap proof and the TestKey proof on kind also passed. Each other proof keeps its last record, and the run notes give the reason ([run notes](proofs/release/claude-code-0.6.2.md), [results.md](docs/results.md#1-proofs)).
 
 ## 0.6.1
 

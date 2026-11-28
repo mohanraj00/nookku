@@ -1,6 +1,6 @@
 {
  "files": {
-  ".claude-plugin/plugin.json": "d1d6f28adf38ff582396d126e4004a8ae21734d6f793ee6a7999538287d9df3d",
+  ".claude-plugin/plugin.json": "a415f0a2b3665259b237f713f16a5710bb53cce9ae3e56efed4636f710c13487",
   "hooks/display.json": "0efd04916f0b3d09f9a875bc24a74b8fa9aea81608c7dff5e70801bd99ea395b",
   "hooks/hooks.json": "432e1c534a36f7e42ff5b41b8786026606ef8e4b94f342e69912bd5e9541ca2b",
   "hooks/nookku-hook.sh": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341",
