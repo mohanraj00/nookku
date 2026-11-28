@@ -44,10 +44,25 @@ def test_manifests_pin_the_preset_by_digest(proof):
     assert f"FROM {proof.WORKSPACE_BASE}" in proof.WORKSPACE_DOCKERFILE
 
 
-def test_tag_plugin_skips_the_test_file(proof):
+def test_tag_plugin_skips_the_test_file(proof, monkeypatch):
+    # The release workflow tests a shallow checkout with no old tags, so give git output here.
+    names = ["hooks/hooks.json", "hooks/register.tsx", "hooks/register.test.ts", ".mcp.json"]
+    calls = []
+
+    def git(args, **kwargs):
+        calls.append(args[3:])
+        if args[3] == "ls-tree":
+            return "".join(f"plugins/nookku/{n}\n" for n in names).encode()
+        return args[-1].encode()
+
+    monkeypatch.setattr(proof, "run", git)
     files = proof.tag_plugin(proof.PRESET_NOOKKU)
-    assert "hooks/register.test.ts" not in files
-    assert {"hooks/hooks.json", "hooks/register.tsx", ".mcp.json"} <= set(files)
+    tag = f"v{proof.PRESET_NOOKKU}"
+    assert set(files) == {"hooks/hooks.json", "hooks/register.tsx", ".mcp.json"}
+    blob = f"{tag}:plugins/nookku/.mcp.json".encode()
+    assert files[".mcp.json"] == proof.hashlib.sha256(blob).hexdigest()
+    assert calls[0] == ["ls-tree", "-r", "--name-only", tag, "plugins/nookku"]
+    assert ["show", f"{tag}:plugins/nookku/hooks/register.test.ts"] not in calls
 
 
 def test_login_prompt_removes_the_gateway_env(proof):
