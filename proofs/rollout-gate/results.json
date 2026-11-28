@@ -1,7 +1,7 @@
 {
  "proof": "rollout-gate",
- "date": "2026-11-25",
- "nookku": "0.6.1",
+ "date": "2026-11-28",
+ "nookku": "0.7.0",
  "python": "3.13.12",
  "example": "examples/rollout-gate",
  "stages": [

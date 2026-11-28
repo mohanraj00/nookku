@@ -2,7 +2,7 @@
  "proof": "release-samples",
  "koodam_commit": "a08e48c52915b01609d5e50ae660495232328432",
  "koodam": "v0.5.0",
- "nookku": "0.6.1",
+ "nookku": "0.7.0",
  "contract_versions": [
   1,
   2

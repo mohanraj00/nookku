@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Release: nookku 0.6.2. Since 0.7.0 (not released yet): the sealed refusal record of a refused start.
+Release: nookku 0.7.0. New in 0.7.0: the sealed refusal record of a refused start.
 
 If you see a problem but no error text, find the problem in [Symptoms](#symptoms). If you have an error text, find it in the sections after Symptoms. Each of these sections gives a real error text from the code, its cause and the fix. The source file of each text is in parentheses. A part in angle brackets, for example `<test-id>`, changes from run to run.
 
@@ -29,7 +29,7 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 
 (argparse, from `nookku init`) **Cause.** You have version 0.1.0 from PyPI. It has no tests and no entry. Check with `nookku --version`.
 
-**Fix.** Run `uv tool upgrade nookku`. The docs are for version 0.6.2.
+**Fix.** Run `uv tool upgrade nookku`. The docs are for version 0.7.0.
 
 ### `nookku: command not found`
 

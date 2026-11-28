@@ -1,6 +1,6 @@
 # `nookku check`
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 Run a short test with one message, and check the [entry](../glossary.md#entry) and its model sessions ([SPEC.md section 7.1](../../../SPEC.md#71-configuration)). It sends the value of the config key `check_message`. The default is `Hello from nookku check. What can you help me with?`. If your app declines this message, set `check_message` to a message that your app answers, with `nookku init <harness> --check-message TEXT` ([config.md](../config.md#nookkuconfigjson))
 

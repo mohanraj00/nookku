@@ -1,6 +1,6 @@
 # Choose the plugin or the project hooks
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 The [relay](../reference/glossary.md#relay) carries each message to your agent and each reply back to you. It is one command, `nookku hook`, with one set of rules ([SPEC.md section 5](../../SPEC.md#5-relays)). You install it in one of 2 forms, in Claude Code or in Codex:
 

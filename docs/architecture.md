@@ -1,6 +1,6 @@
 # Architecture
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 This page shows the parts of Nookku and how the data goes between them. [SPEC.md](../SPEC.md) defines each part exactly. This page tells you why each part exists and where to read more.
 

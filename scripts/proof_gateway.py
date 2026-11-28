@@ -254,6 +254,9 @@ def run_app(url: str, app_key: str, workspace_key: str) -> list[dict[str, Any]]:
     asked = [{"role": "user", "content": "Is the teapot set in stock?"}]
     tagged = {"metadata": {"tags": ["toy-shop"]}}
     started = time.time()
+    # As in turn 2: the gap is larger than the clock skew of the container, so the first call
+    # of the turn is in the window of the turn also if the container clock is behind.
+    time.sleep(GAP)
     call(
         url,
         app_key,

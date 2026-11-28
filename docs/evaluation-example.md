@@ -1,6 +1,6 @@
 # Worked evaluations
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 ## A test with an automatic report
 

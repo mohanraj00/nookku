@@ -1,6 +1,6 @@
 # `nookku run`
 
-Release: nookku 0.6.2. Since 0.7.0 (not released yet): the config key `persona_runner`.
+Release: nookku 0.7.0. New in 0.7.0: the config key `persona_runner`.
 
 ```text
 nookku run (--script FILE | --persona FILE) [--entry NAME] [--root PATH] [--tests-dir PATH] [--json] [--verdict] [--evaluate | --no-evaluate]

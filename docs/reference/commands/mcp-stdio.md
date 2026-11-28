@@ -1,6 +1,6 @@
 # `nookku mcp-stdio`
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 The wrapper of a stdio MCP server of the agent ([SPEC.md section 7.12](../../../SPEC.md#712-mcp-proxies)). The [bridge](../glossary.md#bridge) writes this command into the variable of each stdio MCP server that the egress answer names with a variable. The app starts the command in place of the server. The wrapper starts the server, copies each byte between the app and the server with no change, and writes each line to `mcp.jsonl`.
 

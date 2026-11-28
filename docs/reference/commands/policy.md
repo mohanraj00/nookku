@@ -1,6 +1,6 @@
 # `nookku policy`
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 ```text
 nookku policy [set KEY VALUE] [--root PATH]

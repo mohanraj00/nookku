@@ -1,6 +1,6 @@
 # `nookku view`
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 Print each relayed turn. Both forms of the [relay](../glossary.md#relay) use it to show each reply in a second terminal. With an [entry](../glossary.md#entry), it shows the turns of the latest test, and it follows to the next test. With no entry and no `--record`, it shows the configured record, and it reads the config again before each poll. If the config gives a different record, the view prints `════ record <path> ════` and follows that record. When the config gets an entry, the view follows each test from that time. You can start the view before `nookku init`.
 

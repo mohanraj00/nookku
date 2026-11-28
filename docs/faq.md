@@ -1,6 +1,6 @@
 # FAQ
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 ## Why not tell the model to relay each message exactly?
 

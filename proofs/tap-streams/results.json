@@ -1,7 +1,7 @@
 {
-  "date": "2026-11-25",
+  "date": "2026-11-28",
   "versions": {
-    "nookku": "0.6.1",
+    "nookku": "0.7.0",
     "claude_code": "2.1.319 (Claude Code)",
     "codex": "codex-cli 0.169.0"
   },
@@ -13,7 +13,7 @@
     "reply_matches": true,
     "audit_exit": 0,
     "exchanges": 1,
-    "parts": 3,
+    "parts": 2,
     "first_part_seconds": 0.001,
     "frames": null
   },
@@ -22,7 +22,7 @@
     "audit_exit": 0,
     "exchanges": 1,
     "parts": 7,
-    "first_part_seconds": 0.002,
+    "first_part_seconds": 0.001,
     "frames": [
       [
         "to_agent",

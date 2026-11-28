@@ -1,6 +1,6 @@
 # Remove Nookku
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 This page removes Nookku from a project and from your computer: the [project hooks](../reference/glossary.md#project-hooks), the [plugin](../reference/glossary.md#plugin), the test files and the package.
 

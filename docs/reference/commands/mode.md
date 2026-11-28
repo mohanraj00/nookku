@@ -1,6 +1,6 @@
 # `nookku mode`
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 ```text
 nookku mode [STATE] [--root PATH] [--tests-dir PATH] [--tester-session ID]

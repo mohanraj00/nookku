@@ -1,6 +1,6 @@
 # Evaluate your app against its spec
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 The [app spec](../reference/app-spec.md) tells the [evaluation](../reference/glossary.md#evaluation) what your app must do: how the agent speaks, what it must refuse, where it must guide the user, how slow a turn can be, and which tool calls, backend calls and spans must occur. This guide adds a spec to an app that already has a test. Then it reads the results that the spec adds. The reference page gives each rule of the spec, and [read-the-results.md](read-the-results.md) gives each file of a test.
 

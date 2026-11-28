@@ -1,6 +1,6 @@
 # Test your own app
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 This guide takes your own app from the install to the results of a first [test](../reference/glossary.md#test). Each step gives the expected output, so you can compare your screen with it.
 

@@ -1,6 +1,6 @@
 # `nookku status`
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 Show [relay mode](../glossary.md#relay-mode) and the running test, for example `relay mode is on. Test <test-id> runs on <tap-url>.` If no test runs, the second sentence is `No test runs.` If no test runs and a test stopped with no end, 2 more lines name that test, its folder and the command `nookku end` ([recover a stuck test](../../how-to/recover-a-stuck-test.md)). The prompt `nookku status` gives the same text. In relay mode, the status line of the plugin also shows it.
 

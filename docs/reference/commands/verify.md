@@ -1,6 +1,6 @@
 # `nookku verify`
 
-Release: nookku 0.6.2. Since 0.7.0 (not released yet): the check of a sealed refusal record.
+Release: nookku 0.7.0. New in 0.7.0: the check of a sealed refusal record.
 
 ```text
 nookku verify [TEST] [--root PATH] [--tests-dir PATH] [--json]
