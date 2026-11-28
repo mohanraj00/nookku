@@ -3,6 +3,7 @@
 import base64
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -128,6 +129,17 @@ def test_two_equal_images_use_one_side_file(tmp_path):
     first = write_attachment(record, "image/png", MUG)
     assert write_attachment(record, "image/png", MUG) == first
     assert [p.name for p in (tmp_path / "tap.attachments").iterdir()] == [first["sha256"]]
+
+
+def test_a_side_file_gets_the_mode_of_a_normal_new_file(tmp_path):
+    mask = os.umask(0o022)
+    try:
+        sent = write_attachment(tmp_path / "tap.jsonl", "image/png", MUG)
+    finally:
+        os.umask(mask)
+    side = tmp_path / "tap.attachments" / sent["sha256"]
+    assert side.stat().st_mode & 0o777 == 0o644
+    assert [p.name for p in side.parent.iterdir()] == [sent["sha256"]]
 
 
 def test_a_media_type_must_be_lower_case(tmp_path):

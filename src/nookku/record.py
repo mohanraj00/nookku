@@ -8,7 +8,6 @@ import math
 import os
 import re
 import stat
-import tempfile
 import threading
 import time
 from dataclasses import dataclass
@@ -331,8 +330,10 @@ def write_attachment(record: Path, media_type: str, data: bytes) -> dict[str, An
     except (FileNotFoundError, AttachmentFileError):
         same = False
     if not same:
-        fd, name = tempfile.mkstemp(prefix=f".{digest}.", dir=path.parent)
-        temp = Path(name)
+        # Do not use mkstemp: it gives mode 0600. os.open with mode 0666 applies the umask,
+        # so the side file gets the mode of a normal new file.
+        temp = path.parent / f".{digest}.{os.urandom(8).hex()}"
+        fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o666)
         try:
             with os.fdopen(fd, "wb") as fh:
                 fh.write(data)
