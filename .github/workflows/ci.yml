@@ -41,7 +41,7 @@ jobs:
         with:
           fetch-depth: 0  # the stealth gate reads every commit message
           persist-credentials: false
-      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
       - run: uv sync --python 3.12
       - run: uv run ruff check .
       - run: uv run ruff format --check .
@@ -78,7 +78,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
       - run: uv sync --python ${{ matrix.python }}
       # The 15 slowest tests show in the log of each job, so a slow test is easy to find (#17).
       - run: uv run pytest --cov --cov-report=term-missing --durations=15
@@ -114,13 +114,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
       - run: uv sync --python 3.12
       # The runner image has Docker, kind, kubectl and helm. The result records their versions.
       - name: Run a test with the gateway key of a TestKey
         run: uv run python scripts/kind_testkey.py --out kind-testkey.json
       - if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: kind-testkey
           path: kind-testkey.json
@@ -139,12 +139,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
       - run: uv sync --python 3.12
       - name: Check the evaluation dashboard
         run: uv run python examples/evaluation-dashboard/run.py --out dashboard.json
       - if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dashboard
           path: dashboard.json
@@ -163,12 +163,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
       - run: uv sync --python 3.12
       - name: Read the samples of the pinned Koodam release
         run: uv run python scripts/release_samples.py --out release-samples.json
       - if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-samples
           path: release-samples.json
@@ -191,7 +191,7 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.13"
-      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
       - run: uv build
       - name: The wheel that will be published passes every test
         run: |
