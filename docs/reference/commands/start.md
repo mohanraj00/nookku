@@ -1,6 +1,6 @@
 # `nookku start`
 
-Release: nookku 0.6.2. Since 0.7.0 (not released yet): the sealed refusal record of a refused start.
+Release: nookku 0.7.0. New in 0.7.0: the sealed refusal record of a refused start.
 
 Start a test: run the [entry](../glossary.md#entry) through the [tap](../glossary.md#tap) and switch [relay mode](../glossary.md#relay-mode) on ([SPEC.md section 7.2](../../../SPEC.md#72-start-and-end)). It needs an `entry` in `.nookku/config.json`. With no entry, `start` starts no test, exits with 1 and prints `nookku: .nookku/config.json has no 'entry' command, so the test cannot start. Write the command that starts your agent with: nookku init <relay> --entry "<command>". <relay> is plugin, claude-code or codex.` The prompt `nookku start`, `check` and `run` give the same text ([troubleshooting](../../troubleshooting.md#nookku-nookkuconfigjson-has-no-entry-command-so-the-test-cannot-start)). The start text gives the same ways to end the test as the [plugin](../glossary.md#plugin) and the [project hooks](../glossary.md#project-hooks): the prompt `nookku end`, which also starts the [evaluation](../glossary.md#evaluation), and `nookku end` in a shell. If `evaluate` is `false`, the text does not name the evaluation ([SPEC.md section 9.1](../../../SPEC.md#91-start)).
 

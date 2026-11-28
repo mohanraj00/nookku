@@ -24,7 +24,7 @@ KEYS = {"name", "script", "entry", "limits", "persona", "replay"}
 # The declared files of a test, and their names in inputs/<test name>/. The script name gets
 # the extension of its form, as the copy in the test folder (SPEC.md section 7.10).
 FILE_KEYS = ("script", "persona")
-# Nookku 0.6.1 and older accepted the test key answer_key (#617). The app spec declares the
+# Nookku 0.6.2 and older accepted the test key answer_key (#617). The app spec declares the
 # answer key (SPEC.md section 7.17), so the refusal names its section.
 REMOVED_ANSWER_KEY = (
     "has the key answer_key, which this version does not know. Declare the answer key in the "

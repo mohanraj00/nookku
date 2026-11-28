@@ -1,6 +1,6 @@
 # `nookku register`
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 ```text
 nookku register [--root PATH] [--file PATH] [--json]

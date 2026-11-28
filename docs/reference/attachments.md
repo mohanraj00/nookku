@@ -1,6 +1,6 @@
 # Attachments and images
 
-Release: nookku 0.6.2. Since 0.7.0 (not released yet): attachments in the records.
+Release: nookku 0.7.0. New in 0.7.0: attachments in the records.
 
 A message can have an attachment, for example a photo of a broken mug in a toy shop chat. This page tells you which surfaces carry an attachment to the agent, what the records keep, and what the [audit](glossary.md#audit) checks. [SPEC.md section 2.4](../../SPEC.md#24-attachments) gives the exact form.
 

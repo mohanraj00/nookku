@@ -1,6 +1,6 @@
 # `nookku bridge`
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 The background process of a test ([architecture.md](../../architecture.md#the-bridge)). `start` runs it.
 

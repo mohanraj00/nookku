@@ -1,6 +1,6 @@
 # Method and results
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 Two kinds of evidence: proofs that each [relay](reference/glossary.md#relay) is exact, and a benchmark under pressure. Every number here comes from a file in this repo.
 

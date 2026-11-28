@@ -1,6 +1,6 @@
 # Gate a release with a set of tests
 
-Release: nookku 0.6.2. Since 0.7.0 (not released yet): the refusal of a gate file with the test key `answer_key`.
+Release: nookku 0.7.0. New in 0.7.0: the refusal of a gate file with the test key `answer_key`.
 
 A gate run runs a declared set of [scripted tests](../reference/glossary.md#scripted-test) and writes one sealed result. The result has the verdict of each test, one aggregate verdict and the subject digest that you give, for example the digest of the image that you test. [SPEC.md section 7.15](../../SPEC.md#715-gate-run) gives the format and each check.
 
@@ -44,7 +44,7 @@ Then give the test a limit of `answer_key_mismatch`. With the limit 0, one reply
 - The check compares each answer with no model, so the result is the same on each run.
 - A key that the check cannot use fails the test with each limit.
 - To stop the [harness model](../reference/glossary.md#harness-model) from a read of the key, run `nookku policy set answer_keys keys/stock.json`.
-- Nookku 0.6.1 and older accepted the key `answer_key` in a test, and the test always failed. Now `nookku gate run` refuses such a gate file, runs no test and exits with 2. The error names the `Answer key` section. Remove the key from the test and declare the key in the app spec.
+- Nookku 0.6.2 and older accepted the key `answer_key` in a test, and the test always failed. In 0.7.0, `nookku gate run` refuses such a gate file, runs no test and exits with 2. The error names the `Answer key` section. Remove the key from the test and declare the key in the app spec.
 
 ## Compare a test with a base test
 
@@ -134,4 +134,4 @@ It exits with 0 if the result can be used and its verdict is `pass`, with 1 for 
 ## Limits
 
 - Only a person or CI runs `nookku gate run`. The relay denies it from the model, with each policy.
-- `nookku gate verify` cannot use a gate folder of Nookku 0.6.1 or older whose `gate.json` has the key `answer_key`. It exits with 2. Run the gate again with this version.
+- In 0.7.0, `nookku gate verify` cannot use a gate folder of Nookku 0.6.2 or older whose `gate.json` has the key `answer_key`. It exits with 2. Run the gate again with 0.7.0.

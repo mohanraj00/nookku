@@ -1,6 +1,6 @@
 # `nookku transcript`
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 Print the exact conversation for the model to evaluate ([SPEC.md section 5](../../../SPEC.md#5-relays)). With an [entry](../glossary.md#entry), the scope is the latest test. A check test that ended does not count: after `nookku check`, the scope is the test before it ([SPEC.md section 9.1](../../../SPEC.md#91-start)).
 

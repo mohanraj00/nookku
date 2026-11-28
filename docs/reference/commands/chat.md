@@ -1,6 +1,6 @@
 # `nookku chat`
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 ```text
 nookku chat [--root PATH] [--tests-dir PATH] [--port PORT] [--open]

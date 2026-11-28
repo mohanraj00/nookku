@@ -1,6 +1,6 @@
 # `nookku tap`
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 ```text
 nookku tap (--agent URL | --cmd -- COMMAND...) --record FILE [options]

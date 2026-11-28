@@ -1,6 +1,6 @@
 # `nookku gate`
 
-Release: nookku 0.6.2. Since 0.7.0 (not released yet): the refusal of a gate file with the test key `answer_key`.
+Release: nookku 0.7.0. New in 0.7.0: the refusal of a gate file with the test key `answer_key`.
 
 ```text
 nookku gate run FILE --subject DIGEST [--root PATH] [--tests-dir PATH] [--json]

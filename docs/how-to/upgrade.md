@@ -1,6 +1,6 @@
 # Upgrade Nookku
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 This page upgrades the CLI, the package in your app's environment, the Claude Code [plugin](../reference/glossary.md#plugin) and the Codex hooks. Some releases need a special step. Read the section of each release from your version to the new version in [Releases with a special step](#releases-with-a-special-step). [CHANGELOG.md](../../CHANGELOG.md) lists all changes.
 
@@ -114,6 +114,14 @@ PASS
 `check` runs a short test with one message through the new version, and exits with 0 if it passes ([reference/cli.md](../reference/commands/check.md)). If it fails, each FAIL line gives the cause and the fix ([troubleshooting.md](../troubleshooting.md#end-a-test)).
 
 ## Releases with a special step
+
+### 0.7.0
+
+The [tap record](../reference/glossary.md#tap-record) and the [relay record](../reference/glossary.md#relay-record) get the record version `"0.5"` for a row with attachments. The command of a project hook does not change. This change needs a step:
+
+- **The test key `answer_key` of a gate file.** `nookku gate run` refuses a gate file with the key `answer_key` in a test, and exits with 2. In 0.6.2 and older, such a test always failed. Remove the key from each test of your gate files, and declare the answer key in the `Answer key` section of the app spec ([gate-a-release.md](gate-a-release.md#limits)). `nookku gate verify` cannot use a gate folder of 0.6.2 or older with the key. Run the gate again with 0.7.0.
+
+If no gate file has the key, no step is necessary.
 
 ### 0.6.2
 

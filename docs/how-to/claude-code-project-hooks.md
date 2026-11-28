@@ -1,6 +1,6 @@
 # Test an agent with the project hooks in Claude Code
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 The [project hooks](../reference/glossary.md#project-hooks) install the [relay](../reference/glossary.md#relay) in one project. `nookku init` writes 2 command hooks that run `nookku hook`, the same command as the [plugin](../reference/glossary.md#plugin). They show each reply as the reason of a blocked prompt, and on the [chat page](../reference/commands/chat.md) of the test. `nookku view` in a second terminal is optional. Use them if you cannot install plugins. To compare them with the plugin, read [choose-a-relay.md](choose-a-relay.md). For Codex, read [codex.md](codex.md).
 

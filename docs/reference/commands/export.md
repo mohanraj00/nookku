@@ -1,6 +1,6 @@
 # `nookku export`
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 ```text
 nookku export [TEST] [--root PATH] [--tests-dir PATH] [--out FILE]

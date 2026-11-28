@@ -48,12 +48,11 @@ def test_each_docs_version_line_names_the_package_version() -> None:
 
 
 # The pages that state no release: a copy of the project standard, the review texts, the provenance
-# note, a page of another open change (#712), and each moved page, which only keeps old anchors.
+# note, and each moved page, which only keeps old anchors.
 NO_RELEASE = {
     "docs/STANDARD.md",
     "docs/REVIEW.md",
     "docs/PROVENANCE.md",
-    "docs/limits.md",
     "docs/claude-code.md",
     "docs/codex.md",
     "docs/code-quality.md",

@@ -1,6 +1,6 @@
 # `nookku setup`
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 Print the guide that connects a test to the app ([setup.md](../../../src/nookku/setup.md)). A [harness model](../glossary.md#harness-model) reads it. The model gives a summary of the app, asks the [tester](../glossary.md#tester) about the gaps and shows its plan. After the tester says yes, it writes the [entry](../glossary.md#entry), the config and a draft of the [app spec](../app-spec.md) ([how-to/test-your-app.md](../../how-to/test-your-app.md#2-run-the-setup-in-the-harness), [how-to/connect-your-agent.md](../../how-to/connect-your-agent.md)).
 

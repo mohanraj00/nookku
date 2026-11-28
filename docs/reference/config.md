@@ -1,6 +1,6 @@
 # Configuration reference
 
-Release: nookku 0.6.2. Since 0.7.0 (not released yet): the config keys `replay_ignore` and `persona_runner`.
+Release: nookku 0.7.0. New in 0.7.0: the config keys `replay_ignore` and `persona_runner`.
 
 Nookku reads its configuration from the file `.nookku/config.json` in your project. The [plugin](glossary.md#plugin) has no options. The test `tests/test_docs.py` checks each key and each default on this page against `Config` in [src/nookku/config.py](../../src/nookku/config.py).
 

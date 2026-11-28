@@ -1,6 +1,6 @@
 # `nookku verifier`
 
-Release: nookku 0.6.2. Since 0.7.0 (not released yet): the command `nookku verifier`.
+Release: nookku 0.7.0. New in 0.7.0: the command `nookku verifier`.
 
 ```text
 nookku verifier run CLAIMS --entry NAME [--out FILE] [--root PATH] [--timeout SECONDS]

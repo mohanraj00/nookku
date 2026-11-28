@@ -1,6 +1,6 @@
 # `nookku hook`
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 The hook command that `init` writes into the hook file. It reads one hook event as JSON on stdin and writes the answer on stdout ([SPEC.md section 5](../../../SPEC.md#5-relays)).
 

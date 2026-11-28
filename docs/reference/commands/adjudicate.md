@@ -1,6 +1,6 @@
 # `nookku adjudicate`
 
-Release: nookku 0.6.2.
+Release: nookku 0.7.0.
 
 ```text
 nookku adjudicate TEST --turn N --outcome OUTCOME --reason TEXT [--author NAME] [--root PATH] [--tests-dir PATH]

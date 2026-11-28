@@ -1,6 +1,6 @@
 # Measure a verifier on seeded false claims
 
-Release: nookku 0.6.2. Since 0.7.0 (not released yet): the command `nookku verifier`.
+Release: nookku 0.7.0. New in 0.7.0: the command `nookku verifier`.
 
 Use `nookku verifier run` to measure which claims a verifier refutes. Give it claims you know are true and seeded claims you know are false. Mark the false claims with `seeded: true` in the claim set. The verifier receives the ID and text of each claim. Nookku uses `seeded` to score the reply. See the [claim set and protocol](../../SPEC.md#11-verifier-measurement).
 

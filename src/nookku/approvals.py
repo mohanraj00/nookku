@@ -27,7 +27,7 @@ BY = (ELICITATION, MESSAGE, "session", "backend", "otel", "mcp")
 # The most rows of the section. This is a chosen value, as for the trace points.
 MAX_ROWS = 200
 KEYS = ("action", "source", "approval", "by", "interrupt", "bind")
-# A row of a test of Nookku 0.6.1 or older has no key `bind`.
+# A row of a test of Nookku 0.6.2 or older has no key `bind`.
 OLD_KEYS = KEYS[:-1]
 # A Bind is 2 dot paths: `<approval path> = <action path>`.
 BIND_SPLIT = " = "

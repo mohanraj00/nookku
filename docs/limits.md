@@ -1,5 +1,7 @@
 # Limits
 
+Release: nookku 0.7.0.
+
 This page lists what Nookku does not do, and what it does not prove. [results.md](results.md#3-what-this-does-not-prove) lists the limits of the proofs.
 
 - **The deny is best effort.** The [relay](reference/glossary.md#relay) denies a model tool call that names the address of the [tap](reference/glossary.md#tap) or the agent. A model can try another way, for example an address alias. The [audit](reference/glossary.md#audit) finds every message that goes through the tap. A call that goes to the agent directly, around the tap, is in neither record, so give the model no direct route to the agent. After a test, a model command that names `.nookku` can only read, or write `report.md`. This deny is also best effort ([SPEC.md section 5](../SPEC.md#5-relays)). At the end, the [bridge](reference/glossary.md#bridge) [seals](reference/glossary.md#seal) the [test folder](reference/glossary.md#test-folder). `nookku verify` shows each file that changed after the end, and the [evaluation](reference/glossary.md#evaluation) sees the result ([SPEC.md section 7.4](../SPEC.md#74-seal)).
