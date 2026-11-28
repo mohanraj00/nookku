@@ -24,6 +24,9 @@ ENTRY = [sys.executable, str(ROOT / "tests" / "toy_entry.py")]
 # The Agent SDK of the toy apps. A new release bundles a new Claude Code, and the session reader is
 # tested only for the versions in TESTED of trace.py (#35). Change this pin only with the proofs.
 AGENT_SDK = "claude-agent-sdk==0.2.168"
+# The npm packages of the TypeScript toy shop (#330). The Agent SDK for TypeScript 0.3.301 bundles
+# Claude Code 2.1.301, the same version as AGENT_SDK. Change these pins only with the proofs.
+AGENT_SDK_TS = ("@anthropic-ai/claude-agent-sdk@0.3.301", "zod@4.6.7")
 # In print mode, the relay refuses a test unless this variable stops the title request of Claude
 # Code, which can hold a blocked prompt (SPEC.md section 5, #199).
 NO_TITLE = {"CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1"}
