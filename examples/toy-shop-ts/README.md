@@ -46,10 +46,13 @@ The app writes its state into its own folder. Thus copy this folder to a new fol
    nookku init claude-code --entry "node entry.mts" --models claude-code --spec APP_SPEC.md,RULES.md
    ```
 
-4. Start the stock service and the toy note model on local ports, each one in its own shell. Give the path of the files in your checkout of the repo:
+4. Start the stock service and the toy note model on local ports, each one in its own shell. Give the path of the files in your checkout of the repo. Set `TOY_STOCK_STATE` to the `stock.json` of the copy, else the stock service writes the `stock.json` of the checkout:
 
    ```bash
-   python3 <repo>/examples/toy-shop-full/stock.py 9001
+   TOY_STOCK_STATE="$PWD/stock.json" python3 <repo>/examples/toy-shop-full/stock.py 9001
+   ```
+
+   ```bash
    python3 <repo>/examples/toy-shop-full/toy_model.py 9002
    ```
 
