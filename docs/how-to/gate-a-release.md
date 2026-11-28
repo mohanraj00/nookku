@@ -1,5 +1,7 @@
 # Gate a release with a set of tests
 
+Release: nookku 0.6.1. Since 0.7.0 (not released yet): the refusal of a gate file with the test key `answer_key`.
+
 A gate run runs a declared set of [scripted tests](../reference/glossary.md#scripted-test) and writes one sealed result. The result has the verdict of each test, one aggregate verdict and the subject digest that you give, for example the digest of the image that you test. [SPEC.md section 7.15](../../SPEC.md#715-gate-run) gives the format and each check.
 
 ## Write the gate file
@@ -59,7 +61,7 @@ A replay check compares the replies of a new test with the replies of an older t
 
 ## Test a set of personas
 
-A persona set is a gate file with one test for each persona ([ADR 0002](../contributing/adr/0002-seeded-faults-personas-answer-keys-verifiers.md#decision-2-persona-sets-547-and-the-simulated-user-520)). The `name` of the test names the persona, and `persona` gives a persona file with the form of `nookku run --persona` ([cli.md](../reference/cli.md#nookku-run)):
+A persona set is a gate file with one test for each persona ([ADR 0002](../contributing/adr/0002-seeded-faults-personas-answer-keys-verifiers.md#decision-2-persona-sets-547-and-the-simulated-user-520)). The `name` of the test names the persona, and `persona` gives a persona file with the form of `nookku run --persona` ([cli.md](../reference/commands/run.md)):
 
 ```json
 {"v": 1, "tests": [

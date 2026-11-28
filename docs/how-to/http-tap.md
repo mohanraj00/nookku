@@ -1,5 +1,7 @@
 # Use the HTTP tap
 
+Release: nookku 0.6.1.
+
 Use this mode if your agent is already an HTTP server and you do not want an [entry](../reference/glossary.md#entry). The [tap](../reference/glossary.md#tap) is in front of the agent and records each exchange. There is no test: no [test folder](../reference/glossary.md#test-folder), no [trace](../reference/glossary.md#trace), no [seal](../reference/glossary.md#seal) and no [evaluation](../reference/glossary.md#evaluation) prompt. For these, use an entry that calls your server ([connect-your-agent.md](connect-your-agent.md#if-your-app-is-an-http-server)).
 
 ## 1. Start the agent and the tap
@@ -71,7 +73,7 @@ For a WebSocket agent, give `nookku tap --agent ws://127.0.0.1:8700 --record tap
 | `openai_stream` | `false` | `openai` adapter: `true` sends `"stream": true` in each request, for an agent that streams only on request |
 | `record` | `.nookku/relay.jsonl` | The relay record. The project hooks read a relative path from the project root, and the plugin from the working directory. |
 
-Give the tap the same adapter: `nookku tap --agent URL --record FILE --adapter openai`. [reference/cli.md](../reference/cli.md#nookku-tap) lists each flag of the tap.
+Give the tap the same adapter: `nookku tap --agent URL --record FILE --adapter openai`. [reference/cli.md](../reference/commands/tap.md) lists each flag of the tap.
 
 ## Adapters
 

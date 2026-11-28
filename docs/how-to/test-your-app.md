@@ -1,5 +1,7 @@
 # Test your own app
 
+Release: nookku 0.6.1.
+
 This guide takes your own app from the install to the results of a first [test](../reference/glossary.md#test). Each step gives the expected output, so you can compare your screen with it.
 
 I made the output with the toy shop agent of this repo ([examples/toy-shop/agent.py](../../examples/toy-shop/agent.py)) as the app, nookku 0.4.0 ([version](../../src/nookku/__init__.py)) and the [project hooks](../reference/glossary.md#project-hooks) of Claude Code. I gave each prompt, and the command of step 7, to `nookku hook --harness claude-code`, as Claude Code does. The `config.json` of step 2 comes from an earlier run in Claude Code with verbatim-relay 0.3.0, because a model wrote it. Each output is a sample of one run, not a measurement. To make it again, run the steps of this page on the toy shop, with the same 3 messages as the [tutorial](../getting-started.md#6-run-the-test). I shortened the paths of the folders to `.../`. The test ids and the replies of your app are different. The [tutorial](../getting-started.md) shows the same steps for the toy shop only.
@@ -82,7 +84,7 @@ If an item is not correct, tell the model what to correct, or correct the file y
 
 ## 4. Run check
 
-`check` needs a fresh egress answer ([cli.md](../reference/cli.md#nookku-register)). If you have none, type the prompt `nookku start` in the harness first, or run `nookku register` with the answer.
+`check` needs a fresh egress answer ([cli.md](../reference/commands/register.md)). If you have none, type the prompt `nookku start` in the harness first, or run `nookku register` with the answer.
 
 ```bash
 nookku check
@@ -146,7 +148,7 @@ Install the plugin as [claude-code-plugin.md](claude-code-plugin.md#install) say
 
 ### Start the viewer
 
-This step is optional. In step 6, `nookku start` opens the [chat page](../reference/cli.md#nookku-chat) of the test in your browser, and the page shows each turn. To see the turns in a terminal too, open a second terminal in the project folder, and start the viewer:
+This step is optional. In step 6, `nookku start` opens the [chat page](../reference/commands/chat.md) of the test in your browser, and the page shows each turn. To see the turns in a terminal too, open a second terminal in the project folder, and start the viewer:
 
 ```bash
 nookku view
@@ -208,7 +210,7 @@ Audit: nookku audit --tap .../tap.jsonl --relay .../relay.jsonl
 
 The toy shop has no model sessions. If your app runs its own model sessions, the counts of model sessions and model items are more than 0. To end the test with no evaluation, run `nookku end` in a shell. You can also click "End test" on the chat page, which does the same. After an end with no evaluation, the chat page continues, so "Export" and "Save as script" still work. To start the evaluation, type the prompt `nookku end` in the harness. That also stops the chat page.
 
-To give the test to a person, click "Export" on the chat page, or run `nookku export`. Both give the same file, `<test id>.html` ([`nookku export`](../reference/cli.md#nookku-export)). The button saves it in the download folder of your browser, and the command saves it in the current folder.
+To give the test to a person, click "Export" on the chat page, or run `nookku export`. Both give the same file, `<test id>.html` ([`nookku export`](../reference/commands/export.md)). The button saves it in the download folder of your browser, and the command saves it in the current folder.
 
 ## 7. Allow the evaluation commands
 

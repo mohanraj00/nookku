@@ -1,5 +1,7 @@
 # Get started in a cluster
 
+Release: nookku 0.6.1.
+
 In this tutorial, you test the toy shop agent in a Kubernetes cluster. The agent runs behind a Service. Claude Code runs in a [Koodam](https://github.com/mohanraj00/koodam) Workspace with traced egress and the Nookku preset. You run a test with 3 messages, give the egress spans of the test to the [trace](reference/glossary.md#trace), and start the [evaluation](reference/glossary.md#evaluation).
 
 The Nookku preset of Koodam v0.5.0 gives the Workspace pod the pinned Nookku 0.6.0, the [plugin](reference/glossary.md#plugin) files and a [test folder](reference/glossary.md#test-folder) on the home volume. It does not load the plugin in the [harness](reference/glossary.md#harness). It has 2 gaps, and step 4 of this page closes them ([koodam#476](https://github.com/mohanraj00/koodam/issues/476), [koodam#478](https://github.com/mohanraj00/koodam/issues/478)).

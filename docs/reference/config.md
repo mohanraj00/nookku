@@ -1,5 +1,7 @@
 # Configuration reference
 
+Release: nookku 0.6.1. Since 0.7.0 (not released yet): the config keys `replay_ignore` and `persona_runner`.
+
 Nookku reads its configuration from the file `.nookku/config.json` in your project. The [plugin](glossary.md#plugin) has no options. The test `tests/test_docs.py` checks each key and each default on this page against `Config` in [src/nookku/config.py](../../src/nookku/config.py).
 
 ## `.nookku/config.json`
@@ -25,7 +27,7 @@ If the file does not exist, each command has its own result ([SPEC.md section 7.
 - `view` and `transcript` use the default value of each key. Thus `view` reads the record `.nookku/relay.jsonl`.
 - The guard has no `tap_url` and no `agent_url` to deny, also not the default `tap_url`. During a test, it still denies a call to the [tap](glossary.md#tap) of the test.
 
-`nookku init` writes a new file with each key. In an existing file, it keeps each key and changes only the keys of the flags that you give ([cli.md](cli.md#nookku-init)).
+`nookku init` writes a new file with each key. In an existing file, it keeps each key and changes only the keys of the flags that you give ([cli.md](commands/init.md)).
 
 ### Test keys
 
@@ -37,21 +39,21 @@ These keys configure a test ([SPEC.md section 7.1](../../SPEC.md#71-configuratio
 | `models` | list of strings | `[]` | The [harnesses](glossary.md#harness) that the app uses for its own model sessions: `claude-code`, `codex`, both or none. `nookku check` fails if it does not find a session for each one. |
 | `evaluate` | boolean | `true` | `false` stops the [evaluation](glossary.md#evaluation) at the end of a test ([SPEC.md section 9](../../SPEC.md#9-evaluation)). |
 | `otel` | boolean | `true` | `false` stops the OTLP receiver of a test ([SPEC.md section 7.5](../../SPEC.md#75-otlp-receiver)). |
-| `entries` | object | `{}` | Named commands for a [scripted test](glossary.md#scripted-test) or a [verifier measurement](cli.md#nookku-verifier). For example, `{"replay": ["python3", "replay_entry.py"]}` declares the command for `nookku run --entry replay`. `entry` stays the default entry for a test. |
+| `entries` | object | `{}` | Named commands for a [scripted test](glossary.md#scripted-test) or a [verifier measurement](commands/verifier.md). For example, `{"replay": ["python3", "replay_entry.py"]}` declares the command for `nookku run --entry replay`. `entry` stays the default entry for a test. |
 | `check_message` | string | `Hello from nookku check. What can you help me with?` | The one message that `nookku check` sends. It must have a character that is not white space, and no lone surrogate. Set it to a message that your app answers normally, for example a question about a product of the shop. |
 | `repeated_reply` | integer | `2` | The count of consecutive turns with the same reply that gives a `repeated_reply` [finding](glossary.md#findings) of the [trace](glossary.md#trace) ([SPEC.md section 8.6](../../SPEC.md#86-findings)). `0` turns the check off. A value of 1 or less than 0 is an error. The manifest of each test records the value. |
 | `model_reply_field` | string | empty | The dot path of the client text in a structured model output, for example `reply` or `output.client_text`. The `reply_not_from_model` check of the trace then compares the reply with the value at this path, not with the full model text ([SPEC.md section 8.6](../../SPEC.md#86-findings)). Empty compares the full text. A path with an empty part, for example `output..text`, is an error. The manifest of each test records the value. |
 | `model_reply_match` | string | `normalized` | How the `reply_not_from_model` check compares: `exact` (the reply contains the model text, byte for byte), `normalized` (the same after white space and case are normalized) or `off` (no check). The manifest of each test records the value. |
 | `citation_field` | string | empty | The dot path of the source locators in the JSON of a reply, for example `sources`. The `citation_not_read` check of the trace then gives a finding for each locator that no tool result of the same turn contains ([SPEC.md section 8.6](../../SPEC.md#86-findings)). Empty turns the check off. A path with an empty part is an error. The manifest of each test records the value. |
 | `citation_prefix` | string | empty | A text that the `citation_not_read` check removes from the start of a locator before the match. For example, with `kb:`, the locator `kb:policy/returns#4` resolves if a tool result contains `policy/returns#4`. The manifest of each test records the value. |
-| `transcript_compact` | boolean | `false` | `true` makes `nookku transcript --trace` show a repeated prompt one time. `--compact` and `--no-compact` override it ([cli.md](cli.md#nookku-transcript)). |
-| `page` | boolean | `true` | `nookku start` starts the [chat page](cli.md#nookku-chat) and opens it in the browser. The prompt `nookku end` stops it. `nookku end` in a shell and "End test" on the page keep it, so you can export the test. `false` turns this off, for example for a test in CI or over SSH. A start with `false` still stops the page of the test before ([cli.md](cli.md#nookku-start)). |
+| `transcript_compact` | boolean | `false` | `true` makes `nookku transcript --trace` show a repeated prompt one time. `--compact` and `--no-compact` override it ([cli.md](commands/transcript.md)). |
+| `page` | boolean | `true` | `nookku start` starts the [chat page](commands/chat.md) and opens it in the browser. The prompt `nookku end` stops it. `nookku end` in a shell and "End test" on the page keep it, so you can export the test. `false` turns this off, for example for a test in CI or over SSH. A start with `false` still stops the page of the test before ([cli.md](commands/start.md)). |
 | `spec` | list of strings | `[]` | The files of the [app spec](app-spec.md), relative to the project root. The evaluation reads them first ([SPEC.md section 9.2](../../SPEC.md#92-evaluation-prompt)). Each path must be a regular file of 1 MiB or less in the project after symlinks resolve, and not in `.nookku/`. The list has 20 paths or fewer, and no 2 paths name the same file. Another path is an error of `init --spec` and of `start` ([app-spec.md](app-spec.md#paths)). |
 | `record_limit` | integer | `1048576` | The most bytes of a body that a backend proxy or a model API proxy keeps in its row, 1 MiB by default. Your app and the service always get each byte. A larger response goes into the record cut, with its full size and its SHA-256 ([SPEC.md section 7.6](../../SPEC.md#76-backend-proxies)). |
 | `body_limit` | integer or `"stream"` | `67108864` | A positive number sets the request body limit of each backend, model API and HTTP MCP proxy. The proxies share a buffered body budget of 4 times the number. For `Expect: 100-continue`, a proxy reserves a declared body length from that budget before it sends `100 Continue`. With `"stream"`, backend proxies send uploads as they come with the original body framing. Model API and HTTP MCP proxies use the default numeric limit and share its buffered body budget ([SPEC.md section 7.6](../../SPEC.md#76-backend-proxies)). |
 | `egress_ignore` | list of strings | `[]` | The hosts that the checks of the Koodam egress spans skip, for example `github.com` and `pypi.org` ([SPEC.md section 8.8](../../SPEC.md#88-egress-spans)). Each host has no white space. The case and a `.` at the end do not matter. The manifest of each test records the value. |
 | `replay_ignore` | object | `{}` | The match rules of a replay with `--recorded` ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests), "Match rules"): an object from a proxy name to the optional lists `body` (dot paths in the JSON of the request body) and `query` (names of query parameters). The match ignores these values, for example `{"orders": {"body": ["request_id"]}}`. Each list has 50 strings at most. The manifest of each recorded replay records the rules. |
-| `persona_runner` | string or list of strings | `claude-code` | The runner of a simulated user of `nookku run --persona` ([cli.md](cli.md#nookku-run), [SPEC.md section 7.10](../../SPEC.md#710-scripted-tests), "Simulated user"): `"claude-code"` or a declared command, for example `["python3", "/srv/toy-shop/toy_shop_user.py"]`. A declared command gets the prompt on stdin and writes the message on stdout. It starts in a new empty temporary folder, so give an absolute path for each file of the command. It must have no tools, because the prompt holds the replies of the agent. |
+| `persona_runner` | string or list of strings | `claude-code` | The runner of a simulated user of `nookku run --persona` ([cli.md](commands/run.md), [SPEC.md section 7.10](../../SPEC.md#710-scripted-tests), "Simulated user"): `"claude-code"` or a declared command, for example `["python3", "/srv/toy-shop/toy_shop_user.py"]`. A declared command gets the prompt on stdin and writes the message on stdout. It starts in a new empty temporary folder, so give an absolute path for each file of the command. It must have no tools, because the prompt holds the replies of the agent. |
 
 Each backend, model API, HTTP MCP and Postgres proxy has a fixed cap of 64 open app connections. The HTTP proxies also cap the sum of the chunk extensions of a request at 65536 bytes. See [the proxy limits](../../SPEC.md#76-backend-proxies).
 
@@ -96,7 +98,7 @@ The file has no `backends` key and no `model_api` key. Nookku 0.5.1 and earlier 
 
 The [policy file](glossary.md#policy-file) holds the keys that control the guard. The model can change `config.json` for normal app work, so these keys are in a separate file that the model never writes ([SPEC.md section 7.9](../../SPEC.md#79-policy-file)).
 
-- Only a person changes the file, with `nookku policy set KEY VALUE` in a shell ([cli.md](cli.md#nookku-policy)). `nookku policy` prints each key with its value.
+- Only a person changes the file, with `nookku policy set KEY VALUE` in a shell ([cli.md](commands/policy.md)). `nookku policy` prints each key with its value.
 - The relay denies each model tool call that can write the file, also when no test runs. The deny reason names the file.
 - If the file does not exist, each key has its default. Each default is the strict value.
 - The manifest of each test records the SHA-256 of the file and the value of each key.
@@ -117,7 +119,7 @@ Each guard rule that a person can change adds its key here.
 
 ## Plugin options
 
-The plugin has no options, so no plugin option can change a policy key. Write `.nookku/config.json` with `nookku init plugin`, and change a key with the flags of `nookku init` ([cli.md](cli.md#nookku-init)). Before 0.4.0, the Claude Code plugin had its own options ([#216](https://github.com/mohanraj00/nookku/issues/216)).
+The plugin has no options, so no plugin option can change a policy key. Write `.nookku/config.json` with `nookku init plugin`, and change a key with the flags of `nookku init` ([cli.md](commands/init.md)). Before 0.4.0, the Claude Code plugin had its own options ([#216](https://github.com/mohanraj00/nookku/issues/216)).
 
 ## Environment variables
 

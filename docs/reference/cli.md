@@ -1,6 +1,8 @@
 # CLI reference
 
-This page lists each command of `nookku`, each flag and each exit code. The parser is in [src/nookku/cli.py](../../src/nookku/cli.py). The test `tests/test_docs.py` checks that each command and each flag of the parser is on this page. It also checks that each flag on this page is in the parser.
+Release: nookku 0.6.1.
+
+This page lists each command of `nookku`. Each command has its own page in the folder `commands/`: the purpose, the form, each flag, each exit code and an example. The commands start and end a test, read its records, run the [evaluation](glossary.md#evaluation), the [audit](glossary.md#audit) and the [trace](glossary.md#trace) with its [findings](glossary.md#findings), and run the [tap](glossary.md#tap). The parser is in [src/nookku/cli.py](../../src/nookku/cli.py). The test `tests/test_docs.py` checks that each command of the parser has a page, and that each flag of the parser is on the page of its command. It also checks that each flag on a page is in the parser.
 
 ```text
 nookku [-h] [--version] COMMAND ...
@@ -33,847 +35,115 @@ An unknown command or flag prints the usage and exits with 2. The error of an un
 
 ### `nookku start`
 
-Start a test: run the [entry](glossary.md#entry) through the [tap](glossary.md#tap) and switch [relay mode](glossary.md#relay-mode) on ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). It needs an `entry` in `.nookku/config.json`. With no entry, `start` starts no test, exits with 1 and prints `nookku: .nookku/config.json has no 'entry' command, so the test cannot start. Write the command that starts your agent with: nookku init <relay> --entry "<command>". <relay> is plugin, claude-code or codex.` The prompt `nookku start`, `check` and `run` give the same text ([troubleshooting](../troubleshooting.md#nookku-nookkuconfigjson-has-no-entry-command-so-the-test-cannot-start)). The start text gives the same ways to end the test as the [plugin](glossary.md#plugin) and the [project hooks](glossary.md#project-hooks): the prompt `nookku end`, which also starts the [evaluation](glossary.md#evaluation), and `nookku end` in a shell. If `evaluate` is `false`, the text does not name the evaluation ([SPEC.md section 9.1](../../SPEC.md#91-start)).
-
-`start` also needs a fresh egress answer: the answer of [`nookku register`](#nookku-register) from the last 30 minutes ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery)). With no fresh answer, `start` starts no test, exits with 1 and prints `no test started: nookku has no egress answer from the last 30 minutes. Type the prompt nookku start in the harness, so that the model finds the egress of the agent. Or run nookku register with the answer (SPEC.md section 7.11).` The prompt `nookku start` with no fresh answer starts no test. It sends the discovery task to the [harness model](glossary.md#harness-model), and the model runs `nookku register`. Type `nookku start` again to start the test. The start text names each part of the answer. The start removes the answer, so the next test needs a new answer. `check`, `run` and `mode start` also need a fresh answer, but `check` keeps it.
-
-`start` also starts the [chat page](#nookku-chat) of the test and opens it in your browser. The prompt `nookku start` and `/nookku start` in the plugin do the same. After `end` in a shell, the page continues, so you can export the test. The prompt `nookku end` and the next `start` stop the page ([SPEC.md section 5](../../SPEC.md#5-relays)).
-
-- If the browser cannot open, for example over SSH, `start` in a terminal prints the page URL. The prompt `nookku start` and `/nookku start` never show the URL, because the [harness model](glossary.md#harness-model) can see their output. Then run `nookku chat` in a separate terminal.
-- If the page does not start, `start` prints the reason. The test continues.
-- To turn this off, for example for a test in CI, set the config key [`page`](config.md#test-keys) to `false`.
-- With `--json`, the text about the page goes to stderr.
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `--root PATH` | the current folder | The project. |
-| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
-| `--json` | off | Print `current.json` of the test as JSON, with no `tap_token`, or `{"error": ...}`. |
-| `--tester-session ID` | none | The [tester](glossary.md#tester)'s [harness](glossary.md#harness) session id. The [bridge](glossary.md#bridge) never takes this session as a session of the app. |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | The test started. |
-| 1 | The test did not start: no entry, no fresh egress answer, an invalid configuration (for example an unknown key), a test that runs already, or an entry that exited. The text names the cause. |
+Start a test. Page: [`nookku start`](commands/start.md).
 
 ### `nookku register`
 
-```text
-nookku register [--root PATH] [--file PATH] [--json]
-```
-
-Check an egress answer and keep it for the next start ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery)). The [harness model](glossary.md#harness-model) runs it after the prompt `nookku start`, with the answer in `.nookku/egress.json` and `--file .nookku/egress.json`. You can also run it in a shell. The answer is a JSON object on standard input, or in the file of `--file`, with the 5 lists `model_apis`, `backends`, `mcp_servers`, `databases` and `other`. If the answer does not obey the rule, `register` writes nothing, prints the error and exits with 1. Else it writes `.nookku/discovery.json` and prints one line for each part. A start takes the answer in the next 30 minutes ([`FRESH`](../../src/nookku/discovery.py)). The answer holds the names of the variables, never their values: `register` refuses a URL with a user, a password or a secret query value.
-
-```bash
-nookku register <<'EOF'
-{"model_apis": [{"api": "anthropic", "env": "ANTHROPIC_BASE_URL", "url": null}],
- "backends": [{"name": "stock", "env": "STOCK_URL", "url": "http://127.0.0.1:9001"}],
- "mcp_servers": [], "databases": [], "other": []}
-EOF
-```
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `--root PATH` | the current folder | The project. |
-| `--file PATH` | standard input | The file of the answer. |
-| `--json` | off | Print `registered` and `parts`, or `error`, as JSON. |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | The answer is kept. |
-| 1 | The answer does not obey the rule. Nothing was written. |
+Check an egress answer and keep it for the next start ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery)). Page: [`nookku register`](commands/register.md).
 
 ### `nookku end`
 
-End the test: switch relay mode off, stop the entry and collect its sessions, the [trace](glossary.md#trace), the [audit](glossary.md#audit) and the [seal](glossary.md#seal) ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). If no test runs, it switches relay mode off.
-
-`end` in a shell does not stop the chat page that `start` started, so you can still export the test and save it as a script from the page. The prompt `nookku end` and `end --evaluation` stop that page. A page that you started with `nookku chat` continues to run. `end` in a shell gives no evaluation. If the test needs an evaluation, it prints the prompt to type in the harness: `To evaluate the test, type this prompt in your harness: nookku end` ([SPEC.md section 9.1](../../SPEC.md#91-start)). If `config.json` is broken, no evaluation starts, and `end` prints the error.
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `--root PATH` | the current folder | The project. |
-| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
-| `--json` | off | Print the manifest of the test as JSON, or `null` if no test ran. |
-| `--evaluation` | off | Print one JSON object: `text`, the end text, and `evaluation`, the evaluation prompt or `null` ([SPEC.md section 9.1](../../SPEC.md#91-start)). It is for a [relay](glossary.md#relay) of your own that starts the evaluation. The plugin does not use it. |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | Always. |
+End the test. Page: [`nookku end`](commands/end.md).
 
 ### `nookku status`
 
-Show relay mode and the running test, for example `relay mode is on. Test <test-id> runs on <tap-url>.` If no test runs, the second sentence is `No test runs.` If no test runs and a test stopped with no end, 2 more lines name that test, its folder and the command `nookku end` ([recover a stuck test](../how-to/recover-a-stuck-test.md)). The prompt `nookku status` gives the same text. In relay mode, the status line of the plugin also shows it.
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `--root PATH` | the current folder | The project. |
-| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
-| `--json` | off | Print `{"on": ..., "test": ..., "text": ..., "attachments": ..., "pane": ..., "stopped": ...}`. `test` is `current.json` with no `tap_token`, or `null`. `text` is the status line of the plugin, on one line. `attachments` is the text that refuses a prompt with an attachment in the plugin. Each of `text` and `attachments` is `null` if relay mode is off. `pane` is the data of the Claude Code pane: `test`, `state`, `turns` and `page` ([SPEC.md section 5](../../SPEC.md#5-relays), "Pane"). `stopped` is `{"test": ..., "folder": ...}` for a test that stopped with no end, or `null` if no test stopped or a test runs. |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | Always. |
+Show [relay mode](glossary.md#relay-mode) and the running test, for example `relay mode is on. Page: [`nookku status`](commands/status.md).
 
 ### `nookku check`
 
-Run a short test with one message, and check the entry and its model sessions ([SPEC.md section 7.1](../../SPEC.md#71-configuration)). It sends the value of the config key `check_message`. The default is `Hello from nookku check. What can you help me with?`. If your app declines this message, set `check_message` to a message that your app answers, with `nookku init <harness> --check-message TEXT` ([config.md](config.md#nookkuconfigjson))
-
-PASS proves the connection, not the reply. PASS means that:
-
-- the entry sent a reply line, not an `error` line;
-- the audit of the test exits with 0;
-- the test found a model session and its session file for each harness in `models`.
-
-`check` ends its test. The model does not evaluate a check test. If your test ended before `check` and has no `report.md`, the prompt `nookku end` after `check` starts the evaluation of your test. Else it starts no evaluation ([SPEC.md section 9.1](../../SPEC.md#91-start)).
-
-`check` does not judge the text of the reply. A fallback reply of the app also passes. [how-to/connect-your-agent.md](../how-to/connect-your-agent.md#make-sure-that-check-runs-your-real-app) shows how to make sure that the entry runs your real app.
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `--root PATH` | the current folder | The project. |
-| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
-| `--json` | off | Print `{"pass": ..., "report": [...]}`. |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | The entry sent a reply, the audit of the test is clean, and the test found a model session for each harness in `models`. |
-| 1 | The check failed, or the test did not start. For example, the audit of the test exits with 1 or 2, the test wrote no valid `audit.json`, or a model session has no session file. |
+Run a short test with one message, and check the entry and its model sessions ([SPEC.md section 7.1](../../SPEC.md#71-configuration)). Page: [`nookku check`](commands/check.md).
 
 ### `nookku run`
 
-```text
-nookku run (--script FILE | --persona FILE) [--entry NAME] [--root PATH] [--tests-dir PATH] [--json] [--verdict] [--evaluate | --no-evaluate]
-```
-
-Run a [scripted test](glossary.md#scripted-test) ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). It starts a test, sends each message of the script to the entry byte for byte, waits for each reply and ends the test. The script is JSONL with one `{"said": "..."}` row for each turn, or one JSON array of strings. A JSONL row can have the key `during`, a number of seconds: `run` then sends the message during the turn of the message before it ([a second message](../how-to/test-your-app.md#send-a-second-message-during-a-turn)). The [test folder](glossary.md#test-folder) gets a copy of the script, and each [relay](glossary.md#relay) row has `"harness": "script"`. `run` does not switch relay mode on.
-
-With `--persona FILE`, a simulated user writes each message in place of a script ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests), [#520](https://github.com/mohanraj00/nookku/issues/520)). The file is a JSON object with only `persona`, `goal` and `turns`, the turn limit from 1 to 50:
-
-```json
-{"persona": "A customer whose teapot came broken.", "goal": "Get a return label for the teapot.", "turns": 8}
-```
-
-The config key [`persona_runner`](config.md) selects the runner of the simulated user ([#667](https://github.com/mohanraj00/nookku/issues/667)):
-
-- `claude-code` (the default): for each turn, `run` starts `claude -p` in a new session, with no settings, no `CLAUDE.md`, no plugin, no hook, no MCP server and no tool.
-- A list of strings: a command that you declare, for example `["python3", "/srv/toy-shop/toy_shop_user.py"]`. It gets the prompt on stdin and writes the message on stdout. The command starts in a new empty temporary folder, not in the project. Thus give an absolute path for each file of the command, because a relative path points into that empty folder. Nookku cannot check what the command loads, so you own its isolation.
-
-**Warning:** Give a declared command with no tools. The prompt holds each reply of the agent, and an agent under test can be hostile. A command that can read files or the network can send a secret to the agent in its next message. For this reason Nookku has no built-in `codex` runner: `codex exec` has no flag that removes each tool.
-
-Each session gets only the persona, the goal and the turns so far. The relay row of each message has `"harness": "simulated-user"`. The run stops when the simulated user writes `GOAL MET`, at the turn limit, at a turn with no reply, or when the session fails. The test folder gets `persona.json`, a copy of the file, and `simulated_user.json` with the result and the runner. The messages are not deterministic, so a [gate run](#nookku-gate) does not start a simulated user. To send the same messages again, save the test with [`nookku script save`](#nookku-script) and run the script.
-
-The output gives the test id, the count of turns, the audit and the trace, and the verdict if the [app spec](app-spec.md#verdict) gives limits, and then `PASS` or each `FAIL:` line. It does not give the replies. Read them with `nookku transcript`.
-
-By default, only a person runs `nookku run`: the relay denies it from the model. A person allows the model with `nookku policy set scripts model`.
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `--script FILE` | `--script` or `--persona` | The script file. |
-| `--persona FILE` | `--script` or `--persona` | The persona file of a simulated user. It needs the harness of the config key `persona_runner`, Claude Code by default. |
-| `--entry NAME` | the key `entry` | A name in the config key `entries`. It does not take a command line. |
-| `--root PATH` | the current folder | The project. |
-| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
-| `--json` | off | Print `{"pass": ..., "report": [...], "evaluation": ...}`. |
-| `--verdict` | off | Also fail the run if the verdict of the test is `fail`. Use it in CI. |
-| `--no-evaluate`, `--evaluate` | the config key `evaluate` | Print the evaluation prompt at the end, or not. |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | The audit of the test is clean. With `--persona`, the run also sent a message and stopped at the goal or the turn limit. |
-| 1 | The test did not start, for example a rule of the script or of the persona file is broken, or the entry name is unknown. With `--persona`, the session of the simulated user failed or sent no message. Or a turn has no reply, the audit is not clean, or the Codex hooks changed. With `--verdict`, also if the verdict is `fail` ([SPEC.md section 7.14](../../SPEC.md#714-verdict)). |
+Run a [scripted test](glossary.md#scripted-test) ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). Page: [`nookku run`](commands/run.md).
 
 ### `nookku script`
 
-```text
-nookku script save [TEST] [--root PATH] [--tests-dir PATH]
-```
-
-Save a test as a script ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). After you fix a defect, send the same messages again with `nookku run --script`. The command writes the `said` text of each turn of the test to `.nookku/scripts/<test id>.jsonl`, byte for byte. The file name records the source test id. The command prints the path and the `nookku run` command. The "Save as script" button of the chat page (`nookku chat`) does the same for the test that the page shows.
-
-Only a person runs `nookku script`: the relay denies it from the model, with each policy. The guard also denies a model write to `.nookku/scripts/`, so the model cannot change a saved script before you run it.
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `ACTION` | required | `save`. |
-| `TEST` | the latest test | The test id, or the path of the test folder. |
-| `--root PATH` | the current folder | The project. |
-| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | The command wrote the script. |
-| 1 | The `relay.jsonl` of the test is not valid or has no turn, or the command cannot write the file. |
-| 2 | No test has this id. |
+Save a test as a script ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). Page: [`nookku script`](commands/script.md).
 
 ### `nookku replay`
 
-```text
-nookku replay SCRIPT [--base TEST] [--recorded] [--verdict] [--entry NAME] [--root PATH] [--tests-dir PATH] [--json] [--evaluate | --no-evaluate]
-```
-
-Run a saved script again after a fix, and see which replies changed ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). `replay` runs the script as `nookku run --script` does. Then it compares the new test with the source test of the script, turn by turn. The source test is the test id in the name of the script file, as `nookku script save` names it. The diff uses the reply that the [tap](glossary.md#tap) recorded, not the reply that the harness showed.
-
-The output has the lines of `nookku run`, and then:
-
-- the count of changed turns;
-- each changed reply, with `[-deleted words-]` and `{+inserted words+}`. A change of 2 or more words in a row shows as one deleted part and one inserted part. At a terminal, the deleted words are red and the inserted words are green. Set `NO_COLOR` to get no color;
-- the 2 test ids to select on the dashboard of `nookku chat`, which shows the 2 tests side by side.
-
-A changed reply does not change the exit code. Only a person runs `nookku replay`: the relay denies it from the model, with each policy.
-
-With `--recorded`, the backends, the model APIs and the MCP servers over HTTP of the test give the responses of the base test, and the replay calls none of them ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests), "Recorded backends"). Then a changed reply comes from the agent, not from a backend. A request that the base test did not make gets status 502, and the trace gives the [finding](glossary.md#findings) `replay_miss`. Each changed turn gives the finding `replay_changed`. The default limit of each of these 2 classes is 0, so with `--verdict`, a changed reply or a miss gives exit code 1.
-
-A request matches a recorded call only if it has the same method, path, query and body bytes. If the app sends a new value in each request, for example a request ID or a time, give match rules in the config key [`replay_ignore`](config.md). The rules of the toy shop backend `orders` ignore the body field `request_id` and the query parameter `ts`:
-
-```json
-{"replay_ignore": {"orders": {"body": ["request_id"], "query": ["ts"]}}}
-```
-
-A body rule works only on a JSON body. The manifest records the rules, and `replay` prints a line `Match rule: ...` for each call whose match ignored a value. With no rule, the match is exact.
-
-`--recorded` needs a base test with an intact seal. It does not start if the test has a stdio MCP server or a database with a proxy, because the replay has no player for these parts.
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `SCRIPT` | required | The script file, for example `.nookku/scripts/<test id>.jsonl`. |
-| `--base TEST` | the name of the script file | The test id to compare with. |
-| `--entry NAME` | the key `entry` | A name in the config key `entries`. |
-| `--root PATH` | the current folder | The project. |
-| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
-| `--json` | off | Print `{"pass": ..., "report": [...], "evaluation": ..., "diff": ...}`. |
-| `--no-evaluate`, `--evaluate` | the config key `evaluate` | Print the evaluation prompt at the end, or not. |
-| `--recorded` | off | Give the recorded responses of the base test to the app, and call no backend, model API or MCP server over HTTP. It needs `--base` or a script file name that names the base test. |
-| `--verdict` | off | Give exit code 1 if the verdict of the new test is not `pass`, or if the verdict cannot be used ([SPEC.md section 7.14](../../SPEC.md#714-verdict)). |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | The audit of the new test is clean. |
-| 1 | As for `nookku run`. |
-| 2 | `--base` names no test. Nothing ran. |
+Run a saved script again after a fix, and see which replies changed ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). Page: [`nookku replay`](commands/replay.md).
 
 ### `nookku gate`
 
-```text
-nookku gate run FILE --subject DIGEST [--root PATH] [--tests-dir PATH] [--json]
-nookku gate verify [GATE] [--root PATH] [--tests-dir PATH] [--json]
-```
-
-`nookku gate run` runs each test of a gate file, and writes one sealed result ([SPEC.md section 7.15](../../SPEC.md#715-gate-run)). Each test runs as `nookku run --script --verdict` does. The result folder is `.nookku/gates/<gate id>/`. The command then verifies the result as `nookku gate verify` does. Only a person runs `nookku gate run`: the relay denies it from the model, with each policy. [Gate a release](../how-to/gate-a-release.md) shows the steps.
-
-`nookku gate verify` checks a gate result against its seal and the pinned files of its tests, and computes the result again. The relay lets the model run it, because it only reads.
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `COMMAND` | required | `run` or `verify`. |
-
-The flags of `run` and `verify`:
-
-- `FILE`, for `run` only: the gate file. It is required.
-- `--subject DIGEST`, for `run` only: the digest of the tested thing, 1 to 512 characters. It is required. Nookku does not interpret it.
-- `GATE`, for `verify` only: a gate id or a gate folder. The default is the newest gate folder.
-- `--root PATH`: the project. The default is the current folder.
-- `--tests-dir PATH`: the [tests folder](#the-tests-folder). The default is `$NOOKKU_TESTS_DIR`, else `.nookku/tests`.
-- `--json`: print `{"gate": ..., "result": ...}`, or `{"gate": ..., "error": ...}`.
-
-| Command | Exit code | Meaning |
-|---|---|---|
-| `run` | 0 | The verified aggregate verdict is `pass`. |
-| | 1 | The aggregate verdict is `fail`, or the result cannot be verified. |
-| | 3 | The aggregate verdict is `inconclusive`: a call of a test failed for a provider limit or a refused service, and no good call followed it ([SPEC.md section 8.13](../../SPEC.md#813-outside-failures)). Run the gate again. |
-| | 2 | The gate file, the subject, the tests folder or the egress answer is not valid. No test ran. |
-| `verify` | 0 | The result can be used, and its verdict is `pass`. |
-| | 1 | The result can be used, and its verdict is `fail`. |
-| | 3 | The result can be used, and its verdict is `inconclusive`. The output gives the count of the inconclusive tests. |
-| | 2 | No gate folder is found, or the result cannot be used. The output gives the reason. |
+`nookku gate run` runs each test of a gate file, and writes one sealed result ([SPEC.md section 7.15](../../SPEC.md#715-gate-run)). Page: [`nookku gate`](commands/gate.md).
 
 ### `nookku adjudicate`
 
-```text
-nookku adjudicate TEST --turn N --outcome OUTCOME --reason TEXT [--author NAME] [--root PATH] [--tests-dir PATH]
-```
-
-Record your decision about one mismatch of the [answer key](app-spec.md#answer-key) ([SPEC.md section 7.17](../../SPEC.md#717-answer-key)). A mismatch does not say which side is wrong. You decide it for each mismatch:
-
-| Outcome | Meaning | Counts against the limit of `answer_key_mismatch` |
-|---|---|---|
-| `agent_wrong` | The reply is wrong. | Yes |
-| `key_wrong` | The key is wrong. | No |
-| `both_acceptable` | The reply and the key are both correct. | No |
-
-- The command adds 1 row to `adjudications.jsonl` in the [test folder](glossary.md#test-folder): the turn, the question, the outcome, the reason, the author and the time. `findings.json` keeps the mismatch.
-- A later row for the same turn replaces the earlier decision. The earlier row stays in the file.
-- The command writes `verdict.json` again and updates the [seal](glossary.md#seal). It prints the verdict line with the counts before and after the adjudications.
-- The command reads each record one time and uses only bytes that the seal covers. If a sealed file changes during the command, the command does not update the seal and exits with 1. The seal is then broken.
-- A mismatch with no adjudication is open, and it counts against the limit.
-- Only a person runs this command. The [relay](glossary.md#relay) denies it from the model.
-- A gate result that pinned the test cannot be used after an adjudication. Run the gate again.
-
-```text
-$ nookku adjudicate 20261113-090000-ak01 --turn 3 --outcome key_wrong --reason "The stock list of 2026-11-01 is old."
-Test 20261113-090000-ak01, turn 3: key_wrong, by asha.
-Verdict: fail. answer_key_mismatch: 1, the limit is 0. Adjudications: 2 answer_key_mismatch before, 1 after (1 open, 0 agent_wrong, 1 key_wrong, 0 both_acceptable).
-```
-
-| Argument or flag | Default | Meaning |
-|---|---|---|
-| `TEST` | none | The test id, or the path of the test folder. |
-| `--turn N` | none | The turn of the mismatch, from `answers` of `findings.json` or from the `answer_key_mismatch` [finding](glossary.md#findings). |
-| `--outcome OUTCOME` | none | `agent_wrong`, `key_wrong` or `both_acceptable`. |
-| `--reason TEXT` | none | Why the outcome is correct. |
-| `--author NAME` | the login name of the OS user | Your name. Nookku records it and does not check it. |
-| `--root PATH` | the current folder | The project. |
-| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | The row was written, and the seal covers it. |
-| 1 | The row was written, and `verdict.json` was not written again. |
-| 2 | No row was written: no test folder, a seal that is not intact, a turn with no mismatch, or a value that is not valid. |
+Record your decision about one mismatch of the [answer key](app-spec.md#answer-key) ([SPEC.md section 7.17](../../SPEC.md#717-answer-key)). Page: [`nookku adjudicate`](commands/adjudicate.md).
 
 ### `nookku evaluation`
 
-```text
-nookku evaluation import TEST [--root PATH] [--tests-dir PATH]
-nookku evaluation add TEST --class CLASS --evidence TEXT --text TEXT [--turn N] [--author NAME] [--root PATH] [--tests-dir PATH]
-```
-
-Write the issue rows of an evaluation to `evaluation.json` in the [test folder](glossary.md#test-folder) ([SPEC.md section 9.4](../../SPEC.md#94-issue-rows)). A program can then count the issues of each class, with no model.
-
-- `import` reads the issue table of `report.md` and writes each row as a `model` row. Run it after the evaluation. A second import replaces the model rows and keeps your rows.
-- `add` writes one `human` row: an issue that you found. The command also writes your rows to the end of `report.md`, under `## Person issues`.
-- The command sets the author type. The text of a row never sets it.
-- `import` trusts the bytes of `report.md`. Do not run it in a test folder that another user can write ([limits.md](../limits.md)).
-- If `report.md` changed after the last import, `add` writes no row. Run `import` first.
-- The command writes `verdict.json` again and updates the [seal](glossary.md#seal), with the same rules as [`nookku adjudicate`](#nookku-adjudicate).
-- An issue row changes the verdict only if a `Verdict` row of the [app spec](app-spec.md#verdict) names its class.
-- Only a person runs this command. The [relay](glossary.md#relay) denies it from the model.
-
-```text
-$ nookku evaluation add 20261113-090000-ak01 --class tone --turn 2 --evidence "turn 2" --text "The reply is curt."
-Test 20261113-090000-ak01: 1 model rows and 1 human rows in evaluation.json.
-Verdict: fail. tone: 2 issue rows, the limit is 0.
-```
-
-| Argument or flag | Default | Meaning |
-|---|---|---|
-| `ACTION` | none | `import` or `add`. |
-| `TEST` | none | The test id, or the path of the test folder. |
-| `--class CLASS` | none | `add`: an issue class of [SPEC.md section 9.3](../../SPEC.md#93-report), for example `tone`. |
-| `--evidence TEXT` | none | `add`: a `trace.jsonl:N` line, a turn or a source line. |
-| `--text TEXT` | none | `add`: the issue. |
-| `--turn N` | no turn | `add`: the turn of the issue. |
-| `--author NAME` | the login name of the OS user | `add`: your name. Nookku records it and does not check it. |
-| `--root PATH` | the current folder | The project. |
-| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | The rows were written, and the seal covers them. |
-| 1 | The rows were written, and `verdict.json`, the seal or `report.md` was not written. |
-| 2 | No row was written: no test folder, a seal that is not intact, a `report.md` with no issue table, or a value that is not valid. |
+Write the issue rows of an evaluation to `evaluation.json` in the [test folder](glossary.md#test-folder) ([SPEC.md section 9.4](../../SPEC.md#94-issue-rows)). Page: [`nookku evaluation`](commands/evaluation.md).
 
 ### `nookku mode`
 
-```text
-nookku mode [STATE] [--root PATH] [--tests-dir PATH] [--tester-session ID]
-```
-
-Switch relay mode on or off. With an entry, `on` starts a test and `off` ends it. With no entry, it only switches relay mode ([how-to/http-tap.md](../how-to/http-tap.md)). Before it switches relay mode on, it reads `config.json`, if the file exists. If the file is broken, `on` shows the error and does not switch relay mode on ([#109](https://github.com/mohanraj00/nookku/pull/109)). If the file does not exist, `on` tells you to run `nookku init plugin`, and does not switch relay mode on. If relay mode is already on, it stays on, and the relay blocks each prompt that is not a [control prompt](glossary.md#control-prompt) ([SPEC.md section 7.1](../../SPEC.md#71-configuration)). In the Claude Code plugin, a prompt with an attachment gets the attachment refusal, not the config error. The `/nookku` command of the plugin runs `nookku mode` with its words, and shows the output.
-
-| Argument or flag | Default | Meaning |
-|---|---|---|
-| `STATE` | `status` | `on`, `off` or `status`. `start` is the same as `on`, and `end` is the same as `off`. |
-| `--root PATH` | the current folder | The project. |
-| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
-| `--tester-session ID` | none | The tester's harness session id. With an entry, the test copies this session when it ends. |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | `off` or `status` ran, `on` switched relay mode on, or `on` with an entry started a test. |
-| 1 | `on` refused relay mode, and the text names the cause. For example, `config.json` is broken or does not exist, the Claude Code or Codex hooks are not ready, Claude Code does not run as the interactive CLI, or the test did not start ([#248](https://github.com/mohanraj00/nookku/issues/248)). |
+Switch relay mode on or off. Page: [`nookku mode`](commands/mode.md).
 
 ### `nookku chat`
 
-```text
-nookku chat [--root PATH] [--tests-dir PATH] [--port PORT] [--open]
-```
-
-Serve the chat page: a local web page where you talk to the agent of the running test. The chat page is the main view of a test. `nookku view` is the alternative for a terminal ([`nookku view`](#nookku-view)). The command prints the page URL. Open it in your browser. Stop the page with Ctrl-C.
-
-`nookku page` is the old name of this command ([#394](https://github.com/mohanraj00/nookku/issues/394)). In this release, it works the same and prints one note on stderr: the name changes to `nookku chat`, and `nookku page` goes away in a later release. Use `nookku chat`. The relay denies both names to the [harness model](glossary.md#harness-model).
-
-#### The pages
-
-- **Header.** Each page starts with the same header: the Nookku mark (2 eyes) and the name "Nookku". On the chat page, the header then shows the state of the test (No test, Running, Ended or Stopped), the test id, and the buttons "End test", "Save as script", "Export" and "All tests".
-- **"⋯" menu.** The "⋯" button at the right of the header opens the menu. "Theme" sets Auto, Light or Dark. "Width" sets the width of the conversation: Auto, Narrow or Wide. Auto is the default of each. The Auto theme follows the system, and the Auto width follows the window. The browser keeps your choices for each page. The exported file has the same style, and its theme follows the system.
-- **Narrow window.** If the page is [640 px](../../src/nookku/page/app.css#L339) wide or less, a chosen value, the "⋯" menu also holds "End test", "Save as script", "Export" and "All tests".
-- **"All tests".** This button opens the dashboard: one row for each test of the project, with the start time, the state, the count of turns, [breaks](glossary.md#break) and [findings](glossary.md#findings), and the seal state. Filter the rows by state, and by a break or a finding. Sort them by date. The search shows only the tests that hold the search text, and it sends no request. A click on a row opens the chat page of that test. If the test ended, that page is read-only. The dashboard reads the test folders and changes no file. It asks the server for new rows each [5 seconds](../../src/nookku/page/dashboard.js#L5) ([SPEC.md section 5](../../SPEC.md#5-relays)).
-- **Diff page.** On the dashboard, select 2 tests with their check boxes, then click "Compare". "Compare" works only with 2 selected tests ([compare.js](../../src/nookku/page/compare.js#L11), checked by `tests/test_replay.py::test_compare_opens_the_diff_only_with_2_tests_the_older_on_the_left`). The diff page "Compare 2 tests" shows the 2 tests side by side, turn by turn, with the counts of breaks and findings of each test at the top. It marks each changed reply, and it shows the deleted and the inserted words. The older test is on the left. Its header has "All tests" and "Chat page".
-- **Colors.** Each text color pair meets WCAG AA in the light and the dark theme. The test `tests/test_page_theme.py` checks the [colors](../../src/nookku/page/theme.css).
-- **Keys.** In the message box, Enter sends, Shift+Enter adds a line, and Up puts the last unsent message back in an empty box. On a page, `j` and `k` go to the next and the previous turn or test, `/` goes to the search of the dashboard, and `?` shows the list of keys. Only Enter in the message box sends a message. No other key works while you type in a text field.
-
-#### Send a message
-
-- The page shows the turns of the running test, else of the latest test, with the start and the end of the test. It asks the server for new turns each [1 second](../../src/nookku/page/app.js#L5).
-- Your messages are on the right and the replies of the agent are on the left. Each message shows its source (page, Claude Code, Codex or script) and its state: sent, sending or not sent. If the tap got the message, the message also shows its time.
-- Under the message box, the label "Bridge mode on" tells you that the page sends your message to the agent of the running test, and that the harness model does not see it. "Bridge mode off" tells you that no test runs or that the test ended, so the page sends nothing.
-- When you send a message, the page server sends it to the [tap](glossary.md#tap) with the relay function of the hook, and writes a turn with `"harness": "pane"` ([SPEC.md section 5](../../SPEC.md#5-relays)). The message does not go into the harness, so the harness model cannot see it.
-- The reply to a message from the chat page shows only on the page. It does not show in the harness chat. `nookku view` and `nookku transcript` also show the turn. A message that you type in the harness shows its reply in the harness and on the page.
-- The page sends only if relay mode is on and the test is not a [scripted test](glossary.md#scripted-test). After `nookku end` begins, the page sends nothing.
-- If no test runs, or the page server cannot send the message, the page shows the error. Nothing goes to a model. If a send fails, the page shows the error of the relay and a "Put back in the box" button. If the relay showed no reply for a turn, the page tells you so.
-- Under each reply, you can give a thumbs up, a thumbs down and a comment. The page server writes each note to `notes.jsonl` in the test folder. It writes a note only while the test runs, and the seal covers the file. The evaluation reads your notes and cites them in `report.md` ([SPEC.md section 2.3](../../SPEC.md#23-notes-record)).
-
-#### Show a reply
-
-- The page shows a reply of the agent as Markdown: headings, emphasis, lists, links, tables, block quotes and code. HTML in a reply shows as text. The button "Text" shows the exact text of the reply. A `mermaid` or `vega-lite` fence shows as code.
-- The page shows an image or a video that a reply names as an `https:` URL, a `data:` URI or a file path. A relative path starts at the project root. The page shows a file only if it is in the project or in the folder of the test, and not in `.nookku/` outside the test folder. The page shows an SVG in a sandbox, with no scripts. A file of an `https:` URL loads only after you click its "Load" button, which shows the URL.
-- For another file, for example a PDF, the page shows an "Open" button. A click opens a copy of the file with the system app. The page server removes the copies when it stops. The page does not open a program, a script, an HTML file or an SVG. On Windows, the page does not show or open a file path, because the server cannot check the open file there ([SPEC.md section 5](../../SPEC.md#5-relays)).
-
-#### Start, end, export and save
-
-- `nookku start` starts the page with the test, so you do not have to run `nookku chat` ([`nookku start`](#nookku-start)). If a page server of the project runs already, `start` starts no second page.
-- Start the test in the harness, with the prompt `nookku start`. The page does not start a test.
-- While the test runs, the "End test" button ends it, after you confirm on the page. It does the same as `nookku end` in a shell: it gives no evaluation. The page server continues, so "Export" and "Save as script" still work. To start the evaluation, type the prompt `nookku end` in the harness. That also stops the page server. If no test runs, the page server stops after [15 minutes](../../src/nookku/page.py) (`IDLE_LIMIT`) with no request of yours. This applies to the page server that `nookku start` started and to the page server of `nookku chat`. `--no-idle-stop` turns this stop off for `nookku chat`. A running test keeps it on, and each click, send or page load starts the 15 minutes again. The poll that the page makes by itself each few seconds does not count. If the page sends a message at that time, the button ends nothing: wait for the reply, then try again.
-- The "Export" button and [`nookku export`](#nookku-export) give the same HTML file. The same code builds it, and its name is `<test id>.html`. The button exports the test that the page shows and saves the file in the download folder of your browser. The command saves it in the current folder, or at `--out FILE`.
-- The "Save as script" button writes the test that the page shows as a script, the same as [`nookku script save`](#nookku-script).
-- One page server runs for each project. Stop the page with Ctrl-C. The page also stops when the terminal closes. `nookku chat --stop` stops the page server of this project, also the page server that `nookku start` started. The running test continues.
-- When the page server stopped, the page says so, with the commands that start a new page: `nookku chat` in a separate terminal, or the prompt `nookku start`. The tab of the stopped page does not connect again.
-- The relay in the harness chat still works, for example over SSH, in CI and in `codex exec`.
-
-#### The URL and the session
-
-- The server listens only on `127.0.0.1`. The URL has a random token. The server refuses a request with a wrong `Host` or `Origin` header.
-- The first open of the URL gives the browser a session cookie and a page key. The page keeps the key in the memory of its tab, and sends it with each request. A request of data needs the cookie and the key, because a browser also sends the cookie to another port of `127.0.0.1` ([SPEC.md section 5](../../SPEC.md#5-relays), "Session"). A reload of the tab keeps the key. If you close each tab of the page, the page has no key: end the test and start a new one, or run `nookku chat` again.
-- Run `nookku chat` in a separate terminal. Do not run it with `!` in the harness, because the harness shows the output to the model. In a harness shell, `nookku chat` refuses to start.
-- Only you get the URL, in the terminal of `nookku chat`. Do not give the URL to the harness model, because with it the model can send messages as you. The server writes only its port, its pid and the start time of its process (`pid_start`) to `.nookku/page.json`, and the guard denies a model tool call to that port. The guard also denies a model command that runs `nookku chat`, with each of its 2 names.
-- `nookku chat --open` opens the chat page of the running test in your browser, else the page of the latest test if it still runs after an end with no evaluation, at the session URL `/p/s/`. This URL holds no secret. The page opens only in the browser that got the session at the start of the test. The new tab gets the page key from the open tab of the page, so keep that tab open. It makes no new session and starts no page server. It prints no URL, so you can run it in the harness. If the browser has no session, the page tells you how to get a new one: end the test and start a new one, or run `nookku chat` in a separate terminal. The "Open chat" button of the Claude Code pane runs it. The guard denies it from the model.
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `--root PATH` | the current folder | The project. |
-| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
-| `--port PORT` | a free port | The port on `127.0.0.1`. |
-| `--no-idle-stop` | off | Do not stop the page server after [15 minutes](../../src/nookku/page.py) (`IDLE_LIMIT`) with no request of yours and no running test. With no flag, the page server stops, removes `page.json` and prints `The chat page stopped after 15 minutes with no use and no test.` |
-| `--open` | off | Open the chat page of the running test in the browser, at the session URL, which holds no secret. Make no session. Print no URL. Exit with 1 if the page did not open. |
-| `--stop` | off | Stop the page server of this project with `SIGTERM`, with the lock, pid and start time checks of the end ([SPEC.md section 5](../../SPEC.md#5-relays)). If `page.json` is missing or names a different pid, read the holder pid of `page.lock` from the OS. Send the signal to that holder only after these checks. The state folder and `page.lock` must not be symbolic links. `page.lock` must have exactly one hard link. The lock file must stay the same between the two holder checks. The holder must still hold the lock. Its start time must be known. Its command must be a `nookku chat` command of this Python. Its project root must resolve to this project root. Read its root from `--root`. If that argument is missing or relative, use the working folder of the holder from the OS. If the OS cannot give the root, send no signal. If a check fails, send no signal. Print that nookku cannot confirm that pid is the chat page, give the `kill <pid>` step and exit with 1. Print `The chat page of this project (pid N) stopped.` or `No chat page of this project runs.` and exit with 0. If the OS gives no pid, the stop text is `The chat page of this project stopped.` If a process still holds `page.lock` after the stop, or the server does not stop in [2 seconds](../../src/nookku/page_auto.py) (`STOP_WAIT`), send no further signal, print the `kill <pid>` step and exit with 1. Only if the OS gives no holder pid, the text gives the absolute path of `page.lock`, with `lsof` (macOS) and `fuser` (Linux) to find the pid. The guard denies it from the model. |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | The page stopped: Ctrl-C, a signal or the idle stop. |
-| 1 | The port is not valid, the server cannot listen on the port, a page server of this project runs, or the command runs in a harness shell. |
+Serve the chat page. Page: [`nookku chat`](commands/chat.md).
 
 ## Commands that read a test
 
 ### `nookku dashboard`
 
-```text
-nookku dashboard [--root PATH] [--tests-dir PATH] [--host HOST] [--port PORT] [--site DIR] [--allow-host NAME:PORT ...]
-```
-
-Serve the read-only API of the runs and the gate runs of the project, and with `--site`, the static files of a dashboard ([api.md](api.md)). The command prints one JSON line with `url`, `api`, `token` and `open`, then serves until Ctrl-C. `token` is new each time the server starts, and each API request must send it as `Authorization: Bearer <token>`. `open` is the address of the page with the token in the fragment (`#token=...`), which a browser does not send to a server. The API reads the test folders and the gate folders, and it changes no file. Each answer says if the seal of the run is intact.
-
-The dashboard of [examples/evaluation-dashboard/](../../examples/evaluation-dashboard/) is static files that use only this API. Build it once, then serve it:
-
-```bash
-python examples/evaluation-dashboard/build.py --out dashboard-site
-nookku dashboard --site dashboard-site
-```
-
-The server listens on `127.0.0.1` by default, and it has no login and no TLS. Read [api.md](api.md#expose-the-api) before you give a different `--host`.
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `--root PATH` | the current folder | The project. |
-| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
-| `--host HOST` | `127.0.0.1` | The address to listen on. A different address prints a warning on stderr. |
-| `--port PORT` | `8765` | The port. `0` takes a free port. |
-| `--site DIR` | none | The folder of the static files of a dashboard. It must have `index.html`. With no site, a page path gets status 404 and the API still works. |
-| `--allow-host NAME:PORT` | none | Also accept this `Host` header, for example the name of a reverse proxy. Give it one time for each name. The server refuses each other `Host` header with status 403. |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | The server stopped with Ctrl-C. |
-| 2 | The tests folder is not valid, the site has no `index.html`, or the server cannot listen on the address. |
-
+Serve the read-only API of the runs and the gate runs of the project, and with `--site`, the static files of a dashboard ([api.md](api.md)). Page: [`nookku dashboard`](commands/dashboard.md).
 
 ### `nookku view`
 
-Print each relayed turn. Both forms of the relay use it to show each reply in a second terminal. With an entry, it shows the turns of the latest test, and it follows to the next test. With no entry and no `--record`, it shows the configured record, and it reads the config again before each poll. If the config gives a different record, the view prints `════ record <path> ════` and follows that record. When the config gets an entry, the view follows each test from that time. You can start the view before `nookku init`.
-
-If the [relay record](glossary.md#relay-record) has an invalid line, `view` shows the error with the file and the line on stderr. Without `--no-follow`, it shows the error one time and continues to wait. When the record changes and is valid, it shows the next turns. With `--no-follow`, it stops with exit code 2. If the record does not start with the turns that the view showed, for example because a person removed a line, the view prints `──── the record changed: the view shows each turn again ────` and shows each turn again from turn 1. A test has no relay record before its first turn, so the view of such a test shows no turn and exits with 0. After the end of a test, `nookku verify` shows a record that is missing.
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `--root PATH` | the current folder | The project. |
-| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
-| `--no-follow` | off | Print the turns so far and stop. Without it, `view` waits for new turns until you stop it. |
-| `--record FILE` | from the config | The relay record to show. |
-| `--text` | on | The text view for a terminal. It is the only view of `nookku view` now. The chat page is [`nookku chat`](#nookku-chat). |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | The view stopped. |
-| 2 | The config cannot be read. With `--no-follow`: the relay record is invalid, or, with no entry, the configured record does not exist. |
+Print each relayed turn. Page: [`nookku view`](commands/view.md).
 
 ### `nookku transcript`
 
-Print the exact conversation for the model to evaluate ([SPEC.md section 5](../../SPEC.md#5-relays)). With an entry, the scope is the latest test. A check test that ended does not count: after `nookku check`, the scope is the test before it ([SPEC.md section 9.1](../../SPEC.md#91-start)).
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `--root PATH` | the current folder | The project. |
-| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
-| `--test ID` | the latest test that is not a check test that ended | The test to print: the test id, or the path of the test folder. |
-| `--trace` | off | Print each turn as the app got it (from `tap.jsonl`), with the model items and the [findings](glossary.md#findings) of that turn ([SPEC.md section 9.2](../../SPEC.md#92-evaluation-prompt)). It ignores `--record`, `--all` and `--session`. |
-| `--all` | off | With no entry: each session of the record, not only the latest one. |
-| `--session ID` | none | Only the turns of this harness session. |
-| `--compact` | the config key `transcript_compact` | With `--trace`: show a repeated text of 200 or more characters one time. The bound is a chosen value, not a measurement ([`COMPACT_MIN`](../../src/nookku/evaluation.py#L21-L22)). After that, it shows as a reference with its `[trace.jsonl:N]`, its SHA-256 and its length. An OpenTelemetry attribute with the text of a session item of the same turn also shows as a reference ([SPEC.md section 9.2](../../SPEC.md#92-evaluation-prompt)). |
-| `--no-compact` | the config key `transcript_compact` | With `--trace`: show each text in full. |
-| `--record FILE` | from the config | The relay record to print. |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | The transcript printed. With `--trace`, also if a record is invalid: then the first line says `Record: INVALID` and the transcript shows no turn. |
-| 2 | No test folder (with `--trace`), the config cannot be read, or the relay record is missing or invalid. |
+Print the exact conversation for the model to evaluate ([SPEC.md section 5](../../SPEC.md#5-relays)). Page: [`nookku transcript`](commands/transcript.md).
 
 ### `nookku audit`
 
-Compare the relay record with the [tap record](glossary.md#tap-record) ([SPEC.md section 3](../../SPEC.md#3-audit)).
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `--tap FILE` | required | The tap record. |
-| `--relay FILE` | required | The relay record. |
-| `--json` | off | Print the report as JSON. The bridge writes this form to `audit.json`. |
-| `--script FILE` | none | The script of a scripted test. The audit also compares the relay record with it ([SPEC.md section 3.2](../../SPEC.md#32-matching), step 7). |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | The records are valid and have no [break](glossary.md#break). |
-| 1 | The records are valid and have one or more breaks. |
-| 2 | A record is missing or invalid, or the tap has an unparsed exchange. |
+Compare the relay record with the [tap record](glossary.md#tap-record) ([SPEC.md section 3](../../SPEC.md#3-audit)). Page: [`nookku audit`](commands/audit.md).
 
 ### `nookku trace`
 
-```text
-nookku trace [TEST] [--root PATH] [--tests-dir PATH] [--json] [--verdict] [--egress FILE] [--ingress FILE] [--otlp-file FILE] [--otlp-endpoint URL] [--openinference FILE] [--gateway SOURCE --key-alias ALIAS [--key-alias ALIAS] [--gateway-tag TAG] [--gateway-skew SECONDS]]
-```
-
-Build the trace of a test again, and show its findings ([SPEC.md section 8](../../SPEC.md#8-trace)). The findings show in groups by turn, and each control character of a finding shows as its escape ([read the results](../how-to/read-the-results.md#4-read-the-findings)). It also writes `performance.json` ([SPEC.md section 8.7](../../SPEC.md#87-performance)) and `verdict.json` ([SPEC.md section 7.14](../../SPEC.md#714-verdict)) again. It shows the verdict if the app spec gives limits, if the verdict is `fail`, or with `--verdict`. If the test has a seal, it rebuilds only from sources that agree with the seal.
-
-| Argument or flag | Default | Meaning |
-|---|---|---|
-| `TEST` | the latest test | The test id, or the path of the test folder. |
-| `--root PATH` | the current folder | The project. |
-| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
-| `--json` | off | Print `findings.json`. |
-| `--verdict` | off | Exit with 1 if the verdict is `fail`. Use it in CI. |
-| `--egress FILE` | none | The Koodam egress spans of the test. The trace checks the file, copies it into the test folder as `egress.jsonl`, adds it to the seal and gives the findings `egress_not_in_discovery` and `egress_denied` ([SPEC.md section 8.8](../../SPEC.md#88-egress-spans)). |
-| `--otlp-file FILE` | none | Write the test as OTLP trace JSON outside the test folder. |
-| `--otlp-endpoint URL` | none | Send the test to an OTLP/HTTP trace endpoint as protobuf. |
-| `--openinference FILE` | none | Compare app spans in an export with the proxy records ([SPEC.md section 8.10](../../SPEC.md#810-openinference-spans)). |
-| `--ingress FILE` | none | The ingress spans of your app for the test: 1 JSON line for each request, with a time, a status and an outcome. The trace checks the file, copies it into the test folder as `ingress.jsonl`, adds it to the seal and writes the counts to the key `ingress` of `findings.json`. A span has no body and no path, so it adds no finding and does not replace a row of `tap.jsonl` ([SPEC.md section 8.12](../../SPEC.md#812-ingress-spans)). |
-| `--gateway SOURCE` | none | Read the model calls of the app from the spend logs of a LiteLLM gateway: a file, or the URL of the gateway API. For a URL, put a key that can read the spend logs in `NOOKKU_GATEWAY_KEY`. The URL must be `https`, or `http` to this computer ([SPEC.md section 8.9](../../SPEC.md#89-gateway-logs)). |
-| `--key-alias ALIAS` | none | Keep the logs of this key alias, for example the `kd-<agent uid>` alias of a Koodam Agent. Give it 1 or more times. `--gateway` needs it. |
-| `--gateway-tag TAG` | none | Also keep only the logs with this request tag. |
-| `--gateway-skew SECONDS` | 0 | The clock of the gateway minus the clock of this computer, from -86400 to 86400. For example, if the gateway clock is 2.5 seconds ahead, give `2.5`. The trace moves each gateway time by this value before it keeps the logs of the test window and before it matches a gateway call to a model API call ([SPEC.md section 8.9](../../SPEC.md#89-gateway-logs)). `--gateway` needs it. |
-
-If a model API proxy and the gateway both record a call of the app, the trace keeps 1 item for it, and `performance.json` counts it 1 time. The match rule is in [SPEC.md section 8.9](../../SPEC.md#89-gateway-logs).
-
-| Exit code | Meaning |
-|---|---|
-| 0 | The trace was built. With `--verdict`, the verdict is also `pass`. |
-| 1 | Only with `--verdict`: the trace was built, and the verdict is `fail`, or `verdict.json` was not written. |
-| 2 | No test folder with a manifest, the seal is broken, a record is not valid, or the egress file or the ingress file cannot be read or has a span of a later version, or the gateway logs were not read. The trace was not rebuilt. Also, the OTLP export failed: then the trace was rebuilt, and the command printed it and the verdict before the error. |
-
-If your agent runs in a Koodam Workspace, export the egress spans outside the pod for the time of the test. Then give them to the trace:
-
-```sh
-koodam trace shop --json --since 2026-10-23T09:00:00Z --until 2026-10-23T10:00:00Z > spans.jsonl
-nookku trace --egress spans.jsonl
-```
-
-The trace uses only the spans from `started` to `ended` of the manifest, so a wider export window is not a problem.
-
-To compare app spans with the independent proxy records, export the test window and run:
-
-```bash
-nookku trace TEST --openinference spans.json
-```
-
-In Phoenix, use `client.spans.get_spans_dataframe(project_name=..., start_time=..., end_time=...)` and write the result with `to_json(orient="records", date_format="iso")`. For Langfuse, request the observations of the test window with the `core,basic,metadata,model` fields and combine all pages into one JSON array. OTLP trace JSON is also accepted. [Phoenix export](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans), [Langfuse observations](https://langfuse.com/docs/api-and-data-platform/features/observations-api), [match rule](../../SPEC.md#810-openinference-spans).
-
-
-#### Export to an OTLP collector
-
-Use the test of a toy shop to try the export.
-
-```bash
-nookku trace TEST --otlp-file toy-shop-traces.json
-nookku trace TEST --otlp-endpoint http://127.0.0.1:6006/v1/traces
-```
-
-The second command sends the test to a local Phoenix server. In Phoenix, open the default project and select the test trace. If the server requires an API key, set `OTEL_EXPORTER_OTLP_TRACES_HEADERS` to `Authorization=Bearer%20<key>`. For an isolated local container, set `PHOENIX_ENABLE_AUTH=false` and publish the port on loopback.
-
-For a local Langfuse server, set `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` to the keys for the test project. Run:
-
-```bash
-token=$(printf '%s:%s' "$LANGFUSE_PUBLIC_KEY" "$LANGFUSE_SECRET_KEY" | base64 | tr -d '\n')
-OTEL_EXPORTER_OTLP_TRACES_HEADERS="Authorization=Basic%20$token" \
-  nookku trace TEST --otlp-endpoint http://127.0.0.1:3000/api/public/otel/v1/traces
-```
-
-Open the test trace in the Langfuse project. The trace ID is in `traceId` of the spans in the OTLP JSON file.
-
-Use the full trace endpoint URL for a hosted service. The header variable is a comma-separated list of `name=value` entries. Put credentials in the environment. [Phoenix trace setup](https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing), [Langfuse OTLP setup](https://langfuse.com/docs/opentelemetry/get-started).
+Build the trace of a test again, and show its findings ([SPEC.md section 8](../../SPEC.md#8-trace)). Page: [`nookku trace`](commands/trace.md).
 
 ### `nookku faults`
 
-```text
-nookku faults [--cases PATH] [--json]
-```
-
-Run each check of the [trace](glossary.md#trace) on its seeded faults, with no model ([ADR 0002](../contributing/adr/0002-seeded-faults-personas-answer-keys-verifiers.md#nookku-faults), [#546](https://github.com/mohanraj00/nookku/issues/546)). A seeded fault is a trace case of the conformance suite that expects a [finding](glossary.md#findings) of a check. The file `faults.json` of the case names the check and the turn of each fault. The command copies each case to a temporary folder and builds its trace. A fault is found if the trace gives a finding of its check in its turn. The report has one line for each fault, then the count of faults found and the count of checks with a fault. The package does not hold the conformance suite, so run the command in a checkout of the repo.
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `--cases PATH` | `conformance/trace` | The folder of the trace cases. |
-| `--json` | off | Print the report as JSON: `nookku`, `cases`, `checks`, `faults` (each with `case`, `check`, `turn`, `found` and `error`), `missed`, `unseeded` and `ok`. |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | Each fault is found, and each check of SPEC.md section 8.6 has a fault. |
-| 1 | A check missed a fault, or a check has no fault. |
-| 2 | The folder has no case with `faults.json`, or a `faults.json` is not valid. |
+Run each check of the [trace](glossary.md#trace) on its seeded faults, with no model ([ADR 0002](../contributing/adr/0002-seeded-faults-personas-answer-keys-verifiers.md#nookku-faults), [#546](https://github.com/mohanraj00/nookku/issues/546)). Page: [`nookku faults`](commands/faults.md).
 
 ### `nookku verifier`
 
-```text
-nookku verifier run CLAIMS --entry NAME [--out FILE] [--root PATH] [--timeout SECONDS]
-```
-
-Measure a verifier on a declared claim set. The report records each verdict and gives the fraction of seeded false claims refuted and the fraction of true claims refuted. Each fraction has a numerator and a denominator. Errors have their own count and stay in the group totals. The measurement applies to this claim set and verifier version. A model verifier can give different replies across runs. See the [method and toy shop example](../how-to/measure-a-verifier.md) and the [file formats](../../SPEC.md#11-verifier-measurement).
-
-| Argument | Default | Meaning |
-|---|---|---|
-| `COMMAND` | required | `run`. |
-
-`run` takes these arguments.
-
-- `CLAIMS` gives the declared JSON claim set. It is required.
-- `--entry NAME` selects a name in the config key `entries`. It is required.
-- `--out FILE` gives the report path. The default is `verifier.json` beside `CLAIMS`.
-- `--root PATH` gives the project folder with `.nookku/config.json`. The default is the current folder.
-- `--timeout SECONDS` gives the maximum time for each claim. The default is [240 seconds](../../src/nookku/stdio.py#L27).
-
-The command exits with [0](../../src/nookku/cli.py) when it writes the report, even if some claims gave errors. It exits with [2](../../src/nookku/cli.py) if it cannot use the claim set or config, or cannot write the report.
+Measure a verifier on a declared claim set. Page: [`nookku verifier`](commands/verifier.md).
 
 ### `nookku export`
 
-```text
-nookku export [TEST] [--root PATH] [--tests-dir PATH] [--out FILE]
-```
-
-Write a test as one HTML file, so you can give it to a person who does not have the project or nookku. The file holds the CSS, the script and the data inline. It shows the chat, the trace steps, the notes, the audit result and the seal state ([SPEC.md section 5](../../SPEC.md#5-relays)).
-
-- The file loads nothing from the network. A link or a web image shows as text with its URL.
-- The file runs no script and no HTML from the agent. It holds no page URL and no page token.
-- An image or a video file that a reply names with a Markdown link or image goes into the file, with the file rule of the chat page. A path in the text of a reply adds no file. If a reply names a file only in code, the file shows it in a list at its end. A file larger than [4 MiB](../../src/nookku/export.py#L41-L44), or a file after a sum of 32 MiB, shows as its path. These limits are chosen values, not measurements.
-- The command reads the test and changes no record. It does not write into `.nookku/`, into a test folder or into the seal home.
-- On a system that cannot open a file relative to a folder (Windows), the command writes nothing and exits with 1. Use the "Export" button of the chat page there.
-
-| Argument or flag | Default | Meaning |
-|---|---|---|
-| `TEST` | the latest test | The test id, or the path of the test folder. |
-| `--root PATH` | the current folder | The project. |
-| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
-| `--out FILE` | `<test id>.html` in the current folder | The HTML file to write. |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | The file was written. |
-| 1 | The command must not write to the path, for example a path in `.nookku/` or a link, or it cannot write the file. |
-| 2 | No test folder. |
+Write a test as one HTML file, so you can give it to a person who does not have the project or nookku. Page: [`nookku export`](commands/export.md).
 
 ### `nookku finding`
 
-```text
-nookku finding export [TEST] --subject DIGEST [--model-rows] [--root PATH] [--tests-dir PATH]
-nookku finding export --gate GATE [--model-rows] [--root PATH] [--tests-dir PATH]
-nookku finding check FILE [--json]
-nookku finding schema
-```
-
-Export each confirmed defect of a test, or of a gate run, as a [finding record](glossary.md#finding-record): one JSON object that another tool reads with no other file ([SPEC.md section 10](../../SPEC.md#10-finding-record)). [Import a finding record](../how-to/import-a-finding-record.md) shows the steps.
-
-- `export` prints one record on each line. A record comes from a mismatch with the answer key that [`nookku adjudicate`](#nookku-adjudicate) gave the outcome `agent_wrong`, or from an issue row of a person of [`nookku evaluation add`](#nookku-evaluation).
-- `export` prints no record if the [seal](glossary.md#seal) of a test is not intact, or if a record of the test folder is not valid.
-- `check` checks each line of a file of records: the fields, the version and the seal digest.
-- `schema` prints the JSON Schema of a record.
-- The command reads, and it writes no file. The [relay](glossary.md#relay) lets the model run it.
-
-```text
-$ nookku finding export 20261120-101500-a1b2 --subject sha256:ab12cd34 > findings.jsonl
-nookku: 1 finding records.
-$ nookku finding check findings.jsonl
-line 1: ok 20261120-101500-a1b2/answer_key_mismatch/2
-1 records, 0 not valid.
-```
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `COMMAND` | required | `export`, `check` or `schema`. |
-
-The flags of `export` and `check`:
-
-- `TEST`, for `export` only: the test id, or the path of the test folder. The default is the latest test.
-- `--subject DIGEST`, for `export` of a test only: the digest of the tested thing, 1 to 512 characters. It is required. Nookku does not interpret it.
-- `--gate GATE`, for `export` only: a gate id or a gate folder. The command exports each test of the gate run, with the subject of the gate run. It takes no `TEST` and no `--subject`.
-- `--model-rows`, for `export` only: also export the model rows of `evaluation.json`. A model row is a model judgment that no person confirmed, and its record has the author type `model`.
-- `--root PATH`, for `export` only: the project. The default is the current folder.
-- `--tests-dir PATH`, for `export` only: the [tests folder](#the-tests-folder). The default is `$NOOKKU_TESTS_DIR`, else `.nookku/tests`.
-- `FILE`, for `check` only: a JSONL file of records, or `-` for the standard input.
-- `--json`, for `check` only: print `{"records": ..., "valid": ..., "lines": ...}`.
-
-| Command | Exit code | Meaning |
-|---|---|---|
-| `export` | 0 | Each record was printed. A test with no confirmed defect prints no record. |
-| | 2 | No record was printed: no test or gate folder, no subject, a seal that is not intact, or a record of the test folder that is not valid. |
-| `check` | 0 | Each line is a valid record. |
-| | 1 | A line is not a valid record. The output gives the problem of each line. |
-| | 2 | The file cannot be read as UTF-8. |
-| `schema` | 0 | The schema was printed. |
+Export each confirmed defect of a test, or of a gate run, as a [finding record](glossary.md#finding-record). Page: [`nookku finding`](commands/finding.md).
 
 ### `nookku verify`
 
-```text
-nookku verify [TEST] [--root PATH] [--tests-dir PATH] [--json]
-```
-
-Check that no record of a test changed after its end ([SPEC.md section 7.4](../../SPEC.md#74-seal)). The output starts with the test id, for example `Test 20261011-184952-8a8d. Seal: intact. No record changed after the end of the test.` With no `TEST`, the id shows which test the command checked. `--json` prints only the result of SPEC.md section 7.4.
-
-`TEST` can also be the id of a sealed refusal record of a refused start, for example `refused-20261127-120000-0a1b2c3d`. Then the output starts with `Refusal record` and the id ([SPEC.md section 7.8](../../SPEC.md#78-codex-hook-gate)). With no `TEST`, the command never checks a refusal record.
-
-| Argument or flag | Default | Meaning |
-|---|---|---|
-| `TEST` | the latest test | The test id, or the path of the test folder. |
-| `--root PATH` | the current folder | The project. |
-| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
-| `--json` | off | Print the result as JSON. |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | The seal is intact. |
-| 2 | The seal is broken, the test has no seal, or there is no test folder. |
+Check that no record of a test changed after its end ([SPEC.md section 7.4](../../SPEC.md#74-seal)). Page: [`nookku verify`](commands/verify.md).
 
 ## Commands that install or connect
 
 ### `nookku init`
 
-```text
-nookku init HARNESS [--root PATH] [--entry COMMAND] [--models LIST] [options]
-nookku init --remove HARNESS [--root PATH]
-```
-
-Write the config, and the [project hooks](glossary.md#project-hooks) of a harness. It writes `.nookku/config.json`, the files `.nookku/mode` and `.nookku/nookku-state`, and the hooks: `.codex/hooks.json` for Codex, `.claude/settings.local.json` for Claude Code. It keeps your other hooks, also a hook in the same group as a hook of nookku. With `plugin`, it writes no hooks, because the nookku plugin has them. Do not use the plugin and the project hooks in one project, or each message is sent two times.
-
-If `config.json` exists, `init` keeps each key and changes only the keys of the flags that you give. For example, a second run keeps `models` and `"evaluate": false`. It prints the keys that it changed and the keys that it kept. A new `config.json` gets each key. The default of a flag applies only to a new file.
-
-If `config.json` has an unknown key, or if `config.json` or the hook file is not valid JSON, `init` writes nothing. Correct the file, then run `init` again. If a flag gives a value that breaks the rule of its key, `init` also writes nothing. If `config.json` has the key `backends` or `model_api` of nookku 0.5.1 and earlier, `init` writes nothing and names the keys. Remove them: the egress answer replaces them ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery)).
-
-The output starts with `Project root:` and the absolute root, then gives the absolute path of each file that `init` wrote. If the root is in a state folder or a test folder, for example `.nookku/tests/<id>`, the target of a `.nookku` symlink, or a copied test folder, `init` writes nothing, exits with 1 and names the project folder to use ([code](../../src/nookku/cli.py), [test](../../tests/test_cli.py)). If the root has no `config.json` and is not the top level of its git work tree, `init` prints a warning that names the top level. It still writes the files.
-
-If the config has no `entry` and no `agent_url` after the run, the last line of the output is a note: `Note: .nookku/config.json has no entry, so a test cannot start yet. Write the command that starts your agent with: nookku init <harness> --entry "python3 agent.py". Replace python3 agent.py with your command.` `<harness>` is the harness of the run. The exit code stays 0. With `agent_url` and no entry, the relay sends each message to the tap of `tap_url` ([how-to/http-tap.md](../how-to/http-tap.md)), so `init` gives no note.
-
-| Argument or flag | Default | Meaning |
-|---|---|---|
-| `HARNESS` | | `codex`, `claude-code` or `plugin`. |
-| `--root PATH` | the current folder | The project. |
-| `--entry COMMAND` | none | The entry command of a test, as one string. The shell rules split it into arguments. |
-| `--models LIST` | none | The app's model harnesses, separated by commas: `claude-code`, `codex` or both. |
-| `--spec LIST` | none | The config key `spec`: the files of the [app spec](app-spec.md), separated by commas, relative to the root. Each one must be a file in the project, or `init` writes nothing. |
-| `--tap-url URL` | `http://127.0.0.1:8800/` | The config key `tap_url`. |
-| `--agent-url URL` | empty | The config key `agent_url`. |
-| `--adapter NAME` | `json` | The config key `adapter`. |
-| `--message-field PATH` | `text` | The config key `message_field`. |
-| `--reply-field PATH` | `reply` | The config key `reply_field`. |
-| `--openai-model NAME` | empty | The config key `openai_model`. |
-| `--openai-stream`, `--no-openai-stream` | none | The config key `openai_stream`: `--openai-stream` sets it to `true`, and `--no-openai-stream` sets it to `false`. With neither flag, a new file gets `false`, and an existing file keeps its value. |
-| `--record FILE` | `.nookku/relay.jsonl` | The config key `record`. |
-| `--check-message TEXT` | `Hello from nookku check. What can you help me with?` | The config key `check_message`: the one message of `nookku check`. |
-| `--model-reply-field PATH` | empty | The config key `model_reply_field`: the dot path of the client text in a structured model output. |
-| `--model-reply-match MODE` | `normalized` | The config key `model_reply_match`: `exact`, `normalized` or `off`. |
-| `--citation-field PATH` | empty | The config key `citation_field`: the dot path of the source locators in the reply. Empty turns the check `citation_not_read` off. |
-| `--citation-prefix TEXT` | empty | The config key `citation_prefix`: the text that comes off the start of a locator before the match. |
-| `--repeated-reply COUNT` | `2` | The config key `repeated_reply`: the count of consecutive turns with the same reply that gives a finding. `0` turns the check off. |
-| `--remove` | off | Remove the project hooks of nookku, and keep each other hook and key. `HARNESS` must be `claude-code` or `codex`. It takes no other flag. |
-
-[config.md](config.md#nookkuconfigjson) explains each key.
-
-| Exit code | Meaning |
-|---|---|
-| 0 | The files were written. |
-| 1 | Nothing was written: `config.json` or the hook file cannot be read, or `config.json` has an unknown key. The text names the cause. |
-
-`init --remove` removes the project hooks from the hook file of the harness. It finds the isolated hook commands and the earlier commands that contain `nookku hook` or `verbatim_relay hook`. It removes a group or an event that then has no hook. It keeps the file, also as `{}`, and does not change the state folder. It prints the absolute path of the file and the count of removed hooks, or that the file has no hook of nookku. If a test runs or relay mode is on, also in the `.verbatim-relay/` folder of 0.3, it changes nothing and exits with 1, because without the hooks a message in relay mode goes to the model. If relay mode comes on while it runs, it puts the hooks back and exits with 1. If the hook file cannot be read, it changes nothing and exits with 1 ([code](../../src/nookku/kit.py), [test](../../tests/test_kit.py)).
+Write the config, and the [project hooks](glossary.md#project-hooks) of a harness. Page: [`nookku init`](commands/init.md).
 
 ### `nookku policy`
 
-```text
-nookku policy [set KEY VALUE] [--root PATH]
-```
-
-Print each key of the [policy file](glossary.md#policy-file) `.nookku/policy.json` with its value, as JSON. With `set`, change one key, then print the keys. Only a person runs this command, in a shell. The relay denies it from the model ([SPEC.md section 7.9](../../SPEC.md#79-policy-file)). [config.md](config.md#nookkupolicyjson) explains the file.
-
-| Argument or flag | Default | Meaning |
-|---|---|---|
-| `ACTION` | none | `set` changes one key. With no action, the command only prints the keys. |
-| `KEY` | | The key to change. |
-| `VALUE` | | The new value of the key. |
-| `--root PATH` | the current folder | The project. |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | The keys were printed. With `set`, the key was changed first. |
-| 1 | The policy file is not valid, the key is not known, or the value is not valid. The text names the cause. Nothing was changed. |
-| 2 | The arguments are not complete. |
+Print each key of the [policy file](glossary.md#policy-file) `.nookku/policy.json` with its value, as JSON. Page: [`nookku policy`](commands/policy.md).
 
 ### `nookku setup`
 
-Print the guide that connects a test to the app ([setup.md](../../src/nookku/setup.md)). A [harness model](glossary.md#harness-model) reads it. The model gives a summary of the app, asks the tester about the gaps and shows its plan. After the tester says yes, it writes the entry, the config and a draft of the [app spec](app-spec.md) ([how-to/test-your-app.md](../how-to/test-your-app.md#2-run-the-setup-in-the-harness), [how-to/connect-your-agent.md](../how-to/connect-your-agent.md)).
-
-| Exit code | Meaning |
-|---|---|
-| 0 | Always. |
+Print the guide that connects a test to the app ([setup.md](../../src/nookku/setup.md)). Page: [`nookku setup`](commands/setup.md).
 
 ### `nookku tap`
 
-```text
-nookku tap (--agent URL | --cmd -- COMMAND...) --record FILE [options]
-```
-
-Run the tap proxy in front of the agent ([SPEC.md section 4](../../SPEC.md#4-tap)). A test starts it for you, so you need this command only for an agent that is an HTTP server ([how-to/http-tap.md](../how-to/http-tap.md)).
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `--agent URL` | none | HTTP mode: the agent's base URL (http, https, ws or wss). |
-| `--cmd` | off | Stdio mode: start the command after `--` as the agent. |
-| `--record FILE` | required | The tap record (JSONL). The tap adds rows to it. |
-| `--listen HOST:PORT` | `127.0.0.1:8800` | The address of the tap. |
-| `--timeout SECONDS` | [240](../../src/nookku/stdio.py) | The seconds to wait for the agent. |
-| `--log PATH` | `app.log` next to the record | Stdio mode: the file for the agent's stderr. |
-| `--adapter NAME` | `json` | `json` or `openai` ([SPEC.md section 4.1](../../SPEC.md#adapters)). |
-| `--message-field PATH` | `text` | `json` adapter: the field path of the message in the request. |
-| `--reply-field PATH` | `reply` | `json` adapter: the field path of the reply in the response. |
-
-Give exactly one of `--agent` and `--cmd`.
-
-In stdio mode, the tap accepts a `POST` only with its token in the header `X-Nookku-Token` ([SPEC.md section 4.2](../../SPEC.md#42-stdio-mode)). The tap takes the token from the variable `NOOKKU_TAP_TOKEN`. The value must have 43 characters or more, else the tap does not start. Use a random value, for example from `python -c "import secrets; print(secrets.token_urlsafe(32))"`. If the variable has no value, the tap makes a random token and writes it to stderr at start. In HTTP mode, the tap checks no token ([SPEC.md section 4.1](../../SPEC.md#41-http-mode)).
-
-| Exit code | Meaning |
-|---|---|
-| 0 | The tap stopped, for example after Ctrl-C. |
-| 2 | The flags are wrong, for example both `--agent` and `--cmd`. |
+Run the tap proxy in front of the agent ([SPEC.md section 4](../../SPEC.md#4-tap)). Page: [`nookku tap`](commands/tap.md).
 
 ## Internal commands
 
@@ -881,64 +151,16 @@ The relays and the bridge run these commands. You do not run them yourself. `noo
 
 ### `nookku hook`
 
-The hook command that `init` writes into the hook file. It reads one hook event as JSON on stdin and writes the answer on stdout ([SPEC.md section 5](../../SPEC.md#5-relays)).
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `--root PATH` | from the event | The project. With no `--root`, a Claude Code hook takes `CLAUDE_PROJECT_DIR`, and each hook then takes the `cwd` of the event, else its working folder. The plugin gives no `--root`. |
-| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
-| `--harness NAME` | required | `codex` or `claude-code`. |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | The hook answered. If the hook fails in relay mode, it still blocks the prompt. |
-| 2 | A wrong argument, an event that cannot be read, or both the old and the new state folder in the project. Exit 2 blocks the event, so the relay fails closed. |
+The hook command that `init` writes into the hook file. Page: [`nookku hook`](commands/hook.md).
 
 ### `nookku mcp`
 
-The MCP server that gives the model the read-only tools `transcript` and `status`. It reads one JSON-RPC message on each line of stdin and writes each answer on stdout. A harness starts it from its MCP configuration ([SPEC.md section 5](../../SPEC.md#5-relays)). The plugin does not start it yet: [#216](https://github.com/mohanraj00/nookku/issues/216) adds it to the plugin.
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `--root PATH` | the current folder | The project. Claude Code and Codex start the server of the plugin in the project. The server does not read `CLAUDE_PROJECT_DIR`, because a Codex can inherit it from a Claude Code session of another project. |
-| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | stdin ended. |
+The MCP server that gives the model the read-only tools `transcript` and `status`. Page: [`nookku mcp`](commands/mcp.md).
 
 ### `nookku mcp-stdio`
 
-The wrapper of a stdio MCP server of the agent ([SPEC.md section 7.12](../../SPEC.md#712-mcp-proxies)). The bridge writes this command into the variable of each stdio MCP server that the egress answer names with a variable. The app starts the command in place of the server. The wrapper starts the server, copies each byte between the app and the server with no change, and writes each line to `mcp.jsonl`.
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `--folder PATH` | required | The test folder. |
-| `--name NAME` | required | The name of the server in the egress answer. |
-| `SERVER` | required | The command of the server and its arguments, after `--`. |
-
-| Exit code | Meaning |
-|---|---|
-| the code of the server | The server exited. |
-| 127 | The server could not start. |
+The wrapper of a stdio MCP server of the agent ([SPEC.md section 7.12](../../SPEC.md#712-mcp-proxies)). Page: [`nookku mcp-stdio`](commands/mcp-stdio.md).
 
 ### `nookku bridge`
 
-The background process of a test ([architecture.md](../architecture.md#the-bridge)). `start` runs it.
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `--root PATH` | required | The project. |
-| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
-| `--test ID` | required | The test id. |
-| `--tester-session ID` | none | The tester's harness session id. |
-| `--entry-name NAME` | none | The name of the entry in `entries`, from `nookku run --entry`. |
-| `--persona-source FILE` | none | The absolute path of the persona file of a simulated user, for the manifest. `run` copies the file into the test folder before it starts the bridge. |
-| `--play-base ID` | none | The base test of a replay with `--recorded`. The proxies of the test answer from the copied records of this test ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). |
-| `--script-source FILE` | none | The absolute path of the script of a scripted test, for the manifest. `run` copies the script into the test folder before it starts the bridge. |
-| `--check` | off | The test is a test of `nookku check`. The manifest records `"check": true`, so the model does not evaluate the test ([SPEC.md section 9.1](../../SPEC.md#91-start)). |
-
-| Exit code | Meaning |
-|---|---|
-| 0 | The test ended. |
-| 1 | The bridge could not start the entry, the entry exited at start, or the bridge could not read the start time of its process. |
+The background process of a test ([architecture.md](../architecture.md#the-bridge)). Page: [`nookku bridge`](commands/bridge.md).

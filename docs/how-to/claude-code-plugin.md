@@ -1,5 +1,7 @@
 # Test an agent with the Claude Code plugin
 
+Release: nookku 0.6.1.
+
 The [plugin](../reference/glossary.md#plugin) installs the [relay](../reference/glossary.md#relay) in Claude Code for each of your projects. The same plugin works in Codex ([codex.md](codex.md)). Its 2 command hooks run `nookku hook`, so the plugin and the [project hooks](../reference/glossary.md#project-hooks) have the same rules. The plugin shows each reply in the chat as the reason of the blocked prompt, which the model does not receive. To compare it with the project hooks, read [choose-a-relay.md](choose-a-relay.md).
 
 The plugin also has a display layer: `/nookku`, the status line and the Nookku pane. It uses function hooks, which are early access and can change between releases. It holds one rule: in [relay mode](../reference/glossary.md#relay-mode), it drops a prompt with an attachment. Each text comes from the `nookku` command. If the display layer fails, the command hooks still relay each message, but they relay the text of a prompt with an attachment and drop the attachment.
@@ -63,7 +65,7 @@ During a test, the relay also denies a model command that runs the entry, for ex
 
 ## Options
 
-The plugin has no options. It reads `.nookku/config.json` ([reference/config.md](../reference/config.md)). `nookku init plugin` writes the file, and its flags set each key ([reference/cli.md](../reference/cli.md#nookku-init)).
+The plugin has no options. It reads `.nookku/config.json` ([reference/config.md](../reference/config.md)). `nookku init plugin` writes the file, and its flags set each key ([reference/cli.md](../reference/commands/init.md)).
 
 ## Evaluation
 
@@ -99,4 +101,4 @@ Exit code 0 means clean, 1 means a [break](../reference/glossary.md#break), and 
 - Backends of your app: [add-a-backend.md](add-a-backend.md).
 - Direct model calls and OpenTelemetry: [record-model-calls.md](record-model-calls.md).
 - An Agent SDK session in your app: [isolate-agent-sdk.md](isolate-agent-sdk.md).
-- [Audit](../reference/glossary.md#audit) a test: [reference/cli.md](../reference/cli.md#nookku-audit).
+- [Audit](../reference/glossary.md#audit) a test: [reference/cli.md](../reference/commands/audit.md).

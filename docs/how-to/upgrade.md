@@ -1,5 +1,7 @@
 # Upgrade Nookku
 
+Release: nookku 0.6.1.
+
 This page upgrades the CLI, the package in your app's environment, the Claude Code [plugin](../reference/glossary.md#plugin) and the Codex hooks. Some releases need a special step. Read the section of each release from your version to the new version in [Releases with a special step](#releases-with-a-special-step). [CHANGELOG.md](../../CHANGELOG.md) lists all changes.
 
 The output on this page is the real output of each step. I used the toy shop project of [getting-started.md](../getting-started.md) on macOS. The output of steps 2 and 5 comes from nookku 0.4.0. The output of the [0.3.0](#030) section comes from verbatim-relay 0.3.0 and Claude Code 2.1.294. I shortened the paths of the folders to `.../`. The test id and the times are different on your machine.
@@ -86,7 +88,7 @@ The second command installs the version of the updated marketplace. In the Codex
 
 Restart Codex to load the new version. Do this step before step 4. If the plugin script of a release changes, the gate refuses the old plugin: its script SHA-256 is not the SHA-256 of the new CLI ([SPEC.md section 7.8](../../SPEC.md#78-codex-hook-gate)). A trust step does not correct this.
 
-Each hook of the plugin, its MCP server and `/nookku` run the `nookku` command from `PATH`. Upgrade the CLI and the plugin to the same version. The plugin has no options: it reads `config.json`. If you set plugin options before 0.4.0, set the same keys with `nookku init plugin` ([reference/cli.md](../reference/cli.md#nookku-init)).
+Each hook of the plugin, its MCP server and `/nookku` run the `nookku` command from `PATH`. Upgrade the CLI and the plugin to the same version. The plugin has no options: it reads `config.json`. If you set plugin options before 0.4.0, set the same keys with `nookku init plugin` ([reference/cli.md](../reference/commands/init.md)).
 
 ## 4. Trust the Codex hooks again
 
@@ -96,7 +98,7 @@ Do not skip this step. If Codex does not trust the hooks, it does not run them, 
 
 ## 5. Run `check`
 
-`check` needs a fresh egress answer ([cli.md](../reference/cli.md#nookku-register)). If you have none, type the prompt `nookku start` first, or run `nookku register` with the answer.
+`check` needs a fresh egress answer ([cli.md](../reference/commands/register.md)). If you have none, type the prompt `nookku start` first, or run `nookku register` with the answer.
 
 ```bash
 nookku check
@@ -109,7 +111,7 @@ Audit: exit 0
 PASS
 ```
 
-`check` runs a short test with one message through the new version, and exits with 0 if it passes ([reference/cli.md](../reference/cli.md#nookku-check)). If it fails, each FAIL line gives the cause and the fix ([troubleshooting.md](../troubleshooting.md#end-a-test)).
+`check` runs a short test with one message through the new version, and exits with 0 if it passes ([reference/cli.md](../reference/commands/check.md)). If it fails, each FAIL line gives the cause and the fix ([troubleshooting.md](../troubleshooting.md#end-a-test)).
 
 ## Releases with a special step
 
@@ -138,7 +140,7 @@ No record changes its version. A 0.6.0 [audit](../reference/glossary.md#audit) r
 
 Do the steps above. This new command is optional:
 
-- To write each confirmed defect of a test or a gate run as a [finding record](../reference/glossary.md#finding-record), run `nookku finding export` ([cli.md](../reference/cli.md#nookku-finding), [import-a-finding-record.md](import-a-finding-record.md)).
+- To write each confirmed defect of a test or a gate run as a [finding record](../reference/glossary.md#finding-record), run `nookku finding export` ([cli.md](../reference/commands/finding.md), [import-a-finding-record.md](import-a-finding-record.md)).
 
 ### 0.6.0
 
@@ -150,14 +152,14 @@ No record changes its version. A 0.5.9 [audit](../reference/glossary.md#audit) r
 
 Do the step above. These new commands and options are optional, and with no value a test works as in 0.5.9:
 
-- To replay a test with the responses of its base test and no outside call, give `--recorded` to `nookku replay` ([cli.md](../reference/cli.md#nookku-replay)).
-- To record the decision of a person for a mismatch with an answer key, run `nookku adjudicate` ([cli.md](../reference/cli.md#nookku-adjudicate)).
-- To keep the answer keys out of reach of the model, run `nookku policy set answer_keys PATH` ([cli.md](../reference/cli.md#nookku-policy)).
+- To replay a test with the responses of its base test and no outside call, give `--recorded` to `nookku replay` ([cli.md](../reference/commands/replay.md)).
+- To record the decision of a person for a mismatch with an answer key, run `nookku adjudicate` ([cli.md](../reference/commands/adjudicate.md)).
+- To keep the answer keys out of reach of the model, run `nookku policy set answer_keys PATH` ([cli.md](../reference/commands/policy.md)).
 - To find an action with no approval, add an `Approvals` section to the app spec ([app-spec.md](../reference/app-spec.md#approvals)).
-- To send a second message during a turn, give a script row the key `during` ([cli.md](../reference/cli.md#nookku-run)).
-- To record the issue rows of an [evaluation](../reference/glossary.md#evaluation), run `nookku evaluation import` or `nookku evaluation add` ([cli.md](../reference/cli.md#nookku-evaluation)).
+- To send a second message during a turn, give a script row the key `during` ([cli.md](../reference/commands/run.md)).
+- To record the issue rows of an [evaluation](../reference/glossary.md#evaluation), run `nookku evaluation import` or `nookku evaluation add` ([cli.md](../reference/commands/evaluation.md)).
 - To serve a read-only API of the runs, run `nookku dashboard` ([api.md](../reference/api.md)).
-- To read the spans of an ingress proxy, give `--ingress FILE` to `nookku trace` ([cli.md](../reference/cli.md#nookku-trace)).
+- To read the spans of an ingress proxy, give `--ingress FILE` to `nookku trace` ([cli.md](../reference/commands/trace.md)).
 
 ### 0.5.9
 
@@ -171,8 +173,8 @@ No record changes its format. These changes need a step or change what you see:
 Do the steps above. These new commands and options are optional, and with no value a test works as in 0.5.8:
 
 - To run a declared set of tests as one gate, use `nookku gate run FILE --subject DIGEST` and `nookku gate verify` ([gate-a-release.md](gate-a-release.md), [gate-a-ci-job.md](gate-a-ci-job.md)). A gate file can declare a `replay` base for a test and `proofs` files. An older Nookku refuses a gate file with the key `proofs`.
-- To run a test with a simulated user, give `--persona FILE` to `nookku run` ([cli.md](../reference/cli.md#nookku-run)).
-- To check that each check of the trace finds its seeded fault, run `nookku faults` in a checkout of the repo ([cli.md](../reference/cli.md#nookku-faults)).
+- To run a test with a simulated user, give `--persona FILE` to `nookku run` ([cli.md](../reference/commands/run.md)).
+- To check that each check of the trace finds its seeded fault, run `nookku faults` in a checkout of the repo ([cli.md](../reference/commands/faults.md)).
 
 ### 0.5.8
 
@@ -181,8 +183,8 @@ This release changes the record format of the [tap](../reference/glossary.md#tap
 Do the steps above. These new options are optional, and with no value a test works as in 0.5.7:
 
 - To test a WebSocket agent, give a `ws://` or `wss://` URL to `nookku tap --agent` ([http-tap.md](http-tap.md), [cli.md](../reference/cli.md)).
-- To compare the proxy calls with the spans of your app, give `--openinference FILE` to `nookku trace` ([cli.md](../reference/cli.md#nookku-trace), [#516](https://github.com/mohanraj00/nookku/issues/516)).
-- To send a test to an OpenTelemetry collector, give `--otlp-file FILE` or `--otlp-endpoint URL` to `nookku trace` ([cli.md](../reference/cli.md#nookku-trace), [#515](https://github.com/mohanraj00/nookku/issues/515)).
+- To compare the proxy calls with the spans of your app, give `--openinference FILE` to `nookku trace` ([cli.md](../reference/commands/trace.md), [#516](https://github.com/mohanraj00/nookku/issues/516)).
+- To send a test to an OpenTelemetry collector, give `--otlp-file FILE` or `--otlp-endpoint URL` to `nookku trace` ([cli.md](../reference/commands/trace.md), [#515](https://github.com/mohanraj00/nookku/issues/515)).
 - To stream large uploads through a backend proxy, set `body_limit` to `"stream"` ([config.md](../reference/config.md), [#479](https://github.com/mohanraj00/nookku/issues/479)).
 
 Each proxy now accepts 64 open app connections. If your app keeps more connections open at the same time, it gets status 503 or SQLSTATE `53300`, and the record has the refusal ([limits.md](../limits.md), [#506](https://github.com/mohanraj00/nookku/issues/506)).
@@ -194,7 +196,7 @@ No special step is necessary. Do the steps above.
 Two new options are for CI and for a gateway. Each is optional, and with no value a test works as in 0.5.6:
 
 - To fail a CI job on the [findings](../reference/glossary.md#findings) of a test, add a `Verdict` table to your [app spec](../reference/app-spec.md#verdict) and give `--verdict` to `nookku run` or `nookku trace`. Then a `fail` verdict gives exit 1. Without `--verdict`, the exit codes do not change ([SPEC.md section 7.14](../../SPEC.md#714-verdict), [#514](https://github.com/mohanraj00/nookku/issues/514)).
-- If the clock of your LiteLLM gateway is different from the clock of the test computer, give `--gateway-skew SECONDS` to `nookku trace --gateway` ([cli.md](../reference/cli.md#nookku-trace), [#509](https://github.com/mohanraj00/nookku/issues/509)).
+- If the clock of your LiteLLM gateway is different from the clock of the test computer, give `--gateway-skew SECONDS` to `nookku trace --gateway` ([cli.md](../reference/commands/trace.md), [#509](https://github.com/mohanraj00/nookku/issues/509)).
 
 If your app spec already has a section with the heading `Verdict`, the bridge now reads its first table as limits. If the bridge cannot read that table as limits, the verdict of each test is `fail`, and `nookku run` prints it. Give the section another heading ([app-spec.md](../reference/app-spec.md#verdict)).
 
@@ -208,7 +210,7 @@ Three new options are for a test in a cluster. Each is optional, and with no val
 
 - To keep the tests outside the project, for example on a mounted volume, set `NOOKKU_TESTS_DIR` to an absolute path, or give `--tests-dir PATH` to a command. Set the variable for the [harness](../reference/glossary.md#harness) too, because the [relay](../reference/glossary.md#relay) gets no option ([cli.md](../reference/cli.md#the-tests-folder), [#457](https://github.com/mohanraj00/nookku/issues/457)).
 - To read the egress spans of Koodam, run `nookku trace --egress FILE`. The new config key `egress_ignore` lists the hosts that the checks skip ([config.md](../reference/config.md), [#491](https://github.com/mohanraj00/nookku/issues/491)).
-- To read the spend logs of a LiteLLM gateway, run `nookku trace --gateway SOURCE --key-alias ALIAS` ([cli.md](../reference/cli.md#nookku-trace), [#459](https://github.com/mohanraj00/nookku/issues/459)).
+- To read the spend logs of a LiteLLM gateway, run `nookku trace --gateway SOURCE --key-alias ALIAS` ([cli.md](../reference/commands/trace.md), [#459](https://github.com/mohanraj00/nookku/issues/459)).
 
 The proxies of a test now share one budget for request bodies, 4 times `body_limit`. If your app sends many large bodies at the same time and gets status 503, set `body_limit` to a larger value ([SPEC.md section 7.6](../../SPEC.md#76-backend-proxies), [#484](https://github.com/mohanraj00/nookku/issues/484)).
 
@@ -227,7 +229,7 @@ nookku chat --stop
 
 If you started the page with `nookku chat` in a shell, you can press Ctrl-C in that shell. Then do the steps above ([SPEC.md section 5](../../SPEC.md#5-relays), [#454](https://github.com/mohanraj00/nookku/issues/454)).
 
-The page server of `nookku chat` now stops after 15 idle minutes. To keep it, add `--no-idle-stop` ([cli.md](../reference/cli.md#nookku-chat)).
+The page server of `nookku chat` now stops after 15 idle minutes. To keep it, add `--no-idle-stop` ([cli.md](../reference/commands/chat.md)).
 
 The proxies refuse a request body above 64 MiB. If your app sends a longer body to a backend or a model API, set `body_limit` in `.nookku/config.json` to a larger whole number of bytes ([config.md](../reference/config.md), [#453](https://github.com/mohanraj00/nookku/issues/453)).
 
@@ -250,7 +252,7 @@ Do the steps above. Three changes need more care:
 2. The register step of the discovery task changed. The [harness model](../reference/glossary.md#harness-model) writes the answer to `.nookku/egress.json` with its file tool, and runs `nookku register --file .nookku/egress.json`. A valid answer removes the file. If a script of yours gives `nookku register` an answer, add `record` to each database of the answer ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery), [#449](https://github.com/mohanraj00/nookku/pull/449)).
 3. For a database with `record: driver`, the harness model adds the OpenTelemetry instrumentation of the driver to your agent and tells you the change. Read the change before you start the test. `nookku replay` of a test of 0.5.2 with a database needs a new answer, because the old answer has no `record` ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery)).
 
-The page server that `nookku start` starts now stops after 15 idle minutes. To stop a page server yourself, run `nookku chat --stop` ([cli.md](../reference/cli.md#nookku-chat)).
+The page server that `nookku start` starts now stops after 15 idle minutes. To stop a page server yourself, run `nookku chat --stop` ([cli.md](../reference/commands/chat.md)).
 
 ### 0.5.2
 
@@ -265,17 +267,17 @@ Do the steps above. Three changes need more care:
 Do the steps above. Three changes need more care:
 
 1. Stop each chat page of 0.5.0 before you install 0.5.1. In 0.5.0, the page of a test stops at the end of the test, so end each running test. Stop each page of `nookku page` with Ctrl-C in its terminal. A `page.json` of 0.5.0 has no `pid_start`, so 0.5.1 sends no signal to that server. If the page of a test still runs, the prompt `nookku end` and the next start print `kill <pid>`, and that start opens no page. Stop the server with that command, and then start the test again ([#397](https://github.com/mohanraj00/nookku/issues/397)).
-2. Use `nookku chat` in place of `nookku page` in your scripts and docs. The old name still works and prints a note, but it goes away in a later release ([cli.md](../reference/cli.md#nookku-chat), [#394](https://github.com/mohanraj00/nookku/issues/394)).
-3. The [chat page](../reference/cli.md#nookku-chat) now continues after `nookku end` in a shell, `/nookku end` and "End test". The prompt `nookku end` and the next start stop it. If a script of yours expects the page to stop at each end, stop it with the prompt `nookku end` ([#391](https://github.com/mohanraj00/nookku/issues/391)).
+2. Use `nookku chat` in place of `nookku page` in your scripts and docs. The old name still works and prints a note, but it goes away in a later release ([cli.md](../reference/commands/chat.md), [#394](https://github.com/mohanraj00/nookku/issues/394)).
+3. The [chat page](../reference/commands/chat.md) now continues after `nookku end` in a shell, `/nookku end` and "End test". The prompt `nookku end` and the next start stop it. If a script of yours expects the page to stop at each end, stop it with the prompt `nookku end` ([#391](https://github.com/mohanraj00/nookku/issues/391)).
 
 ### 0.5.0
 
 Do the steps above. Two changes need more care:
 
 1. End each running test with the CLI of 0.4.3 before you install 0.5.0. A test that 0.4.3 started has no token in `current.json`, and the stdio [tap](../reference/glossary.md#tap) of 0.5.0 accepts a request only with its token ([#346](https://github.com/mohanraj00/nookku/issues/346)).
-2. If a script of yours starts `nookku tap --cmd`, set the variable `NOOKKU_TAP_TOKEN` to a random value of 43 characters or more, or read the token that the tap writes to stderr at start. Send the token in the header `X-Nookku-Token` with each `POST` ([cli.md](../reference/cli.md#nookku-tap)). `nookku start` does this for you.
+2. If a script of yours starts `nookku tap --cmd`, set the variable `NOOKKU_TAP_TOKEN` to a random value of 43 characters or more, or read the token that the tap writes to stderr at start. Send the token in the header `X-Nookku-Token` with each `POST` ([cli.md](../reference/commands/tap.md)). `nookku start` does this for you.
 
-`nookku start` now also starts the [chat page](../reference/cli.md#nookku-chat) and opens it in your browser. To turn this off, set the config key [`page`](../reference/config.md#test-keys) to `false`.
+`nookku start` now also starts the [chat page](../reference/commands/chat.md) and opens it in your browser. To turn this off, set the config key [`page`](../reference/config.md#test-keys) to `false`.
 
 ### 0.4.0
 
@@ -311,7 +313,7 @@ If you upgrade the old package with `uv tool upgrade verbatim-relay`, you get `v
    claude plugin install nookku@nookku
    ```
 
-   Then run `nookku init plugin` one time in each project. The plugin has no options now, so it reads each key from `.nookku/config.json`, and in a project with no config file, `/nookku start` keeps relay mode off. `init` keeps each key of an existing file. If you set plugin options before, give the same keys as flags ([reference/cli.md](../reference/cli.md#nookku-init)).
+   Then run `nookku init plugin` one time in each project. The plugin has no options now, so it reads each key from `.nookku/config.json`, and in a project with no config file, `/nookku start` keeps relay mode off. `init` keeps each key of an existing file. If you set plugin options before, give the same keys as flags ([reference/cli.md](../reference/commands/init.md)).
 
    The plugin now also works in Codex ([codex.md](codex.md#install)). If you used the project hooks in Codex, you can change to the plugin ([choose-a-relay.md](choose-a-relay.md#from-the-project-hooks-to-the-plugin)).
 

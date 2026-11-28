@@ -1,5 +1,7 @@
 # Connect your own agent
 
+Release: nookku 0.6.1.
+
 A test runs your app through an [entry](../reference/glossary.md#entry): a thin wrapper that starts the app and speaks the [agent contract](../reference/glossary.md#agent-contract). The entry and its configuration are in `.nookku/`. Your app's code does not change.
 
 This is the plumbing that a test needs. You write it once, when you start to test the app. You change it when the start or the wiring of the app changes, for example a new service or a new start command.
@@ -146,7 +148,7 @@ Write the same loop in the language of your app. [examples/toy-shop/agent.py](..
 
 ## Check the connection
 
-`check` needs a fresh egress answer ([cli.md](../reference/cli.md#nookku-register)). If you have none, type the prompt `nookku start` in the harness first, or run `nookku register` with the answer.
+`check` needs a fresh egress answer ([cli.md](../reference/commands/register.md)). If you have none, type the prompt `nookku start` in the harness first, or run `nookku register` with the answer.
 
 ```bash
 nookku check

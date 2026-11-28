@@ -34,7 +34,7 @@ nookku check
 nookku run --script examples/toy-shop/script.jsonl --no-evaluate
 ```
 
-`nookku register` gives the egress answer: the toy shop calls no service, so the answer has 5 empty lists ([SPEC.md section 7.11](SPEC.md#711-egress-discovery)). `nookku check` sends one message and shows the reply. `nookku run` sends each message of [the script](examples/toy-shop/script.jsonl) to the agent ([CLI reference](docs/reference/cli.md#nookku-run)). It prints the test id and the test folder, then this:
+`nookku register` gives the egress answer: the toy shop calls no service, so the answer has 5 empty lists ([SPEC.md section 7.11](SPEC.md#711-egress-discovery)). `nookku check` sends one message and shows the reply. `nookku run` sends each message of [the script](examples/toy-shop/script.jsonl) to the agent ([CLI reference](docs/reference/commands/run.md)). It prints the test id and the test folder, then this:
 
 ```text
 Turns: 3 of 3 messages
@@ -43,7 +43,7 @@ Trace: 0 model items in 3 turns, no findings.
 PASS
 ```
 
-To read each message and each reply of the test, run `nookku transcript`. To see the test on the [chat page](docs/reference/cli.md#nookku-chat), run `nookku chat` in a separate terminal, and open the URL that it prints. This is the page of that test:
+To read each message and each reply of the test, run `nookku transcript`. To see the test on the [chat page](docs/reference/commands/chat.md), run `nookku chat` in a separate terminal, and open the URL that it prints. This is the page of that test:
 
 <img src="https://raw.githubusercontent.com/mohanraj00/nookku/main/docs/assets/chat-page/chat-page.png" alt="The Nookku chat page of a scripted test of the toy shop agent. It shows 3 turns. The agent replies with a numbered refund policy, the shipping cities, and a table of 2 prices. Under each reply are a thumbs up, a thumbs down, a comment box and the turn time. The page ends with the message box." width="700">
 

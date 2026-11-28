@@ -1,5 +1,7 @@
 # Docs
 
+Release: nookku 0.6.1.
+
 Nookku is an evaluation harness for vertical AI agents: an agent that does one job in one domain, for example a support agent for a toy shop. You talk to your agent through Claude Code or Codex, and the model stays out of the conversation. An [audit](reference/glossary.md#audit) proves that each message and each reply arrived byte for byte.
 
 The docs have 4 kinds of pages: a tutorial, how-to guides, reference pages and explanations. Start with the tutorial. Then do [Test your own app](how-to/test-your-app.md). Pages for contributors are in a separate section at the end. The test `tests/test_docs.py` checks that each page in `docs/` is on this map. Old pages that moved are not on the map. They keep only the links to their new places.
@@ -32,7 +34,7 @@ How-to guides. Each guide does one task. The guides are in the order of the task
 ### Run a test
 
 - [Test an agent with the Claude Code plugin](how-to/claude-code-plugin.md): install the [plugin](reference/glossary.md#plugin), run a test, and read the [evaluation](reference/glossary.md#evaluation) at the end.
-- [Test an agent with the project hooks in Claude Code](how-to/claude-code-project-hooks.md): write the [project hooks](reference/glossary.md#project-hooks), and see each reply in the chat and on the [chat page](reference/cli.md#nookku-chat).
+- [Test an agent with the project hooks in Claude Code](how-to/claude-code-project-hooks.md): write the [project hooks](reference/glossary.md#project-hooks), and see each reply in the chat and on the [chat page](reference/commands/chat.md).
 - [Test an agent in Codex](how-to/codex.md): the plugin, the project hooks and the trust step.
 - [Gate a CI job on a verdict](how-to/gate-a-ci-job.md): a GitHub Actions job that runs a [scripted test](reference/glossary.md#scripted-test) with no model and fails on a `fail` verdict, with an example agent that cites its source.
 - [Gate a release with a set of tests](how-to/gate-a-release.md): run a declared set of scripted tests, and read one sealed result with the subject digest in CI.
@@ -62,7 +64,11 @@ How-to guides. Each guide does one task. The guides are in the order of the task
 
 Look up a fact.
 
-- [CLI](reference/cli.md): each command, flag and exit code.
+- [CLI](reference/cli.md): the list of each command. Each command has a page with its flags, its exit codes and an example.
+  - Commands of a test: [`start`](reference/commands/start.md), [`register`](reference/commands/register.md), [`end`](reference/commands/end.md), [`status`](reference/commands/status.md), [`check`](reference/commands/check.md), [`run`](reference/commands/run.md), [`script`](reference/commands/script.md), [`replay`](reference/commands/replay.md), [`gate`](reference/commands/gate.md), [`adjudicate`](reference/commands/adjudicate.md), [`evaluation`](reference/commands/evaluation.md), [`mode`](reference/commands/mode.md), [`chat`](reference/commands/chat.md).
+  - Commands that read a test: [`dashboard`](reference/commands/dashboard.md), [`view`](reference/commands/view.md), [`transcript`](reference/commands/transcript.md), [`audit`](reference/commands/audit.md), [`trace`](reference/commands/trace.md), [`faults`](reference/commands/faults.md), [`verifier`](reference/commands/verifier.md), [`export`](reference/commands/export.md), [`finding`](reference/commands/finding.md), [`verify`](reference/commands/verify.md).
+  - Commands that install or connect: [`init`](reference/commands/init.md), [`policy`](reference/commands/policy.md), [`setup`](reference/commands/setup.md), [`tap`](reference/commands/tap.md).
+  - Internal commands: [`hook`](reference/commands/hook.md), [`mcp`](reference/commands/mcp.md), [`mcp-stdio`](reference/commands/mcp-stdio.md), [`bridge`](reference/commands/bridge.md).
 - [API](reference/api.md): each route of the read-only API of `nookku dashboard`, with its JSON keys.
 - [Configuration](reference/config.md): each key of `.nookku/config.json` and each environment variable.
 - [App spec](reference/app-spec.md): the parts of the spec that the evaluation reads, with the toy shop as the example.

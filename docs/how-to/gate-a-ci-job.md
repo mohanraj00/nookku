@@ -1,5 +1,7 @@
 # Gate a CI job on a verdict
 
+Release: nookku 0.6.1.
+
 This page shows a GitHub Actions job that runs a [scripted test](../reference/glossary.md#scripted-test) and fails when the verdict is `fail`. The test needs no model and no login. The example is [examples/toy-shop-docs/](../../examples/toy-shop-docs/): a toy shop agent that retrieves a section of a local store and cites its locator. [tests/test_example_cited_answers.py](../../tests/test_example_cited_answers.py) runs the same steps in the CI of Nookku.
 
 ## What the job checks

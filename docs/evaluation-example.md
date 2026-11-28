@@ -1,5 +1,7 @@
 # Worked evaluations
 
+Release: nookku 0.6.1.
+
 ## A test with an automatic report
 
 This is one test of the [toy shop with a model session](../examples/toy-shop-models/) through the Claude Code [plugin](reference/glossary.md#plugin), with nookku 0.5.6 on 2026-10-23 (test 20261023-184040-d94c). The app runs a Claude Agent SDK session with 2 tools: `lookup_order` and `refund`. [RULES.md](../examples/toy-shop-models/RULES.md) says that a refund above €50 needs a manager approval. The `refund` tool checks this rule, but it compares the amount in euros with a limit in cents. That is the planted bug: the tool pays €80 with no approval.

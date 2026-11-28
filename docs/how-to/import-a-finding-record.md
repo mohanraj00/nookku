@@ -1,5 +1,7 @@
 # Import a finding record into another test suite
 
+Release: nookku 0.6.1.
+
 A [finding record](../reference/glossary.md#finding-record) is one confirmed defect of your agent, as one JSON object. This page shows how another tool reads a record and makes a regression case from it. [SPEC.md section 10](../../SPEC.md#10-finding-record) gives each field and each rule.
 
 The record is self-contained. The other tool needs no [test folder](../reference/glossary.md#test-folder), and it does not have to import Nookku.
@@ -8,8 +10,8 @@ The record is self-contained. The other tool needs no [test folder](../reference
 
 A record comes from a defect that a person confirmed:
 
-- For a mismatch with the answer key ([SPEC.md section 7.17](../../SPEC.md#717-answer-key)), run [`nookku adjudicate`](../reference/cli.md#nookku-adjudicate) with the outcome `agent_wrong`.
-- For an issue of the [evaluation](../reference/glossary.md#evaluation), run [`nookku evaluation add`](../reference/cli.md#nookku-evaluation). A row of a person is confirmed. A model row is not confirmed, and it is in the export only with `--model-rows`.
+- For a mismatch with the answer key ([SPEC.md section 7.17](../../SPEC.md#717-answer-key)), run [`nookku adjudicate`](../reference/commands/adjudicate.md) with the outcome `agent_wrong`.
+- For an issue of the [evaluation](../reference/glossary.md#evaluation), run [`nookku evaluation add`](../reference/commands/evaluation.md). A row of a person is confirmed. A model row is not confirmed, and it is in the export only with `--model-rows`.
 
 ## 2. Export the records
 
@@ -90,6 +92,6 @@ The format has a version, `<major>.<minor>`. A new minor version only adds field
 ## Limits
 
 - The short reader above does not check each field. `nookku finding check` and the JSON Schema check the form of a record.
-- The record shows that it agrees with its own seal text. It does not show that the test folder is unchanged. A reader with the test folder runs [`nookku verify`](../reference/cli.md#nookku-verify).
+- The record shows that it agrees with its own seal text. It does not show that the test folder is unchanged. A reader with the test folder runs [`nookku verify`](../reference/commands/verify.md).
 - The subject is the text that the caller gave. Compare it with the digest that you expect.
 - `observed` has 200 characters at most. `turn.reply` has the full reply.

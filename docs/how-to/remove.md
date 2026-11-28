@@ -1,5 +1,7 @@
 # Remove Nookku
 
+Release: nookku 0.6.1.
+
 This page removes Nookku from a project and from your computer: the [project hooks](../reference/glossary.md#project-hooks), the [plugin](../reference/glossary.md#plugin), the test files and the package.
 
 I used the toy shop project of [getting-started.md](../getting-started.md) on macOS. The output of sections 2 and 4 comes from nookku 0.4.0. The output of sections 3 and 5 comes from verbatim-relay 0.3.0 and Claude Code 2.1.294, with the names of 0.4.0. I did not run these commands again, because they change the install of the computer. I shortened the paths of the folders to `.../`. The test ids are different on your machine.
