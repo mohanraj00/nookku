@@ -175,6 +175,7 @@ def test_the_openai_adapter_gives_the_text_and_each_image():
         ("data:;base64,AAAA", "a base64 data URL"),
         ("data:image/png;name=mug.png;base64,AAAA", "a base64 data URL"),
         ("data:image/png;base64,not base64!", "not valid"),
+        ("data:image/png;base64,\u00e9", "not valid"),
     ],
 )
 def test_the_openai_adapter_refuses_an_image_that_it_cannot_record(url, reason):

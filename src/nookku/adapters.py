@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import base64
-import binascii
 import json
 import re
 from typing import Any, Protocol
@@ -103,7 +102,7 @@ def _data_url(value: Any) -> tuple[str, bytes]:
         raise AdapterError("an image_url part must have a base64 data URL with a media type")
     try:
         return media, base64.b64decode(found.group(2), validate=True)
-    except binascii.Error:
+    except ValueError:  # binascii.Error, or a character that is not ASCII
         raise AdapterError("an image_url part has base64 that is not valid") from None
 
 
