@@ -280,6 +280,16 @@ The 4 runs used nookku 0.6.0. The Claude Code runs ran on 2026-11-21, and the Co
 
 In each run, the stock service had 2 reservations for the 1 teapot set that the tester asked for. These runs used Agent SDK 0.2.168, which bundles Claude Code 2.1.301 ([#35](https://github.com/mohanraj00/nookku/issues/35), [Trace of the model sessions](#trace-of-the-model-sessions)). In each of the 4 runs, the proxy marked 6 of its calls as harness calls and kept no text of them. The model API proxy gives 4 items in each turn, from the 2 direct calls: the case note and the Decisions call (the key `items_by_turn`). The 4 runs used nookku 0.6.0. The Claude Code runs ran on 2026-11-21, and the Codex runs ran on 2026-11-24. Each Claude Code run passed at run 1, and each Codex run passed at run 2 ([Claude Code run notes](../proofs/release/claude-code-0.6.0.md#runs-with-the-model), [Codex run notes](../proofs/release/codex-0.6.0.md#the-failed-runs)). In the plugin in Claude Code, in the project hooks in Claude Code and in the plugin in Codex, the `business_rule` row of turn 2 cites `trace.jsonl:17, trace.jsonl:18`. In the project hooks in Codex, 3 rows of turn 2 hold both reserve calls. The proof counts each line of a range and of a comma list, so the table lists each row of turn 2 that holds both reserve calls ([Codex release candidate](#codex-release-candidate)). The toy note model gives a fixed answer, so this proof does not show a real model behind the direct call. [proofs/model-api/](../proofs/model-api/results.json) shows the proxy with the stream formats of both APIs.
 
+#### The TypeScript toy shop
+
+I ran the same proof on the [TypeScript toy shop](../examples/toy-shop-ts/) on 2026-11-27, with the project hooks in Claude Code 2.1.319 ([#330](https://github.com/mohanraj00/nookku/issues/330), [data](../proofs/telemetry/toy-shop-ts/hooks-claude-code.json), [method](../scripts/proof_telemetry.py)). The app has the same parts and the same planted bug as the Python app. It uses the Agent SDK for TypeScript 0.3.301, which bundles Claude Code 2.1.301, the same version as the Python runs, with zod 4.6.7 and Node 25.8.0. The command is `uv run python scripts/proof_telemetry.py hooks-claude-code toy-shop-ts`.
+
+| Form | Harness | Items by turn (session, backend, model API) | Rows that cite both reserve calls | T1 | T2 | P5 | P7 | Result | Data |
+|---|---|---|---|---|---|---|---|---|---|
+| Project hooks | Claude Code 2.1.319 | 3, 1, 4 / 3, 2, 4 / 3, 1, 4 | `business_rule`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/toy-shop-ts/hooks-claude-code.json) |
+
+The items by turn are the same as in the 4 runs of the Python app. The stock service had 2 reservations for the 1 teapot set, and the report also has a `state_mismatch` row and a `missing_action` row for turn 2. The trace read the session files of the TypeScript SDK with no change: the files have the version 2.1.301. I ran only the project hooks in Claude Code. The [README of the app](../examples/toy-shop-ts/README.md#the-differences-from-the-python-app) gives the differences from the Python app, for example the `env` option of the TypeScript SDK, which replaces the environment of the session.
+
 ### Expected trace points
 
 [scripts/proof_trace_points.py](../scripts/proof_trace_points.py) runs a test of a copy of the [full toy shop](../examples/toy-shop-full/app.py) with its [app spec](../examples/toy-shop-full/APP_SPEC.md) ([#318](https://github.com/mohanraj00/nookku/issues/318)). The spec has 5 trace points. The trace checks 2 of them with no model, because their `When` has a form that the trace knows ([app-spec.md](reference/app-spec.md#trace-points)): `openai` (`model_api`, `Each turn.`) and `stock GET /stock` (`backend`, `Each check_stock tool call.`). After each reply, the app makes 2 calls to the note model: the case note and the department ([app.py](../examples/toy-shop-full/app.py)). Each call is one `openai` item of the trace. The proof plants one change in the copy, not in the example: the app makes neither call in turn 2. The tester asks about the stock in each of the 3 turns. The Agent SDK session uses the real Anthropic API, and the stock service and the toy note model run on local ports, as in the telemetry proof above.
@@ -452,14 +462,24 @@ The current run used nookku 0.6.0 on 2026-11-21, and the earlier run used nookku
 
 ### A test with a simulated user
 
-I ran the toy shop agent with 1 persona on 2026-11-21, with nookku 0.6.0 and Claude Code 2.1.319 as the simulated user ([data](../proofs/simulated-user/results.json), [method](../scripts/proof_simulated_user.py)). The persona is a customer whose teapot came broken. The goal is the refund for a damaged item, and the limit is 8 turns. The toy shop answers only a few keywords, so I chose a goal that it can answer. The return label of #520 is not a goal that the toy shop can reach.
+I ran the toy shop agent with 1 persona on 2026-11-27, with nookku 0.6.1 from `main`, one time with each runner of the config key `persona_runner` ([#667](https://github.com/mohanraj00/nookku/issues/667), [method](../scripts/proof_simulated_user.py)):
 
-- U1: the test has 1 turn, with the harness `simulated-user`.
-- U2: after the reply, the simulated user wrote `GOAL MET`. The run ended with `goal`, the audit gave exit 0 and the seal is intact.
-- U3: the message has no planted word of a project file, and it shares no 8 words in a row with an instruction file of this machine.
-- U4: `nookku script save` kept the message byte for byte. The run of the script sent the same message, and its audit gave exit 0.
+- `claude-code`, the default: Claude Code 2.1.319 is the simulated user ([data](../proofs/simulated-user/results.json)).
+- A declared command: [toy_persona_user.py](../scripts/toy_persona_user.py), a toy user with no model and no tools ([data](../proofs/simulated-user/command.json)).
 
-This is 1 run with 1 turn. It does not show how the simulated user acts in a long conversation, or with an agent that does not reach the goal. The tests with no model cover the turn limit and a failed session ([test_simulated_user.py](../tests/test_simulated_user.py)).
+The persona is a customer whose teapot came broken. The goal is the refund for a damaged item, and the limit is 8 turns. The toy shop answers only a few keywords, so I chose a goal that it can answer. The return label of #520 is not a goal that the toy shop can reach.
+
+| Check | `claude-code` | Declared command |
+|---|---|---|
+| U1: each turn has the harness `simulated-user`, and `simulated_user.json` names the runner | pass, 1 turn | pass, 2 turns |
+| U2: the run ended with `goal`, the audit gave exit 0 and the seal is intact | pass | pass |
+| U3: no message has the planted word of a project file or shares 8 words in a row with an instruction file of this machine | pass | pass |
+| U4: `nookku script save` kept each message byte for byte, and the run of the script sent the same messages with audit exit 0 | pass | pass |
+| U5: each of the 3 calls of the command got the persona and the goal, started in an empty folder outside the project, and did not get the `NOOKKU_` variable that the proof planted in the run | not applicable | pass |
+
+The first message of the toy user names no keyword, so the toy shop asked which item. Thus the run of the declared command has 2 turns, and its third call wrote `GOAL MET`.
+
+Each runner ran 1 time, with 1 or 2 turns. The runs do not show how a model acts in a long conversation, or with an agent that does not reach the goal. The declared command of the proof calls no model. It shows the contract of a declared command, not the isolation of a command that calls a model: Nookku cannot check what such a command loads ([cli.md](reference/cli.md#nookku-run)). The tests with no model cover the turn limit and a failed session ([test_simulated_user.py](../tests/test_simulated_user.py)).
 
 ### The guard of the answer keys
 
