@@ -14,6 +14,7 @@ from unittest.mock import Mock
 import pytest
 from toy_agent import ToyAgent, shop_reply
 
+from nookku import websocket
 from nookku.adapters import make
 from nookku.audit import audit
 from nookku.record import Exchange, Unparsed, Writer, read_rows, read_tap, sha256
@@ -51,6 +52,33 @@ def post(tap: Tap, path: str, body: bytes, headers: dict | None = None):
         return e.code, dict(e.headers.items()), e.read()
 
 
+def handle_post(
+    record: Path,
+    path: str,
+    body: bytes,
+    *,
+    adapter: str = "json",
+    headers: dict[str, str] | None = None,
+) -> tuple[bytes, Mock]:
+    """Run the HTTP handler on request bytes, with a toy response from the agent connection."""
+    fields = {"Host": "toy", "Connection": "close", "Content-Length": str(len(body))}
+    fields.update(headers or {})
+    request = f"POST {path} HTTP/1.1\r\n"
+    request += "".join(f"{name}: {value}\r\n" for name, value in fields.items())
+    response = io.BytesIO()
+    caller = Mock()
+    caller.makefile.return_value = io.BytesIO(request.encode() + b"\r\n" + body)
+    caller.sendall.side_effect = response.write
+    tap = Mock(writer=Writer(record), adapter=make(adapter), scheme="http", base_path="", timeout=5)
+    agent_reply = tap.connect.return_value.getresponse.return_value
+    agent_reply.status = 200
+    agent_reply.getheaders.return_value = []
+    agent_reply.getheader.return_value = "application/json"
+    agent_reply.read.return_value = b'{"reply":"Yes.","choices":[{"message":{"content":"Yes."}}]}'
+    _Handler(caller, ("127.0.0.1", 0), tap)
+    return response.getvalue(), tap.connect
+
+
 def test_the_request_and_response_bytes_pass_unchanged(agent, tmp_path):
     tap = run_tap(agent.url, tmp_path / "tap.jsonl")
     body = json.dumps({"text": TRICKY, "extra": [1, 2]}, ensure_ascii=False).encode()
@@ -64,6 +92,57 @@ def test_the_request_and_response_bytes_pass_unchanged(agent, tmp_path):
     assert json.loads(out)["reply"] == shop_reply(TRICKY)
     rows = read_tap(tmp_path / "tap.jsonl")
     assert rows == [Exchange(1, TRICKY, 200, shop_reply(TRICKY))]
+
+
+@pytest.mark.parametrize("expect_continue", [False, True])
+def test_the_tap_refuses_a_body_over_the_limit_before_reading_it(tmp_path, expect_continue):
+    record = tmp_path / "tap.jsonl"
+    headers = {"Content-Length": str(websocket.LIMIT + 1)}
+    if expect_continue:
+        headers["Expect"] = "100-continue"
+    response, connect = handle_post(record, "/v1/chat/completions", b"", headers=headers)
+    assert response.startswith(b"HTTP/1.1 413 ")
+    assert b"\r\nConnection: close\r\n" in response
+    assert b"request body is too large" in response
+    connect.assert_not_called()
+    assert not record.exists()
+    assert not (tmp_path / "tap.attachments").exists()
+
+
+def test_the_tap_forwards_a_body_at_the_limit(tmp_path, monkeypatch):
+    body = b'{"text": "Is my mug in stock?"}'
+    monkeypatch.setattr(websocket, "LIMIT", len(body))
+    response, connect = handle_post(tmp_path / "tap.jsonl", "/chat", body)
+    assert response.startswith(b"HTTP/1.1 200 ")
+    assert connect.return_value.request.call_args.kwargs["body"] == body
+
+
+def test_a_caller_that_sends_the_body_before_it_reads_gets_413(tmp_path):
+    record = tmp_path / "tap.jsonl"
+    tap = Mock(writer=Writer(record), adapter=make("json"), scheme="http")
+    caller, connection = socket.socketpair()
+
+    def handle():
+        with connection:
+            _Handler(connection, ("127.0.0.1", 0), tap)
+
+    thread = threading.Thread(target=handle)
+    thread.start()
+    try:
+        with caller:
+            caller.settimeout(5)
+            client = http.client.HTTPConnection("toy")
+            client.sock = caller
+            client.request("POST", "/chat", b"m" * (websocket.LIMIT + 1))
+            response = client.getresponse()
+            assert response.status == 413
+            assert b"request body is too large" in response.read()
+    finally:
+        thread.join(timeout=5)
+    assert not thread.is_alive()
+    tap.connect.assert_not_called()
+    assert not record.exists()
+    assert not (tmp_path / "tap.attachments").exists()
 
 
 def test_the_agent_base_path_is_kept(agent, tmp_path):

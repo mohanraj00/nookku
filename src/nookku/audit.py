@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from nookku.record import (
+    AttachmentFileError,
     BlockedCall,
     Exchange,
     ModelSession,
@@ -15,6 +16,7 @@ from nookku.record import (
     Turn,
     Unparsed,
     attachment_path,
+    read_attachment,
     read_relay,
     read_tap,
 )
@@ -216,25 +218,30 @@ def check_attachment_files(
         for n, attachment in enumerate(row.attachments, 1):
             path = attachment_path(record, attachment["sha256"])
             file = path.relative_to(record.parent).as_posix()
-            evidence: dict[str, Any] = {"record": name, "attachment": n, "file": file}
+            digest, size = None, None
+            kind = "altered_attachment_file"
             try:
-                data = path.read_bytes()
+                data = read_attachment(path, attachment["bytes"])
+            except AttachmentFileError as e:
+                size = e.size
+                detail = f"is altered, {e}"
             except OSError as e:
                 kind = "missing_attachment_file"
-                evidence.update(actual_sha256=None, actual_bytes=None)
-                why = "does not exist" if isinstance(e, FileNotFoundError) else "cannot be read"
-                what = f"attachment {n} ({_said(attachment)})"
-                evidence["detail"] = f"{what}: the side file {file} {why}"
+                detail = "does not exist" if isinstance(e, FileNotFoundError) else "cannot be read"
             else:
                 digest = hashlib.sha256(data).hexdigest()
-                if digest == attachment["sha256"] and len(data) == attachment["bytes"]:
+                if digest == attachment["sha256"]:
                     continue
-                kind = "altered_attachment_file"
-                evidence.update(actual_sha256=digest, actual_bytes=len(data))
-                evidence["detail"] = (
-                    f"attachment {n} ({_said(attachment)}): the side file {file} is altered, "
-                    f"it has {len(data)} bytes, sha256 {digest[:12]}"
-                )
+                size = len(data)
+                detail = f"is altered, it has {size} bytes, sha256 {digest[:12]}"
+            evidence = {
+                "record": name,
+                "attachment": n,
+                "file": file,
+                "actual_sha256": digest,
+                "actual_bytes": size,
+                "detail": f"attachment {n} ({_said(attachment)}): the side file {file} {detail}",
+            }
             relay_line, tap_line = (row.line, None) if name == "relay" else (None, row.line)
             found.append(Finding(kind, relay_line, tap_line, evidence))
     return found
