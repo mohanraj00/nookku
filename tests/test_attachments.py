@@ -279,6 +279,45 @@ def test_the_tap_checks_each_attachment_limit(tmp_path, limit, over_limit):
     assert not (tmp_path / "tap.attachments").exists()
 
 
+def two_text_parts(*images: str) -> bytes:
+    """A request that the adapter cannot parse: 2 text parts and the images (#729)."""
+    text = {"type": "text", "text": ASK}
+    content = [text, text, *(image_part(u) for u in images)]
+    return json.dumps({"messages": [{"role": "user", "content": content}]}).encode()
+
+
+@pytest.mark.parametrize("limit", ["count", "decoded bytes"])
+def test_the_tap_checks_the_limits_of_an_unparsed_request(tmp_path, limit):
+    record = tmp_path / "tap.jsonl"
+    if limit == "count":
+        images = [DATA_URL] * (ATTACHMENT_COUNT + 1)
+    else:
+        half = b"m" * (ATTACHMENT_BYTES // 2)
+        image = "data:image/png;base64," + base64.b64encode(half).decode()
+        images = [image, image, DATA_URL]
+    body = two_text_parts(*images)
+    with pytest.raises(AdapterError, match="exactly one text part"):
+        make("openai").message(body)
+    response, connect = handle_post(record, "/v1/chat/completions", body, adapter="openai")
+    assert response.startswith(b"HTTP/1.1 413 ")
+    reason = b"decoded bytes" if limit == "decoded bytes" else b"attachments"
+    assert reason in response
+    connect.assert_not_called()
+    assert not record.exists()
+    assert not (tmp_path / "tap.attachments").exists()
+
+
+def test_an_unparsed_request_in_the_limits_stays_unparsed(tmp_path):
+    record = tmp_path / "tap.jsonl"
+    body = two_text_parts(*[DATA_URL] * ATTACHMENT_COUNT)
+    response, connect = handle_post(record, "/v1/chat/completions", body, adapter="openai")
+    assert response.startswith(b"HTTP/1.1 200 ")
+    assert connect.return_value.request.call_args.kwargs["body"] == body
+    [row] = read_tap(record)
+    assert isinstance(row, Unparsed) and "exactly one text part" in row.error
+    assert not (tmp_path / "tap.attachments").exists()
+
+
 def test_the_tap_marks_an_image_with_a_web_url_unparsed(agent, tmp_path):  # noqa: F811
     tap = run_tap(agent.url, tmp_path / "tap.jsonl", "openai")
     status, _, _ = post(tap, "/v1/chat/completions", openai_body("https://shop.example/mug.png"))
