@@ -16,7 +16,10 @@ VERSION = "0.2"
 # A failed stream row has version 0.3, so that a 0.2 reader refuses it for its version and not for
 # its reply (SPEC.md section 2). Each other row keeps VERSION.
 FAILED_STREAM_VERSION = "0.3"
-VERSIONS = ("0.1", "0.2", "0.3")
+# A row with attachments has version 0.5, so that a reader of Nookku 0.6.x refuses it and does not
+# skip them (SPEC.md section 2.4).
+ATTACHMENTS_VERSION = "0.5"
+VERSIONS = ("0.1", "0.2", "0.3", ATTACHMENTS_VERSION)
 STREAM_PART_VERSION = "0.4"
 STREAM_PARTS = {"stream_part", "websocket_frame"}
 # A surrogate code point. In a decoded Python string, each one is a lone surrogate.
@@ -128,6 +131,7 @@ class Exchange:
     input: str
     status: int | None
     reply: str | None
+    attachments: tuple[dict[str, Any], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -155,6 +159,7 @@ class Turn:
     ok: bool | None = None
     session: str | None = None
     harness: str | None = None
+    attachments: tuple[dict[str, Any], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -219,6 +224,11 @@ RATINGS = ("up", "down")
 # Types and optional fields that a "0.1" row must not have.
 _SINCE_02 = {"model_session", "started", "replied", "originator", "stream", "note"}
 _HEX64 = re.compile(r"[0-9a-f]{64}")
+# A media type of an attachment: lower case, type/subtype, no parameters (SPEC.md section 2.4).
+_TOKEN = r"[a-z0-9][a-z0-9!#$&^_.+-]*"
+MEDIA_TYPE = re.compile(f"{_TOKEN}/{_TOKEN}")
+_ATTACHMENT_KEYS = {"media_type", "bytes", "sha256"}
+_ATTACHMENT_ROWS = {"exchange", "turn"}
 # Optional fields: (row type, field) -> allowed types
 _OPTIONAL: dict[tuple[str, str], tuple[type, ...]] = {
     ("exchange", "started"): _NUM,
@@ -244,6 +254,53 @@ def _stream_info(value: Any) -> bool:
         and type(value.get("bytes")) is int
         and value["bytes"] >= 0
     )
+
+
+def _attachments_problem(value: Any) -> str | None:
+    """The reason that an `attachments` value breaks the form of SPEC.md section 2.4, or None."""
+    if not isinstance(value, list) or not value:
+        return "field 'attachments' must be a list of 1 or more attachments"
+    for n, part in enumerate(value, 1):
+        if not isinstance(part, dict) or set(part) != _ATTACHMENT_KEYS:
+            return f"attachment {n} must have exactly the keys 'bytes', 'media_type' and 'sha256'"
+        media, size, digest = part["media_type"], part["bytes"], part["sha256"]
+        if not isinstance(media, str) or MEDIA_TYPE.fullmatch(media) is None:
+            return f"attachment {n} has a media type that is not lower-case type/subtype"
+        if type(size) is not int or size < 0:
+            return f"attachment {n} has a size that is not an integer of 0 or more"
+        if not isinstance(digest, str) or _HEX64.fullmatch(digest) is None:
+            return f"attachment {n} has a sha256 that is not 64 lower-case hex digits"
+    return None
+
+
+def attachment_path(record: Path, digest: str) -> Path:
+    """The side file of an attachment of a record: `<stem>.attachments/<sha256>` (SPEC.md 2.4)."""
+    return record.parent / f"{record.stem}.attachments" / digest
+
+
+def write_attachment(record: Path, media_type: str, data: bytes) -> dict[str, Any]:
+    """Write the side file of an attachment of a record, flushed to disk, and return the
+    attachment for the `attachments` of its row. Write the side file before the row (SPEC.md
+    section 2.4)."""
+    import hashlib
+
+    if MEDIA_TYPE.fullmatch(media_type) is None:
+        raise ValueError(f"the media type {media_type!r} is not lower-case type/subtype")
+    digest = hashlib.sha256(data).hexdigest()
+    path = attachment_path(record, digest)
+    path.parent.mkdir(exist_ok=True)
+    try:
+        same = path.read_bytes() == data
+    except FileNotFoundError:
+        same = False
+    if not same:
+        temp = path.with_name(f".{digest}.{os.getpid()}.{threading.get_ident()}")
+        with temp.open("wb") as fh:
+            fh.write(data)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(temp, path)
+    return {"media_type": media_type, "bytes": len(data), "sha256": digest}
 
 
 def _failed_stream(row: dict[str, Any]) -> bool:
@@ -310,8 +367,16 @@ def _validate(kind: str, path: Path, n: int, raw: str) -> dict[str, Any]:
                 "'reply' must be a string for a 2xx status, and null for any other status "
                 "or for a failed stream"
             )
-        if failed and row["v"] != FAILED_STREAM_VERSION:
+        if failed and row["v"] not in (FAILED_STREAM_VERSION, ATTACHMENTS_VERSION):
             raise bad(f"a failed stream must have version {FAILED_STREAM_VERSION}")
+    if "attachments" in row and row["type"] not in _ATTACHMENT_ROWS:
+        raise bad("only an exchange or a turn can have 'attachments'")
+    if (row["v"] == ATTACHMENTS_VERSION) != ("attachments" in row):
+        raise bad(f"version {ATTACHMENTS_VERSION} is for an exchange or a turn with 'attachments'")
+    if "attachments" in row:
+        problem = _attachments_problem(row["attachments"])
+        if problem:
+            raise bad(problem)
     if row["type"] == "note":
         problem = note_problem(row["turn"], row["rating"], row["comment"])
         if problem:
@@ -386,7 +451,8 @@ def read_tap(
     rows: list[Exchange | Unparsed | ModelSession] = []
     for n, r in read_rows("tap", path, missing_ok, data):
         if r["type"] == "exchange":
-            rows.append(Exchange(n, r["input"], r["status"], r["reply"]))
+            attached = tuple(r.get("attachments", ()))
+            rows.append(Exchange(n, r["input"], r["status"], r["reply"], attached))
         elif r["type"] == "model_session":
             rows.append(ModelSession(n, r["harness"], r["session"], r["pid"], r["inferred"]))
         elif r["type"] == "unparsed":
@@ -400,7 +466,17 @@ def read_relay(
     rows: list[Turn | BlockedCall] = []
     for n, r in read_rows("relay", path, missing_ok, data):
         if r["type"] == "turn":
-            rows.append(Turn(n, r["said"], r["shown"], r.get("ok"), r.get("session"), r["harness"]))
+            rows.append(
+                Turn(
+                    n,
+                    r["said"],
+                    r["shown"],
+                    r.get("ok"),
+                    r.get("session"),
+                    r["harness"],
+                    tuple(r.get("attachments", ())),
+                )
+            )
         else:
             rows.append(BlockedCall(n, r["tool"], r["detail"]))
     return rows
@@ -413,7 +489,9 @@ def turns(path: Path, missing_ok: bool = False, data: bytes | None = None) -> li
 
 def _hashed(row: dict[str, Any]) -> dict[str, Any]:
     version = (
-        STREAM_PART_VERSION
+        ATTACHMENTS_VERSION
+        if "attachments" in row
+        else STREAM_PART_VERSION
         if row.get("type") in STREAM_PARTS
         else FAILED_STREAM_VERSION
         if _failed_stream(row)

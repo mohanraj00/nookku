@@ -14,6 +14,7 @@ from nookku.record import (
     RecordError,
     Turn,
     Unparsed,
+    attachment_path,
     read_relay,
     read_tap,
 )
@@ -26,6 +27,11 @@ CHECKS = [
     "not_delivered",
     "altered_reply",
     "unshown_reply",
+    "altered_attachment",
+    "missing_attachment",
+    "extra_attachment",
+    "missing_attachment_file",
+    "altered_attachment_file",
     "script_mismatch",
 ]
 EXCERPT = 24
@@ -162,6 +168,87 @@ def pairs(
     return found, breaks
 
 
+def _said(attachment: dict[str, Any]) -> str:
+    """A short text of an attachment: its media type, its size and the start of its hash."""
+    a = attachment
+    return f"{a['media_type']}, {a['bytes']} bytes, sha256 {a['sha256'][:12]}"
+
+
+def compare_attachments(turn: Turn, exchange: Exchange) -> list[Finding]:
+    """The breaks of the attachments of one pair (SPEC.md section 3.2, step 8): attachment n of
+    the turn and attachment n of the exchange must be equal."""
+    found = []
+    for n in range(max(len(turn.attachments), len(exchange.attachments))):
+        sent = turn.attachments[n] if n < len(turn.attachments) else None
+        got = exchange.attachments[n] if n < len(exchange.attachments) else None
+        evidence: dict[str, Any] = {"attachment": n + 1, "expected": sent, "actual": got}
+        if got is None:
+            assert sent is not None
+            kind = "missing_attachment"
+            evidence["detail"] = f"attachment {n + 1} ({_said(sent)}) did not reach the agent"
+        elif sent is None:
+            kind = "extra_attachment"
+            evidence["detail"] = (
+                f"the agent received attachment {n + 1} ({_said(got)}), and the tester sent "
+                "no such attachment"
+            )
+        elif sent != got:
+            kind = "altered_attachment"
+            evidence["detail"] = (
+                f"attachment {n + 1}: the tester sent {_said(sent)}, the agent received "
+                f"{_said(got)}"
+            )
+        else:
+            continue
+        found.append(Finding(kind, turn.line, exchange.line, evidence))
+    return found
+
+
+def check_attachment_files(
+    name: str, record: Path, rows: list[Turn] | list[Exchange]
+) -> list[Finding]:
+    """The breaks of the side files of one record (SPEC.md section 3.2, step 8): each side file
+    must exist and have the SHA-256 and the size of its attachment."""
+    import hashlib
+
+    found = []
+    for row in rows:
+        for n, attachment in enumerate(row.attachments, 1):
+            path = attachment_path(record, attachment["sha256"])
+            file = path.relative_to(record.parent).as_posix()
+            evidence: dict[str, Any] = {"record": name, "attachment": n, "file": file}
+            try:
+                data = path.read_bytes()
+            except OSError as e:
+                kind = "missing_attachment_file"
+                evidence.update(actual_sha256=None, actual_bytes=None)
+                why = "does not exist" if isinstance(e, FileNotFoundError) else "cannot be read"
+                what = f"attachment {n} ({_said(attachment)})"
+                evidence["detail"] = f"{what}: the side file {file} {why}"
+            else:
+                digest = hashlib.sha256(data).hexdigest()
+                if digest == attachment["sha256"] and len(data) == attachment["bytes"]:
+                    continue
+                kind = "altered_attachment_file"
+                evidence.update(actual_sha256=digest, actual_bytes=len(data))
+                evidence["detail"] = (
+                    f"attachment {n} ({_said(attachment)}): the side file {file} is altered, "
+                    f"it has {len(data)} bytes, sha256 {digest[:12]}"
+                )
+            relay_line, tap_line = (row.line, None) if name == "relay" else (None, row.line)
+            found.append(Finding(kind, relay_line, tap_line, evidence))
+    return found
+
+
+def _order(f: Finding) -> tuple[int, int, int]:
+    big = 1 << 30
+    return (
+        f.relay_line or big,
+        f.tap_line or big,
+        CHECKS.index(f.kind) if f.kind in CHECKS else 0,
+    )
+
+
 def compare(turns: list[Turn], exchanges: list[Exchange]) -> tuple[list[Finding], list[Finding]]:
     """Return (breaks, notes) for two valid records."""
     matched, breaks = pairs(turns, exchanges)
@@ -177,16 +264,9 @@ def compare(turns: list[Turn], exchanges: list[Exchange]) -> tuple[list[Finding]
             breaks.append(Finding("unshown_reply", t.line, e.line))
         elif t.shown != e.reply:
             breaks.append(Finding("altered_reply", t.line, e.line, difference(e.reply, t.shown)))
+        breaks += compare_attachments(t, e)
 
-    def order(f: Finding) -> tuple[int, int, int]:
-        big = 1 << 30
-        return (
-            f.relay_line or big,
-            f.tap_line or big,
-            CHECKS.index(f.kind) if f.kind in CHECKS else 0,
-        )
-
-    return sorted(breaks, key=order), sorted(notes, key=order)
+    return sorted(breaks, key=_order), sorted(notes, key=_order)
 
 
 def compare_script(turns: list[Turn], messages: list[str]) -> list[Finding]:
@@ -246,6 +326,8 @@ def audit(tap_path: Path, relay_path: Path, script_path: Path | None = None) -> 
     turns = [r for r in relay_rows if isinstance(r, Turn)]
     exchanges = [r for r in tap_rows if isinstance(r, Exchange)]
     breaks, notes = compare(turns, exchanges)
+    breaks += check_attachment_files("relay", relay_path, turns)
+    breaks = sorted(breaks + check_attachment_files("tap", tap_path, exchanges), key=_order)
     if script_path is not None:
         breaks += compare_script(turns, messages)
     return Report(
@@ -276,6 +358,8 @@ def render(report: Report) -> str:
                 f": first difference at character {ev['first_difference']}:"
                 f" expected {ev['expected']!r}, got {ev['actual']!r}"
             )
+        elif "detail" in b.evidence:
+            line += f": {b.evidence['detail']}"
         out.append(line)
     for n in report.notes:
         out.append(f"NOTE  {n.kind:<15} relay line {n.relay_line}, tap line {n.tap_line}")

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 from typing import Any, Protocol
 
-from nookku.record import lone_surrogate
+from nookku.record import MEDIA_TYPE, lone_surrogate
 
 
 class AdapterError(ValueError):
@@ -25,6 +26,7 @@ class Adapter(Protocol):
     def request(self, message: str, history: History) -> bytes: ...
     def accepts(self, method: str, path: str) -> bool: ...
     def message(self, body: bytes) -> str: ...
+    def attachments(self, body: bytes) -> list[tuple[str, bytes]]: ...
     def reply(self, body: bytes) -> str: ...
     def stream_reply(self, body: bytes) -> str: ...
 
@@ -88,6 +90,22 @@ def _text(value: Any, path: str) -> str:
     return value
 
 
+_DATA_URL = re.compile(r"data:([^;,]*);base64,(.*)", re.DOTALL)
+
+
+def _data_url(value: Any) -> tuple[str, bytes]:
+    """The media type and the bytes of an image_url part with a base64 data URL."""
+    url = value.get("url") if isinstance(value, dict) else None
+    found = _DATA_URL.fullmatch(url) if isinstance(url, str) else None
+    media = found.group(1).lower() if found else ""
+    if found is None or MEDIA_TYPE.fullmatch(media) is None:
+        raise AdapterError("an image_url part must have a base64 data URL with a media type")
+    try:
+        return media, base64.b64decode(found.group(2), validate=True)
+    except ValueError:  # binascii.Error, or a character that is not ASCII
+        raise AdapterError("an image_url part has base64 that is not valid") from None
+
+
 class JsonAdapter:
     """Any POST. The message and the reply are at field paths of JSON bodies."""
 
@@ -105,6 +123,9 @@ class JsonAdapter:
 
     def message(self, body: bytes) -> str:
         return _text(pick(_json(body, "request"), self.message_field), self.message_field)
+
+    def attachments(self, body: bytes) -> list[tuple[str, bytes]]:
+        return []
 
     def reply(self, body: bytes) -> str:
         return _text(pick(_json(body, "response"), self.reply_field), self.reply_field)
@@ -133,7 +154,9 @@ class OpenAIAdapter:
     def accepts(self, method: str, path: str) -> bool:
         return method == "POST" and path.split("?")[0].rstrip("/").endswith("/chat/completions")
 
-    def message(self, body: bytes) -> str:
+    def _content(self, body: bytes) -> Any:
+        """The content of the last user message. A list has one text part and 0 or more image_url
+        parts (SPEC.md section 4.1)."""
         messages = pick(_json(body, "request"), "messages")
         if not isinstance(messages, list):
             raise AdapterError("'messages' is not a list")
@@ -142,11 +165,27 @@ class OpenAIAdapter:
             raise AdapterError("the request has no message with role 'user'")
         content = users[-1].get("content")
         if isinstance(content, list):
-            texts = [p for p in content if isinstance(p, dict) and p.get("type") == "text"]
-            if len(texts) != 1 or len(content) != 1:
-                raise AdapterError("the user content must be a string or exactly one text part")
-            content = texts[0].get("text")
+            kinds = [p.get("type") if isinstance(p, dict) else None for p in content]
+            texts, images = kinds.count("text"), kinds.count("image_url")
+            if texts != 1 or texts + images != len(kinds):
+                raise AdapterError(
+                    "the user content must be a string, or exactly one text part and 0 or more "
+                    "image_url parts"
+                )
+        return content
+
+    def message(self, body: bytes) -> str:
+        content = self._content(body)
+        if isinstance(content, list):
+            content = next(p for p in content if p.get("type") == "text").get("text")
         return _text(content, "messages[-1].content")
+
+    def attachments(self, body: bytes) -> list[tuple[str, bytes]]:
+        """The media type and the bytes of each image of the last user message."""
+        content = self._content(body)
+        if not isinstance(content, list):
+            return []
+        return [_data_url(p.get("image_url")) for p in content if p.get("type") == "image_url"]
 
     def reply(self, body: bytes) -> str:
         path = "choices.0.message.content"

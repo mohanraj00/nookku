@@ -21,6 +21,7 @@ usage: python conformance/build.py
 from __future__ import annotations
 
 import base64
+import binascii
 import datetime
 import hashlib
 import json
@@ -10537,6 +10538,160 @@ NOTES_CASES: dict[str, dict] = {
 }
 
 
+# The attachment cases (SPEC.md sections 2.4 and 3.2, step 8). A toy shop tester sends a photo of
+# a mug. Each PNG is written by hand: 1 RGB pixel, with a stored deflate block, so that no zlib
+# version changes its bytes.
+
+
+def png(rgb: bytes) -> bytes:
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        crc = binascii.crc32(kind + data)
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", crc)
+
+    raw = b"\x00" + rgb  # filter type 0, then the pixel
+    a, b = 1, 0
+    for byte in raw:
+        a, b = (a + byte) % 65521, (b + a) % 65521
+    stored = b"\x01" + struct.pack("<HH", len(raw), len(raw) ^ 0xFFFF) + raw
+    idat = b"\x78\x01" + stored + struct.pack(">I", (b << 16) | a)
+    ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IDAT", idat) + chunk(b"IEND", b"")
+
+
+MUG = png(b"\xc0\x40\x30")
+OTHER_MUG = png(b"\x30\x40\xc0")
+MUG_ASK = "Is this my mug? It came with a crack."
+MUG_REPLY = "Sorry about the crack. I can send a new mug."
+
+
+def attachment(data: bytes, media_type: str = "image/png") -> dict:
+    return {
+        "media_type": media_type,
+        "bytes": len(data),
+        "sha256": hashlib.sha256(data).hexdigest(),
+    }
+
+
+def attached(row: dict, *files: bytes) -> dict:
+    return {**row, "v": "0.5", "attachments": [attachment(f) for f in files]}
+
+
+def side(record: str, *files: bytes) -> dict[str, bytes]:
+    return {f"{record}.attachments/{hashlib.sha256(f).hexdigest()}": f for f in files}
+
+
+def one_byte_changed(data: bytes) -> bytes:
+    # The last byte of the CRC of the IEND chunk.
+    return data[:-1] + bytes([data[-1] ^ 0x01])
+
+
+MUG_TURN = attached(turn(MUG_ASK, MUG_REPLY, v="0.2"), MUG)
+MUG_EXCHANGE = attached(ex(MUG_ASK, MUG_REPLY, v="0.2"), MUG)
+# name: the side files of a case, by path in the case folder
+ATTACHMENT_FILES: dict[str, dict[str, bytes]] = {
+    "attachment_clean": {**side("relay", MUG), **side("tap", MUG)},
+    "attachment_side_file_altered": {
+        **side("relay", MUG),
+        f"tap.attachments/{hashlib.sha256(MUG).hexdigest()}": one_byte_changed(MUG),
+    },
+    "attachment_side_file_missing": side("relay", MUG),
+    "attachment_altered": {**side("relay", MUG), **side("tap", OTHER_MUG)},
+    "attachment_missing": side("relay", MUG),
+    "attachment_extra": side("tap", MUG),
+    "attachment_two_images_one_file": {**side("relay", MUG), **side("tap", MUG)},
+}
+CASES_BY_NAME.update(
+    {
+        "attachment_clean": ([MUG_EXCHANGE], [MUG_TURN], {"exit": 0, "breaks": []}),
+        # One byte of the side file of the tap changed after the write.
+        "attachment_side_file_altered": (
+            [MUG_EXCHANGE],
+            [MUG_TURN],
+            {"exit": 1, "breaks": [["altered_attachment_file", None, 1]]},
+        ),
+        "attachment_side_file_missing": (
+            [MUG_EXCHANGE],
+            [MUG_TURN],
+            {"exit": 1, "breaks": [["missing_attachment_file", None, 1]]},
+        ),
+        # The agent received another image than the image that the tester sent.
+        "attachment_altered": (
+            [attached(ex(MUG_ASK, MUG_REPLY, v="0.2"), OTHER_MUG)],
+            [MUG_TURN],
+            {"exit": 1, "breaks": [["altered_attachment", 1, 1]]},
+        ),
+        # The relay sent the text and dropped the image.
+        "attachment_missing": (
+            [ex(MUG_ASK, MUG_REPLY, v="0.2")],
+            [MUG_TURN],
+            {"exit": 1, "breaks": [["missing_attachment", 1, 1]]},
+        ),
+        "attachment_extra": (
+            [MUG_EXCHANGE],
+            [turn(MUG_ASK, MUG_REPLY, v="0.2")],
+            {"exit": 1, "breaks": [["extra_attachment", 1, 1]]},
+        ),
+        # The tester sent the same image 2 times, and the agent received it 1 time. The 2 parts
+        # of the turn use one side file.
+        "attachment_two_images_one_file": (
+            [MUG_EXCHANGE],
+            [attached(turn(MUG_ASK, MUG_REPLY, v="0.2"), MUG, MUG)],
+            {"exit": 1, "breaks": [["missing_attachment", 1, 1]]},
+        ),
+        # A row with attachments must have version 0.5, so that an older reader refuses it.
+        "attachment_in_a_v02_row": (
+            [{**MUG_EXCHANGE, "v": "0.2"}],
+            [MUG_TURN],
+            {
+                "exit": 2,
+                "errors": ["record_invalid"],
+                "reader_error": "line 1: version 0.5 is for an exchange or a turn with "
+                "'attachments'",
+            },
+        ),
+        "attachment_v05_row_with_no_attachments": (
+            [{**ex(MUG_ASK, MUG_REPLY), "v": "0.5"}],
+            [turn(MUG_ASK, MUG_REPLY)],
+            {
+                "exit": 2,
+                "errors": ["record_invalid"],
+                "reader_error": "line 1: version 0.5 is for an exchange or a turn with "
+                "'attachments'",
+            },
+        ),
+        "attachment_without_its_hash": (
+            [{**MUG_EXCHANGE, "attachments": [{"media_type": "image/png", "bytes": len(MUG)}]}],
+            [MUG_TURN],
+            {
+                "exit": 2,
+                "errors": ["record_invalid"],
+                "reader_error": "line 1: attachment 1 must have exactly the keys 'bytes', "
+                "'media_type' and 'sha256'",
+            },
+        ),
+        "attachment_media_type_in_upper_case": (
+            [{**MUG_EXCHANGE, "attachments": [attachment(MUG, "image/PNG")]}],
+            [MUG_TURN],
+            {
+                "exit": 2,
+                "errors": ["record_invalid"],
+                "reader_error": "line 1: attachment 1 has a media type that is not lower-case "
+                "type/subtype",
+            },
+        ),
+        "attachment_on_an_unparsed_row": (
+            [{**UNPARSED, "v": "0.5", "attachments": [attachment(MUG)]}],
+            [],
+            {
+                "exit": 2,
+                "errors": ["record_invalid"],
+                "reader_error": "line 1: only an exchange or a turn can have 'attachments'",
+            },
+        ),
+    }
+)
+
+
 def write(path: Path, rows: list | None) -> None:
     if rows is None:
         return
@@ -11098,6 +11253,9 @@ def main() -> None:
         if name in SCRIPTS:
             file, text = SCRIPTS[name]
             (d / file).write_text(text, encoding="utf-8")
+        for file, data in ATTACHMENT_FILES.get(name, {}).items():
+            (d / file).parent.mkdir(exist_ok=True)
+            (d / file).write_bytes(data)
     shutil.rmtree(CONTRACT, ignore_errors=True)
     for name, case in CONTRACT_CASES.items():
         d = CONTRACT / name

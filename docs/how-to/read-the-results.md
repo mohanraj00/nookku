@@ -146,7 +146,7 @@ Each break has `class`, `relay_line`, `tap_line` and `evidence`. For a changed t
 
 ### Break classes
 
-The audit has 8 break classes ([audit.py](../../src/nookku/audit.py), [SPEC.md section 3.3](../../SPEC.md#33-break-classes)). The fixes follow `BREAK_FIX` in [bridge.py](../../src/nookku/bridge.py), the text that `nookku check` gives for a break.
+The audit has 13 break classes ([audit.py](../../src/nookku/audit.py), [SPEC.md section 3.3](../../SPEC.md#33-break-classes)). The fixes follow `BREAK_FIX` in [bridge.py](../../src/nookku/bridge.py), the text that `nookku check` gives for a break.
 
 | Class | What the records show | Fix |
 |---|---|---|
@@ -157,6 +157,11 @@ The audit has 8 break classes ([audit.py](../../src/nookku/audit.py), [SPEC.md s
 | `not_delivered` | `relay.jsonl` has a turn that has no exchange in `tap.jsonl`. `tap_line` is `null`. | Read `bridge.log` and `app.log`. |
 | `altered_reply` | The `reply` text in `tap.jsonl` and the `shown` text in `relay.jsonl` are different. | Read `bridge.log`. |
 | `unshown_reply` | The `shown` text in `relay.jsonl` is `null`. The relay showed no reply. | Read `bridge.log`. |
+| `altered_attachment` | The attachment of a turn in `relay.jsonl` and the attachment at that position of its exchange in `tap.jsonl` are different ([attachments.md](../reference/attachments.md)). | Make sure that only one relay sends messages to the tap. |
+| `missing_attachment` | The turn has an attachment that its exchange does not have. | Read `bridge.log`. |
+| `extra_attachment` | The exchange has an attachment that its turn does not have. No relay sends attachments yet. | Make sure that only one relay sends messages to the tap. |
+| `missing_attachment_file` | A row names an attachment, and its side file in `tap.attachments/` or `relay.attachments/` does not exist. | Run `nookku verify` to see if a file of the test folder changed. |
+| `altered_attachment_file` | The bytes of a side file do not have the SHA-256 or the size of its row. | Run `nookku verify` to see if a file of the test folder changed. |
 | `script_mismatch` | Only in a [scripted test](../reference/glossary.md#scripted-test): a turn of `relay.jsonl` is not the message of the script copy at its position, or the counts differ. | Compare `relay.jsonl` with `script.jsonl` or `script.json` in the test folder. If the run stopped at a turn with no reply, read `app.log`. |
 
 For each error of exit 2, [troubleshooting.md](../troubleshooting.md#audit-verify-and-trace) gives the cause and the fix.
