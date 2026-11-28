@@ -55,7 +55,7 @@ Data: [the record of the test](docs/assets/chat-page/test/) and [the method of t
 uv tool install nookku
 ```
 
-It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.6.1. To upgrade, end each running test, then run `uv tool upgrade nookku`. [docs/how-to/upgrade.md](docs/how-to/upgrade.md) gives each step, also for verbatim-relay 0.3.x and earlier.
+It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.6.2. To upgrade, end each running test, then run `uv tool upgrade nookku`. [docs/how-to/upgrade.md](docs/how-to/upgrade.md) gives each step, also for verbatim-relay 0.3.x and earlier.
 
 ## Next steps
 
@@ -101,7 +101,7 @@ tester ──> harness ──> relay ──────> tap ──stdin/stdout�
 
 [docs/architecture.md](docs/architecture.md#data-flow) shows this flow with each part, and has diagrams of one turn, the test lifecycle and the trace.
 
-Two processes write two records, and the audit compares them byte for byte. It reports 13 break classes ([SPEC.md section 3.3](SPEC.md#33-break-classes)). It fails closed: it never reports clean on a record that it cannot read. 111 audit cases, 21 contract cases, 62 trace cases, 3 gateway cases, 15 seal cases, 16 notes cases, 7 receiver cases, 35 discovery cases and 19 database cases in [conformance/](conformance/) test the spec ([cases](conformance/build.py), [tests](tests/)).
+Two processes write two records, and the audit compares them byte for byte. It reports 13 break classes ([SPEC.md section 3.3](SPEC.md#33-break-classes)). It fails closed: it never reports clean on a record that it cannot read. 112 audit cases, 21 contract cases, 62 trace cases, 3 gateway cases, 15 seal cases, 16 notes cases, 7 receiver cases, 35 discovery cases and 19 database cases in [conformance/](conformance/) test the spec ([cases](conformance/build.py), [tests](tests/)).
 
 A test also records what your app did. It copies the session files of the app's own Agent SDK or Codex sessions. It records the backend calls, the direct model calls and the OpenTelemetry spans of the app. [docs/architecture.md](docs/architecture.md) shows each part.
 

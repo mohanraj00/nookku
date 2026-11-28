@@ -17,7 +17,14 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from nookku import websocket
-from nookku.adapters import Adapter, AdapterError, JsonAdapter, StreamError, is_stream
+from nookku.adapters import (
+    Adapter,
+    AdapterError,
+    AttachmentLimitError,
+    JsonAdapter,
+    StreamError,
+    is_stream,
+)
 from nookku.record import Writer, lone_surrogate, write_attachment
 from nookku.stdio import TIMEOUT, bind, write_failed
 
@@ -36,6 +43,9 @@ NOT_RETURNED = HOP_BY_HOP | {"content-length"}
 # Each stream budget is a chosen value, not a measurement.
 PART_COUNT = 65536
 PART_BYTES = 64 * 1024 * 1024
+# The bounds on discarding a body after the tap sends status 413 (SPEC.md section 4.1).
+REFUSAL_DRAIN_TIMES = 4
+REFUSAL_DRAIN_SECONDS = 1.0
 
 
 class Tap(ThreadingHTTPServer):
@@ -145,18 +155,23 @@ class _Handler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: object) -> None:
         pass
 
-    def _send(self, status: int, headers: list[tuple[str, str]], body: bytes) -> None:
+    def _send(
+        self, status: int, headers: list[tuple[str, str]], body: bytes, *, close: bool = False
+    ) -> None:
         self.send_response_only(status)
         for name, value in headers:
             if name.lower() not in NOT_RETURNED:
                 self.send_header(name, value)
+        if close:
+            self.send_header("Connection", "close")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(body)
+        if self.command != "HEAD":
+            self.wfile.write(body)
 
-    def _error(self, status: int, message: str) -> None:
+    def _error(self, status: int, message: str, *, close: bool = False) -> None:
         body = json.dumps({"error": message}).encode()
-        self._send(status, [("Content-Type", "application/json")], body)
+        self._send(status, [("Content-Type", "application/json")], body, close=close)
 
     # The attachments of the current request, as rows give them (SPEC.md section 2.4).
     _attachments: list[dict[str, object]] = []  # noqa: RUF012 (each request sets a new list)
@@ -181,37 +196,77 @@ class _Handler(BaseHTTPRequestHandler):
             return False
         return True
 
+    def _request_length(self) -> int | None:
+        """The request length, or None after the tap sends a refusal."""
+        if self.headers.get_all("Transfer-Encoding"):
+            self._error(411, "nookku needs a Content-Length request body", close=True)
+            return None
+        lengths = {value.strip() for value in self.headers.get_all("Content-Length") or ["0"]}
+        length = lengths.pop()
+        digits = length.removeprefix("-")
+        if lengths or not (digits.isascii() and digits.isdecimal()):
+            self._error(400, "nookku tap: the Content-Length is not valid", close=True)
+            return None
+        # Compare the digits before int() so that a very long length also gets status 413.
+        digits = digits.lstrip("0") or "0"
+        limit = str(websocket.LIMIT)
+        too_long = (len(digits), digits) > (len(limit), limit)
+        if too_long or (length.startswith("-") and digits != "0"):
+            self._error(413, "nookku tap: the request body is too large", close=True)
+            if not length.startswith("-"):
+                self._discard_body(digits)
+            return None
+        return int(digits)
+
+    def _discard_body(self, digits: str) -> None:
+        """Drop bytes after a refusal, so a caller still sending the body can read status 413."""
+        left = REFUSAL_DRAIN_TIMES * websocket.LIMIT
+        if len(digits) <= len(str(left)):
+            left = min(left, int(digits))
+        closed_at = time.monotonic() + REFUSAL_DRAIN_SECONDS
+        with contextlib.suppress(OSError):
+            self.connection.shutdown(socket.SHUT_WR)
+            while left > 0:
+                seconds = closed_at - time.monotonic()
+                if seconds <= 0:
+                    break
+                self.connection.settimeout(seconds)
+                part = self.rfile.read1(min(left, 65536))
+                if not part:
+                    break
+                left -= len(part)
+
+    def handle_expect_100(self) -> bool:
+        return self._request_length() is not None and super().handle_expect_100()
+
     def _forward(self) -> None:
-        if "chunked" in self.headers.get("Transfer-Encoding", "").lower():
-            self._error(411, "nookku needs a Content-Length request body")
-            return
-        tap, method, path = self.server, self.command, self.path
-        length = int(self.headers.get("Content-Length") or 0)
-        if tap.scheme in ("ws", "wss") and not 0 <= length <= websocket.LIMIT:
-            self.close_connection = True
-            self._error(413, "nookku tap: the WebSocket message is too large")
+        length = self._request_length()
+        if length is None:
             return
         body = self.rfile.read(length)
+        if len(body) != length:
+            self._error(400, "nookku tap: the request body stopped before its end", close=True)
+            return
+        tap, method, path = self.server, self.command, self.path
         recorded = tap.adapter.accepts(method, path)
         message, parse_error = None, None
+        self._attachments = []
         if recorded:
             try:
+                images = tap.adapter.attachments(body)
                 message = tap.adapter.message(body)
+            except AttachmentLimitError as e:
+                self._error(413, f"nookku tap: {e}", close=True)
+                return
             except AdapterError as e:
                 parse_error = f"request: {e}"
-            found = None if message is None else lone_surrogate(message)
-            if found:
-                # The record cannot hold the message. The tap marks it as unparsed.
-                message, parse_error = None, f"request: the message has {found}"
-        # The attachments of the message (SPEC.md section 2.4). The side files go to disk before
-        # the request goes to the agent. If the tap cannot write them, it sends nothing.
-        self._attachments = []
-        if message is not None:
-            try:
-                images = tap.adapter.attachments(body)
-            except AdapterError as e:
-                message, parse_error = None, f"request: {e}"
             else:
+                found = lone_surrogate(message)
+                if found:
+                    # The record cannot hold the message. The tap marks it as unparsed.
+                    message, parse_error = None, f"request: the message has {found}"
+                    images = []
+                # Write side files only after the limit checks. If a write fails, send nothing.
                 try:
                     self._attachments = [
                         write_attachment(tap.writer.path, media, data) for media, data in images

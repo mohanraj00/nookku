@@ -19,7 +19,7 @@
     "plugins/nookku/hooks/*", "redirect/verbatim-relay/src/*"
   ],
   "level1": [
-    "tools/claude_review.py",
+    "tools/claude_review.py", "CHANGELOG.md",
     "SPEC.md",
     "src/nookku/hook.py", "src/nookku/kit.py", "src/nookku/state.py", "src/nookku/contract.py",
     "src/nookku/tap.py", "src/nookku/stdio.py", "src/nookku/adapters.py", "src/nookku/bridge.py",

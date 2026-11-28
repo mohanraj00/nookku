@@ -21,6 +21,7 @@ ClaudeAgentOptions(
 - `setting_sources=[]` loads no settings file: no user, project or local settings, and thus no plugins, hooks or MCP servers from them. In TypeScript, the option is `settingSources: []`.
 - `strict_mcp_config=True` passes `--strict-mcp-config` to Claude Code. The session then uses only the servers in `mcp_servers`, and no claude.ai connectors, no `.mcp.json` and no plugin servers. In TypeScript, the option is `strictMcpConfig: true`. The [Agent SDK reference](https://code.claude.com/docs/en/agent-sdk/python) defines both options.
 - `CLAUDE_CODE_PLUGIN_DIRS` with an empty value loads no plugins from this variable. The session gets the variable from the [entry](../reference/glossary.md#entry), and thus from the tester's [harness](../reference/glossary.md#harness). `env` sets it for the session only.
+- **Warning:** In TypeScript, give `env` the environment of the process too, for example `env: { ...process.env, CLAUDE_CODE_PLUGIN_DIRS: "" }`. In TypeScript, the value of `env` replaces the environment of the session, and the Python SDK adds the keys to it. A session with only the new keys loses `ANTHROPIC_BASE_URL` of the test, and the model API proxy then sees no call of the session.
 - If your app loads MCP servers from `.mcp.json` or from a settings file, `strict_mcp_config` also stops them. Then set `ENABLE_CLAUDEAI_MCP_SERVERS` to `false` in `env`, in place of `strict_mcp_config`. This variable stops only the claude.ai connectors ([MCP docs](https://code.claude.com/docs/en/mcp#use-mcp-servers-from-claude-ai)).
 
 These options are in the code of your app, not in the entry. `nookku setup` tells the [harness model](../reference/glossary.md#harness-model) to check them and to tell you if one is missing. It does not change your app.
@@ -31,8 +32,9 @@ The toy shop apps in this repo use these options:
 
 - [examples/toy-shop-models/app.py](../../examples/toy-shop-models/app.py): 2 tools and a planted bug.
 - [examples/toy-shop-full/app.py](../../examples/toy-shop-full/app.py): 3 tools, a stock service and a direct model call.
+- [examples/toy-shop-ts/app.mts](../../examples/toy-shop-ts/app.mts): the same app in TypeScript. Its [README](../../examples/toy-shop-ts/README.md) tells how to run it.
 
-Each one needs `claude-agent-sdk`, which is not a dependency of Nookku. The entry also imports the `nookku` package. In a copy of the example folder, the entry command gets both packages:
+Each Python app needs `claude-agent-sdk`, which is not a dependency of Nookku. The entry also imports the `nookku` package. In a copy of the example folder, the entry command gets both packages:
 
 ```bash
 uv run --with claude-agent-sdk --with nookku python3 entry.py

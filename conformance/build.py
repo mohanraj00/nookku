@@ -10594,6 +10594,10 @@ ATTACHMENT_FILES: dict[str, dict[str, bytes]] = {
         **side("relay", MUG),
         f"tap.attachments/{hashlib.sha256(MUG).hexdigest()}": one_byte_changed(MUG),
     },
+    "attachment_side_file_wrong_size": {
+        **side("relay", MUG),
+        f"tap.attachments/{hashlib.sha256(MUG).hexdigest()}": MUG[:-1],
+    },
     "attachment_side_file_missing": side("relay", MUG),
     "attachment_altered": {**side("relay", MUG), **side("tap", OTHER_MUG)},
     "attachment_missing": side("relay", MUG),
@@ -10605,6 +10609,11 @@ CASES_BY_NAME.update(
         "attachment_clean": ([MUG_EXCHANGE], [MUG_TURN], {"exit": 0, "breaks": []}),
         # One byte of the side file of the tap changed after the write.
         "attachment_side_file_altered": (
+            [MUG_EXCHANGE],
+            [MUG_TURN],
+            {"exit": 1, "breaks": [["altered_attachment_file", None, 1]]},
+        ),
+        "attachment_side_file_wrong_size": (
             [MUG_EXCHANGE],
             [MUG_TURN],
             {"exit": 1, "breaks": [["altered_attachment_file", None, 1]]},

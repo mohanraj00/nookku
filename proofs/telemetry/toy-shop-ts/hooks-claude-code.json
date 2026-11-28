@@ -1,0 +1,118 @@
+{
+ "date": "2026-11-27",
+ "relay": "hooks-claude-code",
+ "example": "toy-shop-ts",
+ "versions": {
+  "nookku": "0.6.1",
+  "claude-code": "2.1.319 (Claude Code)",
+  "codex": "codex-cli 0.169.0",
+  "agent sdk": "@anthropic-ai/claude-agent-sdk@0.3.301 zod@4.6.7",
+  "node": "v25.8.0",
+  "session files": {
+   "claude-code": "2.1.301"
+  }
+ },
+ "plugins": [
+  "cc-plugin-agents-md@builtin",
+  "cc-plugin-plugin-authoring@builtin",
+  "cc-plugin-privacy@builtin",
+  "cc-plugin-telemetry@builtin"
+ ],
+ "turns": 3,
+ "audit_exit": 0,
+ "items_by_turn": [
+  {
+   "turn": 1,
+   "session": 3,
+   "backend": 1,
+   "model_api": 4
+  },
+  {
+   "turn": 2,
+   "session": 3,
+   "backend": 2,
+   "model_api": 4
+  },
+  {
+   "turn": 3,
+   "session": 3,
+   "backend": 1,
+   "model_api": 4
+  }
+ ],
+ "T1_each_turn_has_3_sources": true,
+ "reserve_calls": [
+  {
+   "line": 17,
+   "turn": 2
+  },
+  {
+   "line": 18,
+   "turn": 2
+  }
+ ],
+ "reserve_calls_in_turn_2": 2,
+ "reservations_in_stock": 2,
+ "report_written": true,
+ "issues": [
+  {
+   "class": "business_rule",
+   "turn": "2",
+   "evidence": "trace.jsonl:15, trace.jsonl:17, trace.jsonl:18, services.mts:46, RULES.md:3"
+  },
+  {
+   "class": "state_mismatch",
+   "turn": "2",
+   "evidence": "trace.jsonl:20, stock.json:4-15, app.mts:71"
+  },
+  {
+   "class": "unsupported_reply",
+   "turn": "3",
+   "evidence": "trace.jsonl:28, trace.jsonl:32"
+  },
+  {
+   "class": "missing_action",
+   "turn": "2",
+   "evidence": "turn 2, APP_SPEC.md:21, APP_SPEC.md:42"
+  }
+ ],
+ "T2_cites_both_reserve_calls": true,
+ "P5_quotes_a_reservation_id": true,
+ "P5_quotes_a_reply": true,
+ "commands_outside_project": null,
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "backend": {
+  "file": "backend.jsonl",
+  "rows": 4,
+  "items": 4,
+  "ignored": {}
+ },
+ "model_api": {
+  "file": "model_api.jsonl",
+  "rows": 16,
+  "items": 12,
+  "ignored": {},
+  "harness_calls": {
+   "claude-code": 9
+  },
+  "other_calls": 1
+ },
+ "otel": {
+  "file": "otel.jsonl",
+  "rows": 12,
+  "items": 12,
+  "ignored": {}
+ },
+ "counts": {},
+ "report": "# Test 20261127-204623-c6e7: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:15, trace.jsonl:17, trace.jsonl:18, services.mts:46, RULES.md:3 | One `reserve` tool call (`{\"order\": \"6210\", \"sku\": \"teapot-set\", \"qty\": 1}`) sent 2 `POST /reserve` requests to the stock service. Both returned status 200: `\"reservation\": \"RS-D00447\" ... \"left\": 2` and `\"reservation\": \"RS-96A78C\" ... \"left\": 1`. Order 6210 now holds 2 teapot sets, but the customer asked for 1. RULES.md:3 says \"A reservation holds the number of items that the customer asked for, and no more.\" The cause is `for (let i = 0; i < 2; i++)` at services.mts:46. The loop always sends the request 2 times, also after a request succeeds. stock.json confirms it: there are 2 reservations for order 6210 and `\"left\": 1`. |\n| state_mismatch | 2 | trace.jsonl:20, stock.json:4-15, app.mts:71 | The reply says \"I've reserved 1 teapot set for order 6210. The reservation number is RS-96A78C.\" The stock service holds 2 reservations for order 6210 (RS-D00447 and RS-96A78C). The tool result at app.mts:71 returns only the last reservation and `qty: args.qty`, so it hides the first one. RULES.md:4 says the agent must tell the customer the number that it reserved, and that number is 2. |\n| unsupported_reply | 3 | trace.jsonl:28, trace.jsonl:32 | The reply says the stock fell from 3 to 1 because of \"the reservation I just made for order 6210 (RS-96A78C), plus one more unit that is no longer available.\" The tool result is only `{\"sku\":\"teapot-set\",\"left\":1}`. No tool result says why the other unit is gone. The records show that the missing unit is the duplicate reservation RS-D00447 for the same order (trace.jsonl:17). |\n| missing_action | 2 | turn 2, APP_SPEC.md:21, APP_SPEC.md:42 | Turn 2 asked for a reservation, and the app called `reserve` with no `check_stock` call in that turn. User goal 3 says \"The agent checks the stock, reserves the number of items...\". The trace point table says `check_stock` is needed in \"Each turn that asks about stock or a reservation.\" The app did check the stock in turn 1 (`left: 3`), so the impact is small. |\n\n## Notes\n\n- Seal: intact. The audit shows no break (`breaks: []`), and findings.json has no finding. All counts are 0.\n- The record does not catch the duplicate reservation. nookku's `findings` and `counts` do not flag a single tool call that makes 2 backend writes. The backend proxy rows (trace.jsonl:17-18) and the state file stock.json show it.\n- State: I read state.json and stock.json. Neither is in an `app-state/` folder, so the seal does not cover them. They agree with the backend responses: teapot-set `left: 1`, with reservations RS-D00447 and RS-96A78C, both for order 6210 with qty 1. state.json holds 3 case notes with department `other`.\n- Performance: no turn is above a limit. The limits are `turn_seconds` 30 and `turn_tokens` 2000. Turn 1 took 9.123 s with 100 output tokens. Turn 2 took 6.397 s with 137 output tokens. Turn 3 took 6.505 s with 127 output tokens. The openai model_api calls have no usage, but they are direct model calls of the app, and APP_SPEC.md:28 says they do not count.\n- Persona: each reply has 2 sentences or fewer and is polite. I found no `tone` issue. No turn touched a `Boundaries` topic.\n- Trace points: the manifest has `\"spec\": []` and `\"trace_points\": []`, so nookku did not check the trace points of APP_SPEC.md. I checked them by hand. `lookup_order` was not called, which is correct, because no turn asked about the status of an order. `check_stock` is missing in turn 2 (see the row above). `stock GET /stock` appears for each `check_stock` call (trace.jsonl:5, :30). `openai` appears in each turn.\n- The `/decisions` call classifies each message as a \"complaint\" department (`other`), also when the message is not a complaint. No rule covers this, so I do not report it.\n- No `egress_denied` finding.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "I found 4 issues in this test; nookku flagged none of them:\n\n1. **`business_rule`, turn 2:** You asked to reserve 1 teapot set, but one `reserve` call sent `POST /reserve` twice and both succeeded. Order 6210 now holds 2 sets (RS-D00447 and RS-96A78C). The cause is `services.mts:46`: the retry loop always runs 2 times, even after a request succeeds. `stock.json` confirms the 2 reservations.\n2. **`state_mismatch`, turn 2:** The reply said \"reserved 1\" and gave only RS-96A78C, because the tool result shows just the last reservation.\n3. **`unsupported_reply`, turn 3:** The reply explained the drop from 3 to 1 with \"one more unit that is no longer available,\" which no tool result supports. That unit is the duplicate reservation.\n4. **`missing_action`, turn 2:** The app reserved without checking the stock in that turn, which the spec's reservation goal asks for. Turn 1 had checked it, so this matters little.\n\nNo turn went over the time or token limits, the tone is fine, and a proxy saw every outside service the app called. nookku didn't check the spec's trace points because they weren't loaded into the test, so I checked them by hand.\n\nReport: `<project>/.nookku/tests/20261127-204623-c6e7/report.md`",
+ "pass": true
+}

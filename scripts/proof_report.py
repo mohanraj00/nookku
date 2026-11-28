@@ -162,6 +162,16 @@ APP_FILES = {
         "toy_model.py",
         "APP_SPEC.md",
     ),
+    "toy-shop-ts": (
+        "app.mts",
+        "entry.mts",
+        "services.mts",
+        "contract.mjs",
+        "RULES.md",
+        "state.json",
+        "stock.json",
+        "APP_SPEC.md",
+    ),
     "toy-shop-egress": (
         "app.py",
         "entry.py",
