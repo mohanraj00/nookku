@@ -48,6 +48,7 @@ If a hook changes, trust it again. A new plugin script also needs a new run of `
 | The Claude Code version of each Agent SDK release, no model | `uv run python scripts/proof_sdk_bundles.py <version>...` | `proofs/trace/sdk-bundles.json` |
 | The seeded faults of the trace checks, no model | `uv run nookku faults --json > proofs/release/faults-<version>.json` | `proofs/release/faults-<version>.json` |
 | The simulated user of a test, 1 persona | `uv run python scripts/proof_simulated_user.py` | `proofs/simulated-user/results.json` |
+| The simulated user of a test with a declared command, 1 persona, no model | `uv run python scripts/proof_simulated_user.py --runner command` | `proofs/simulated-user/command.json` |
 | The guard of the answer keys | `uv run python scripts/proof_key_guard.py <hooks-claude-code or plugin-claude-code>` | `proofs/key-guard/<setup>.json` |
 | An action with no approval, no model | `uv run python scripts/proof_approvals.py` | `proofs/approvals/results.json` |
 | A second message during a slow turn, no model | `uv run python scripts/proof_second_message.py` | `proofs/second-message/results.json` |

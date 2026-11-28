@@ -454,14 +454,24 @@ The current run used nookku 0.6.0 on 2026-11-21, and the earlier run used nookku
 
 ### A test with a simulated user
 
-I ran the toy shop agent with 1 persona on 2026-11-21, with nookku 0.6.0 and Claude Code 2.1.319 as the simulated user ([data](../proofs/simulated-user/results.json), [method](../scripts/proof_simulated_user.py)). The persona is a customer whose teapot came broken. The goal is the refund for a damaged item, and the limit is 8 turns. The toy shop answers only a few keywords, so I chose a goal that it can answer. The return label of #520 is not a goal that the toy shop can reach.
+I ran the toy shop agent with 1 persona on 2026-11-27, with nookku 0.6.1 from `main`, one time with each runner of the config key `persona_runner` ([#667](https://github.com/mohanraj00/nookku/issues/667), [method](../scripts/proof_simulated_user.py)):
 
-- U1: the test has 1 turn, with the harness `simulated-user`.
-- U2: after the reply, the simulated user wrote `GOAL MET`. The run ended with `goal`, the audit gave exit 0 and the seal is intact.
-- U3: the message has no planted word of a project file, and it shares no 8 words in a row with an instruction file of this machine.
-- U4: `nookku script save` kept the message byte for byte. The run of the script sent the same message, and its audit gave exit 0.
+- `claude-code`, the default: Claude Code 2.1.319 is the simulated user ([data](../proofs/simulated-user/results.json)).
+- A declared command: [toy_persona_user.py](../scripts/toy_persona_user.py), a toy user with no model and no tools ([data](../proofs/simulated-user/command.json)).
 
-This is 1 run with 1 turn. It does not show how the simulated user acts in a long conversation, or with an agent that does not reach the goal. The tests with no model cover the turn limit and a failed session ([test_simulated_user.py](../tests/test_simulated_user.py)).
+The persona is a customer whose teapot came broken. The goal is the refund for a damaged item, and the limit is 8 turns. The toy shop answers only a few keywords, so I chose a goal that it can answer. The return label of #520 is not a goal that the toy shop can reach.
+
+| Check | `claude-code` | Declared command |
+|---|---|---|
+| U1: each turn has the harness `simulated-user`, and `simulated_user.json` names the runner | pass, 1 turn | pass, 2 turns |
+| U2: the run ended with `goal`, the audit gave exit 0 and the seal is intact | pass | pass |
+| U3: no message has the planted word of a project file or shares 8 words in a row with an instruction file of this machine | pass | pass |
+| U4: `nookku script save` kept each message byte for byte, and the run of the script sent the same messages with audit exit 0 | pass | pass |
+| U5: each of the 3 calls of the command got the persona and the goal, started in an empty folder outside the project, and did not get the `NOOKKU_` variable that the proof planted in the run | not applicable | pass |
+
+The first message of the toy user names no keyword, so the toy shop asked which item. Thus the run of the declared command has 2 turns, and its third call wrote `GOAL MET`.
+
+Each runner ran 1 time, with 1 or 2 turns. The runs do not show how a model acts in a long conversation, or with an agent that does not reach the goal. The declared command of the proof calls no model. It shows the contract of a declared command, not the isolation of a command that calls a model: Nookku cannot check what such a command loads ([cli.md](reference/commands/run.md)). The tests with no model cover the turn limit and a failed session ([test_simulated_user.py](../tests/test_simulated_user.py)).
 
 ### The guard of the answer keys
 
