@@ -1,6 +1,6 @@
 # `nookku script`
 
-Release: nookku 0.6.1.
+Release: nookku 0.6.2.
 
 ```text
 nookku script save [TEST] [--root PATH] [--tests-dir PATH]

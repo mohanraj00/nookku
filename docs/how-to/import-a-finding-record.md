@@ -1,6 +1,6 @@
 # Import a finding record into another test suite
 
-Release: nookku 0.6.1.
+Release: nookku 0.6.2.
 
 A [finding record](../reference/glossary.md#finding-record) is one confirmed defect of your agent, as one JSON object. This page shows how another tool reads a record and makes a regression case from it. [SPEC.md section 10](../../SPEC.md#10-finding-record) gives each field and each rule.
 

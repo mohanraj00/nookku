@@ -1,6 +1,6 @@
 # Docs
 
-Release: nookku 0.6.1.
+Release: nookku 0.6.2.
 
 Nookku is an evaluation harness for vertical AI agents: an agent that does one job in one domain, for example a support agent for a toy shop. You talk to your agent through Claude Code or Codex, and the model stays out of the conversation. An [audit](reference/glossary.md#audit) proves that each message and each reply arrived byte for byte.
 

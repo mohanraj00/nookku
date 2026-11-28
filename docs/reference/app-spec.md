@@ -1,6 +1,6 @@
 # App spec
 
-Release: nookku 0.6.1. Since 0.7.0 (not released yet): the `Bind` column of the `Approvals` table.
+Release: nookku 0.6.2. Since 0.7.0 (not released yet): the `Bind` column of the `Approvals` table.
 
 The app spec tells the [evaluation](glossary.md#evaluation) what the app must do. It is one or more Markdown files in your project. The config key [`spec`](config.md#test-keys) names them. At the end of a test, the evaluation prompt names each file, and the model reads them first ([SPEC.md section 9.2](../../SPEC.md#92-evaluation-prompt)).
 

@@ -1,6 +1,6 @@
 # Upgrade Nookku
 
-Release: nookku 0.6.1.
+Release: nookku 0.6.2.
 
 This page upgrades the CLI, the package in your app's environment, the Claude Code [plugin](../reference/glossary.md#plugin) and the Codex hooks. Some releases need a special step. Read the section of each release from your version to the new version in [Releases with a special step](#releases-with-a-special-step). [CHANGELOG.md](../../CHANGELOG.md) lists all changes.
 

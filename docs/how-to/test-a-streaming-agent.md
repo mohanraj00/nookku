@@ -1,6 +1,6 @@
 # Test a streaming agent
 
-Release: nookku 0.6.1.
+Release: nookku 0.6.2.
 
 A streaming agent sends its reply in parts. In a test, the [tester](../reference/glossary.md#tester) sees the complete reply, not each part. The [audit](../reference/glossary.md#audit) compares the complete reply, byte for byte. You can test a streaming agent with an [entry](../reference/glossary.md#entry) or with the HTTP [tap](../reference/glossary.md#tap).
 

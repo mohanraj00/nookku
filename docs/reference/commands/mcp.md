@@ -1,6 +1,6 @@
 # `nookku mcp`
 
-Release: nookku 0.6.1.
+Release: nookku 0.6.2.
 
 The MCP server that gives the model the read-only tools `transcript` and `status`. It reads one JSON-RPC message on each line of stdin and writes each answer on stdout. A [harness](../glossary.md#harness) starts it from its MCP configuration ([SPEC.md section 5](../../../SPEC.md#5-relays)). The plugin does not start it yet: [#216](https://github.com/mohanraj00/nookku/issues/216) adds it to the plugin.
 

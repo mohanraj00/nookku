@@ -1,6 +1,6 @@
 # Gate a rollout on a gate result
 
-Release: nookku 0.6.1.
+Release: nookku 0.6.2.
 
 A rollout controller moves traffic to a new version of an app only if a check passes. A [gate run](gate-a-release.md) gives this check: one sealed result with an aggregate verdict and the subject digest of the version. This page names the files and the fields that a controller reads. [SPEC.md section 7.15](../../SPEC.md#715-gate-run) has the rules.
 

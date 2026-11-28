@@ -1,6 +1,6 @@
 # `nookku dashboard`
 
-Release: nookku 0.6.1.
+Release: nookku 0.6.2.
 
 ```text
 nookku dashboard [--root PATH] [--tests-dir PATH] [--host HOST] [--port PORT] [--site DIR] [--allow-host NAME:PORT ...]

@@ -1,6 +1,6 @@
 # Records and files
 
-Release: nookku 0.6.1. Since 0.7.0 (not released yet): the attachments of a row and the record version `"0.5"`.
+Release: nookku 0.6.2. Since 0.7.0 (not released yet): the attachments of a row and the record version `"0.5"`.
 
 This page lists each file that Nookku writes, and links to the section of [SPEC.md](../../SPEC.md) that defines its format. SPEC.md is the authority. If this page and SPEC.md disagree, SPEC.md is correct.
 

@@ -1,6 +1,6 @@
 # Test an agent with the Claude Code plugin
 
-Release: nookku 0.6.1.
+Release: nookku 0.6.2.
 
 The [plugin](../reference/glossary.md#plugin) installs the [relay](../reference/glossary.md#relay) in Claude Code for each of your projects. The same plugin works in Codex ([codex.md](codex.md)). Its 2 command hooks run `nookku hook`, so the plugin and the [project hooks](../reference/glossary.md#project-hooks) have the same rules. The plugin shows each reply in the chat as the reason of the blocked prompt, which the model does not receive. To compare it with the project hooks, read [choose-a-relay.md](choose-a-relay.md).
 

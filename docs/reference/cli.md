@@ -1,6 +1,6 @@
 # CLI reference
 
-Release: nookku 0.6.1.
+Release: nookku 0.6.2.
 
 This page lists each command of `nookku`. Each command has its own page in the folder `commands/`: the purpose, the form, each flag, each exit code and an example. The commands start and end a test, read its records, run the [evaluation](glossary.md#evaluation), the [audit](glossary.md#audit) and the [trace](glossary.md#trace) with its [findings](glossary.md#findings), and run the [tap](glossary.md#tap). The parser is in [src/nookku/cli.py](../../src/nookku/cli.py). The test `tests/test_docs.py` checks that each command of the parser has a page, and that each flag of the parser is on the page of its command. It also checks that each flag on a page is in the parser.
 

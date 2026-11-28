@@ -1,6 +1,6 @@
 # Test an agent in Codex
 
-Release: nookku 0.6.1.
+Release: nookku 0.6.2.
 
 In Codex, you install the [relay](../reference/glossary.md#relay) as the [plugin](../reference/glossary.md#plugin) or as the [project hooks](../reference/glossary.md#project-hooks). Both run `nookku hook`, with the same rules. [choose-a-relay.md](choose-a-relay.md) compares them. Codex has no surface that shows hook text in `codex exec`, so the [chat page](../reference/commands/chat.md) of the test shows each reply. `nookku view` in a second terminal is optional.
 

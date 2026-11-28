@@ -1,6 +1,6 @@
 # API reference
 
-Release: nookku 0.6.1.
+Release: nookku 0.6.2.
 
 `nookku dashboard` serves a read-only HTTP API of the runs and the gate runs of one project ([cli.md](commands/dashboard.md)). A script and the dashboard of [examples/evaluation-dashboard/](../../examples/evaluation-dashboard/) read the same data. The code is [src/nookku/api.py](../../src/nookku/api.py), and `tests/test_api.py` checks each route.
 

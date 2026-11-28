@@ -1,6 +1,6 @@
 # Gate a release with a set of tests
 
-Release: nookku 0.6.1. Since 0.7.0 (not released yet): the refusal of a gate file with the test key `answer_key`.
+Release: nookku 0.6.2. Since 0.7.0 (not released yet): the refusal of a gate file with the test key `answer_key`.
 
 A gate run runs a declared set of [scripted tests](../reference/glossary.md#scripted-test) and writes one sealed result. The result has the verdict of each test, one aggregate verdict and the subject digest that you give, for example the digest of the image that you test. [SPEC.md section 7.15](../../SPEC.md#715-gate-run) gives the format and each check.
 

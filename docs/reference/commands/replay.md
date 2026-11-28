@@ -1,6 +1,6 @@
 # `nookku replay`
 
-Release: nookku 0.6.1. Since 0.7.0 (not released yet): the config key `replay_ignore`.
+Release: nookku 0.6.2. Since 0.7.0 (not released yet): the config key `replay_ignore`.
 
 ```text
 nookku replay SCRIPT [--base TEST] [--recorded] [--verdict] [--entry NAME] [--root PATH] [--tests-dir PATH] [--json] [--evaluate | --no-evaluate]

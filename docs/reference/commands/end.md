@@ -1,6 +1,6 @@
 # `nookku end`
 
-Release: nookku 0.6.1.
+Release: nookku 0.6.2.
 
 End the test: switch [relay mode](../glossary.md#relay-mode) off, stop the [entry](../glossary.md#entry) and collect its sessions, the [trace](../glossary.md#trace), the [audit](../glossary.md#audit) and the [seal](../glossary.md#seal) ([SPEC.md section 7.2](../../../SPEC.md#72-start-and-end)). If no test runs, it switches relay mode off.
 

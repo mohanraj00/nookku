@@ -1,6 +1,6 @@
 # `nookku init`
 
-Release: nookku 0.6.1.
+Release: nookku 0.6.2.
 
 ```text
 nookku init HARNESS [--root PATH] [--entry COMMAND] [--models LIST] [options]

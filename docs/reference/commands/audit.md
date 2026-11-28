@@ -1,6 +1,6 @@
 # `nookku audit`
 
-Release: nookku 0.6.1.
+Release: nookku 0.6.2.
 
 Compare the [relay record](../glossary.md#relay-record) with the [tap record](../glossary.md#tap-record) ([SPEC.md section 3](../../../SPEC.md#3-audit)).
 

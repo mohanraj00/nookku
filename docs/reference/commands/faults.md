@@ -1,6 +1,6 @@
 # `nookku faults`
 
-Release: nookku 0.6.1.
+Release: nookku 0.6.2.
 
 ```text
 nookku faults [--cases PATH] [--json]

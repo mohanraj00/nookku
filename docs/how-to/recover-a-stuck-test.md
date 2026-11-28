@@ -1,6 +1,6 @@
 # Recover a stuck test
 
-Release: nookku 0.6.1.
+Release: nookku 0.6.2.
 
 A test is stuck when its [bridge](../reference/glossary.md#bridge) stopped, but the project still says that a test runs. For example, the computer restarted, or a process killed the bridge. Then the [relay](../reference/glossary.md#relay) blocks each prompt with this text:
 

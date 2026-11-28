@@ -1,6 +1,6 @@
 # Read the results of a test
 
-Release: nookku 0.6.1.
+Release: nookku 0.6.2.
 
 After a test, the [test folder](../reference/glossary.md#test-folder) holds the records, the [trace](../reference/glossary.md#trace), the [audit](../reference/glossary.md#audit), the [seal](../reference/glossary.md#seal) and, if the model ran, a report. This page tells you how to read these files in order. Read the seal first. If a file changed after the end of the test, do not trust the other results.
 

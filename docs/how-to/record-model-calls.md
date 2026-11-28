@@ -1,6 +1,6 @@
 # Record model calls and OpenTelemetry
 
-Release: nookku 0.6.1.
+Release: nookku 0.6.2.
 
 A test records 2 more sources by default: the direct model calls of your app, and the OpenTelemetry spans and logs of your app. Both go into the [trace](../reference/glossary.md#trace), each item in its turn.
 

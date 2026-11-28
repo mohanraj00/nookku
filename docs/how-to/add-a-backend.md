@@ -1,6 +1,6 @@
 # Add a backend
 
-Release: nookku 0.6.1.
+Release: nookku 0.6.2.
 
 A backend is an HTTP service that your app calls, for example a stock service or a payment service. At each start, the [harness model](../reference/glossary.md#harness-model) finds each backend of your app, and the test records each call of the app to it. The [trace](../reference/glossary.md#trace) shows each call in its turn, so the [evaluation](../reference/glossary.md#evaluation) can see what the app did, not only what it said.
 

@@ -1,6 +1,6 @@
 # Connect your own agent
 
-Release: nookku 0.6.1.
+Release: nookku 0.6.2.
 
 A test runs your app through an [entry](../reference/glossary.md#entry): a thin wrapper that starts the app and speaks the [agent contract](../reference/glossary.md#agent-contract). The entry and its configuration are in `.nookku/`. Your app's code does not change.
 
