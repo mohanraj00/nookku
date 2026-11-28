@@ -173,9 +173,35 @@ jobs:
           name: release-samples
           path: release-samples.json
           if-no-files-found: ignore
+  # The release job test runs the tests of the wheel in a checkout of depth 1 with no tags. This
+  # job runs the same command in the same checkout. Thus a test that needs a tag, the full history
+  # or a remote fails on the PR, not at the release (#716). tests/test_docs.py keeps the 2
+  # commands the same. It runs only for a change that is not docs-only.
+  release-tests:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - run: uv build
+      - name: The wheel that will be published passes every test
+        run: |
+          python -m venv /tmp/clean
+          /tmp/clean/bin/pip install -q dist/*.whl pytest
+          /tmp/clean/bin/nookku --version
+          /tmp/clean/bin/python -m pytest -p no:cacheprovider tests
   # The required check. Add each project job to needs. A skipped job passes. A failed or cancelled job fails.
   ci-ok:
-    needs: [changes, lint, test, claude-code-plugin, kind-testkey, dashboard, release-samples]
+    needs: [changes, lint, test, claude-code-plugin, kind-testkey, dashboard, release-samples, release-tests]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 2

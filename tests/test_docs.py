@@ -948,6 +948,27 @@ def test_ci_pins_the_claude_code_version_of_the_plugin_proofs_and_the_faq_names_
     assert f"CI pins Claude Code {pins[0]} " in faq
 
 
+def _wheel_test(workflow: str) -> str:
+    """The run block of the step that tests the wheel."""
+    text = (ROOT / ".github" / "workflows" / workflow).read_text(encoding="utf-8")
+    found = re.findall(
+        r"- name: The wheel that will be published passes every test\n\s+run: \|\n((?: {10}.*\n)+)",
+        text,
+    )
+    assert len(found) == 1, workflow
+    return found[0]
+
+
+def test_the_pr_ci_runs_the_release_test_command_with_the_release_checkout_depth() -> None:
+    """A test that needs a tag, the full history or a remote fails in the release job test (#716).
+    The CI job release-tests runs the same command in a checkout of depth 1."""
+    assert _wheel_test("ci.yml") == _wheel_test("release.yml")
+    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    job = ci.split("\n  release-tests:\n", 1)[1].split("\n  # ", 1)[0]
+    assert "fetch-depth" not in job and "fetch-tags" not in job
+    assert "release-tests]" in ci
+
+
 def test_the_print_mode_refusal_links_a_heading_of_the_troubleshooting_page() -> None:
     """The link names the release tag, so the heading must be in the docs of this version."""
     assert print_mode.ANCHOR in anchors(DOCS / "troubleshooting.md")
