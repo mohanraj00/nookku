@@ -32,9 +32,9 @@ Write a test as one HTML file, so you can give it to a person who does not have 
 In a copy of the toy shop folder `examples/toy-shop/` of this repo, in the project `~/shop`: The test `20261127-194213-41bc` is a test of `nookku run`.
 
 ```bash
-nookku export 20261127-194213-41bc --out shop-test.zip
+nookku export 20261127-194213-41bc --out shop-test.html
 ```
 
 ```text
-Wrote test 20261127-194213-41bc to ~/shop/shop-test.zip
+Wrote test 20261127-194213-41bc to ~/shop/shop-test.html
 ```

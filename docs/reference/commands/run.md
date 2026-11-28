@@ -50,7 +50,7 @@ By default, only a person runs `nookku run`: the relay denies it from the model.
 In a copy of the toy shop folder `examples/toy-shop/` of this repo, in the project `~/shop`:
 
 ```bash
-nookku run --script examples/toy-shop/script.jsonl --no-evaluate
+nookku run --script script.jsonl --no-evaluate
 ```
 
 ```text

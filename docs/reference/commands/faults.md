@@ -21,7 +21,7 @@ Run each check of the [trace](../glossary.md#trace) on its seeded faults, with n
 
 ## Example
 
-In the root of this repo, which holds the conformance cases. The output has one line for each seeded fault. This is its start and its end:
+In the root of this repo, which holds the conformance cases. The output has one line for each seeded fault. This is its start and its end. The counts come from the trace cases in [conformance/trace](../../../conformance/trace) of this checkout, with the method of [faults.py](../../../src/nookku/faults.py). The release step records the result of each release, for example [faults-0.6.2.json](../../../proofs/release/faults-0.6.2.json) (97 of 97 faults in 49 cases).
 
 ```bash
 nookku faults
@@ -32,5 +32,5 @@ found  answer_key_mismatch (turn 3) in answer_key
 found  answer_key_mismatch (turn 4) in answer_key
 ...
 found  version_untested (no turn) in untested_versions
-Nookku 0.6.1: 108 of 108 seeded faults found in 52 trace cases. 33 of 33 checks have a seeded fault.
+Nookku 0.6.2: 108 of 108 seeded faults found in 52 trace cases. 33 of 33 checks have a seeded fault.
 ```

@@ -54,7 +54,7 @@ If the config has no `entry` and no `agent_url` after the run, the last line of 
 In a copy of the toy shop folder `examples/toy-shop/` of this repo, in the project `~/shop`:
 
 ```bash
-nookku init plugin --entry "python3 examples/toy-shop/agent.py"
+nookku init plugin --entry "python3 agent.py"
 ```
 
 ```text
