@@ -1,0 +1,7 @@
+{
+ "orders": {
+  "4471": {"item": "blue mug", "price_eur": 8, "status": "delivered", "tracking": "TS-4471-A"},
+  "5120": {"item": "teapot set", "price_eur": 80, "status": "delivered", "tracking": "TS-5120-B"},
+  "6210": {"item": "teapot set", "price_eur": 80, "status": "waiting for stock"}
+ }
+}
